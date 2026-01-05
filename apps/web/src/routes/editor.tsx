@@ -100,6 +100,7 @@ function EditorPage() {
   const [error, setError] = useState<string | null>(null)
   const [exported, setExported] = useState('')
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [compareTargetId, setCompareTargetId] = useState<string | null>(null)
 
   const activeStructure =
     structures.find((structure) => structure.id === activeId) ?? structures[0]
@@ -147,10 +148,50 @@ function EditorPage() {
     () => overlayTargets.filter((structure) => structure.isVisible).length,
     [overlayTargets],
   )
+  const compareCandidates = useMemo(
+    () => structures.filter((structure) => structure.id !== activeId),
+    [activeId, structures],
+  )
+  const compareTarget = useMemo(
+    () => structures.find((structure) => structure.id === compareTargetId) ?? null,
+    [compareTargetId, structures],
+  )
+  const compareMismatch = useMemo(() => {
+    if (!compareTarget) {
+      return false
+    }
+    if (atoms.length === 0 || compareTarget.atoms.length === 0) {
+      return false
+    }
+    return atoms.length !== compareTarget.atoms.length
+  }, [atoms.length, compareTarget])
   const selectedAtoms = useMemo(
     () => selectedIndices.map((index) => atoms[index]).filter(Boolean),
     [atoms, selectedIndices],
   )
+  const distanceRows = useMemo(() => {
+    if (!compareTarget || atoms.length === 0 || compareTarget.atoms.length === 0) {
+      return []
+    }
+    const limit = Math.min(atoms.length, compareTarget.atoms.length)
+    const indices =
+      selectedIndices.length > 0
+        ? selectedIndices.filter((index) => index >= 0 && index < limit)
+        : [...Array(Math.min(limit, 200)).keys()]
+    return indices.map((index) => {
+      const source = atoms[index]
+      const target = compareTarget.atoms[index]
+      const dx = source.x - target.x
+      const dy = source.y - target.y
+      const dz = source.z - target.z
+      return {
+        index,
+        source,
+        target,
+        dist: Math.sqrt(dx * dx + dy * dy + dz * dz),
+      }
+    })
+  }, [atoms, compareTarget, selectedIndices])
   const selectedDistance = useMemo(() => {
     if (selectedAtoms.length < 2) {
       return null
@@ -179,15 +220,18 @@ function EditorPage() {
     )
   }
 
+  const makeDrafts = (nextAtoms: Atom[]) =>
+    nextAtoms.map((atom) => ({
+      symbol: atom.symbol,
+      x: atom.x.toFixed(4),
+      y: atom.y.toFixed(4),
+      z: atom.z.toFixed(4),
+    }))
+
   const syncDrafts = (nextAtoms: Atom[]) => {
     updateActive((structure) => ({
       ...structure,
-      drafts: nextAtoms.map((atom) => ({
-        symbol: atom.symbol,
-        x: atom.x.toFixed(4),
-        y: atom.y.toFixed(4),
-        z: atom.z.toFixed(4),
-      })),
+      drafts: makeDrafts(nextAtoms),
     }))
   }
 
@@ -200,12 +244,7 @@ function EditorPage() {
       updateActive((current) => ({
         ...current,
         atoms: structure.atoms,
-        drafts: structure.atoms.map((atom) => ({
-          symbol: atom.symbol,
-          x: atom.x.toFixed(4),
-          y: atom.y.toFixed(4),
-          z: atom.z.toFixed(4),
-        })),
+        drafts: makeDrafts(structure.atoms),
       }))
       setSelectedIndices([])
     } catch (err) {
@@ -294,10 +333,7 @@ function EditorPage() {
     updateActive((structure) => ({
       ...structure,
       atoms: [...structure.atoms, nextAtom],
-      drafts: [
-        ...structure.drafts,
-        { symbol: 'X', x: '0.0000', y: '0.0000', z: '0.0000' },
-      ],
+      drafts: [...structure.drafts, { symbol: 'X', x: '0.0000', y: '0.0000', z: '0.0000' }],
     }))
   }
 
@@ -342,15 +378,7 @@ function EditorPage() {
       updateActive((structure) => ({
         ...structure,
         atoms: [...structure.atoms, ...parsed],
-        drafts: [
-          ...structure.drafts,
-          ...parsed.map((atom) => ({
-            symbol: atom.symbol,
-            x: atom.x.toFixed(4),
-            y: atom.y.toFixed(4),
-            z: atom.z.toFixed(4),
-          })),
-        ],
+        drafts: [...structure.drafts, ...makeDrafts(parsed)],
       }))
       setSelectedIndices(parsed.map((_, i) => start + i))
     } catch (err) {
@@ -396,6 +424,42 @@ function EditorPage() {
     const nextAtoms = alignSelectedCentroid(atoms, selectedIndices)
     syncDrafts(nextAtoms)
     updateActive((structure) => ({ ...structure, atoms: nextAtoms }))
+  }
+
+  const handleSurfaceTransfer = () => {
+    if (!compareTarget) {
+      setError('転写先の構造がありません。')
+      return
+    }
+    if (atoms.length === 0 || compareTarget.atoms.length === 0) {
+      setError('転写元・転写先の両方に構造を読み込んでください。')
+      return
+    }
+    if (selectedIndices.length === 0) {
+      setError('転写する原子を選択してください。')
+      return
+    }
+    const invalid = selectedIndices.filter((index) => index >= compareTarget.atoms.length)
+    if (invalid.length > 0) {
+      setError('転写先の原子数が不足しています。')
+      return
+    }
+    setError(null)
+    updateStructure(compareTarget.id, (structure) => {
+      const nextAtoms = structure.atoms.map((atom, index) => {
+        if (!selectedIndices.includes(index)) {
+          return atom
+        }
+        const sourceAtom = atoms[index]
+        return {
+          ...atom,
+          x: sourceAtom.x,
+          y: sourceAtom.y,
+          z: sourceAtom.z,
+        }
+      })
+      return { ...structure, atoms: nextAtoms, drafts: makeDrafts(nextAtoms) }
+    })
   }
 
   const handleSelectStructure = (id: string) => {
@@ -457,6 +521,19 @@ function EditorPage() {
     window.addEventListener('chem-model-import', handler)
     return () => window.removeEventListener('chem-model-import', handler)
   }, [])
+
+  useEffect(() => {
+    if (compareCandidates.length === 0) {
+      setCompareTargetId(null)
+      return
+    }
+    setCompareTargetId((prev) => {
+      if (prev && compareCandidates.some((candidate) => candidate.id === prev)) {
+        return prev
+      }
+      return compareCandidates[0].id
+    })
+  }, [compareCandidates])
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -595,40 +672,63 @@ function EditorPage() {
                 <RefreshCw className="h-4 w-4 text-white/40" />
               </div>
               <div className="mt-4 space-y-3 text-sm text-white/70">
+                <div className="flex items-center justify-between gap-3">
+                  <span>Compare With</span>
+                  <select
+                    value={compareTarget?.id ?? ''}
+                    onChange={(event) => setCompareTargetId(event.target.value || null)}
+                    className="rounded-lg border border-white/10 bg-slate-950/70 px-2 py-1 text-xs text-white/80 focus:border-amber-300 focus:outline-none"
+                  >
+                    {compareCandidates.length === 0 ? (
+                      <option value="">None</option>
+                    ) : null}
+                    {compareCandidates.map((candidate) => (
+                      <option key={candidate.id} value={candidate.id}>
+                        {candidate.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {compareMismatch ? (
+                  <div className="rounded-lg border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+                    原子数が一致しません。インデックス対応の転写・距離に影響します。
+                  </div>
+                ) : null}
                 <div className="flex items-center justify-between">
                   <span>RMSD</span>
                   <span className="font-semibold text-white">0.042 Å</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span>Pair Distance</span>
+                  <span>Selected Pair</span>
                   <span className="font-semibold text-white">
                     {selectedDistance ? `${selectedDistance.toFixed(4)} Å` : '—'}
                   </span>
                 </div>
                 <div className="rounded-xl border border-white/10 bg-slate-900/60 px-3 py-2 text-xs text-white/60">
                   <p className="uppercase tracking-[0.3em] text-white/40">
-                    Selected Distances
+                    A↔B Distances (Index)
                   </p>
                   <div className="mt-2 space-y-1">
-                    {selectedAtoms.length < 2 ? (
-                      <p className="text-white/40">2つ以上選択してください。</p>
-                    ) : (
-                      selectedAtoms.slice(1).map((atom, index) => {
-                        const target = selectedAtoms[0]
-                        const dx = atom.x - target.x
-                        const dy = atom.y - target.y
-                        const dz = atom.z - target.z
-                        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
-                        return (
-                          <div key={`${atom.symbol}-${index}`} className="flex justify-between">
-                            <span>
-                              {target.symbol}→{atom.symbol}
-                            </span>
-                            <span className="text-white">{dist.toFixed(4)} Å</span>
-                          </div>
-                        )
-                      })
+                    {compareTarget ? null : (
+                      <p className="text-white/40">比較対象を選択してください。</p>
                     )}
+                    {compareTarget && distanceRows.length === 0 ? (
+                      <p className="text-white/40">距離を表示できません。</p>
+                    ) : null}
+                    {compareTarget
+                      ? distanceRows.map((row) => (
+                          <div
+                            key={`distance-${row.index}`}
+                            className="flex justify-between"
+                          >
+                            <span>
+                              #{row.index + 1} {row.source.symbol}→
+                              {row.target.symbol}
+                            </span>
+                            <span className="text-white">{row.dist.toFixed(4)} Å</span>
+                          </div>
+                        ))
+                      : null}
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
@@ -640,6 +740,13 @@ function EditorPage() {
               </div>
               <button className="mt-4 w-full rounded-xl bg-white/10 px-3 py-2 text-xs text-white transition hover:bg-white/20">
                 Align Selected
+              </button>
+              <button
+                className="mt-2 w-full rounded-xl border border-amber-200/40 px-3 py-2 text-xs text-amber-100/90 transition hover:text-amber-200 disabled:cursor-not-allowed disabled:opacity-40"
+                onClick={handleSurfaceTransfer}
+                disabled={!compareTarget}
+              >
+                Surface Transfer ({activeId}→{compareTarget?.id ?? '—'})
               </button>
             </div>
           </section>
