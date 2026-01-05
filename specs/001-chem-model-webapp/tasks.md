@@ -6,9 +6,9 @@
 **Tests**: pytest を導入済みのため、APIテストを優先して段階的に追加する。
 
 **Format**: `[ID] [P?] [Story] Description`  
-**Stories**: US1=読み込み/編集, US2=表面転写/距離QC, US3=複合スーパーセル, US4=格子変換
+**Stories**: US1=読み込み/編集, US2=表面転写/距離QC, US3=複合スーパーセル, US4=格子変換, US5=共有/重ね表示
 
-**Note**: 共有/重ね表示は現行Specの対象外のためタスクから除外する。
+**Note**: 共有は当面単一HTMLで実装し、重ね表示/可視/透明度を再現する。
 
 ---
 
@@ -62,6 +62,8 @@
 - [ ] T033 [US2] 対応原子距離レポート（PBC時は最小像）
 - [ ] T034 [US2] 事前検証（原子数/格子非互換の警告）
 - [ ] T035 [US2] フロント: 距離テーブルUI
+- [x] T036 [US5] フロント: 重ね表示ON/OFFと構造ごとの表示/透明度をMol*へ反映（`apps/web/src/components/molstar/MolstarViewer.tsx`, `apps/web/src/routes/editor.tsx`）
+- [x] T037 [US5] フロント: 構造ごとの表示/透明度UIを追加（`apps/web/src/routes/editor.tsx`）
 
 ---
 
@@ -86,7 +88,16 @@
 
 ---
 
-## Phase 7: Polish & Cross-Cutting
+## Phase 7: User Story 5 - 共有/重ね表示 (P3)
+
+**Goal**: 重ね表示の状態を共有HTMLで再現できる
+
+- [x] T070 [US5] 共有HTML: 重ね表示/表示/透明度を再現（`apps/web/src/components/share/html-export.tsx`）
+- [ ] T071 [US5] 共有HTMLのエラーハンドリング整備（空データ時の通知）
+
+---
+
+## Phase 8: Polish & Cross-Cutting
 
 - [x] T050 [P] UI/UX の細部調整（ショートカット、アクセシビリティ）
 - [x] T051 [P] パフォーマンス最適化（大規模構造の表示）
