@@ -6,7 +6,9 @@
 **Tests**: pytest を導入済みのため、APIテストを優先して段階的に追加する。
 
 **Format**: `[ID] [P?] [Story] Description`  
-**Stories**: US1=読み込み/編集, US2=比較/移植, US3=スーパーセル/共有
+**Stories**: US1=読み込み/編集, US2=表面転写/距離QC, US3=複合スーパーセル, US4=格子変換
+
+**Note**: 共有/重ね表示は現行Specの対象外のためタスクから除外する。
 
 ---
 
@@ -42,6 +44,7 @@
 - [x] T022 [US1] フロント: Atom Table（編集可能）実装（`apps/web/src/routes/editor.tsx`）
 - [x] T023 [US1] フロント: 3D表示に座標編集を反映（`apps/web/src/routes/editor.tsx`, `apps/web/src/components/molstar/*`）
 - [x] T024 [US1] エクスポートUI（.in 保存）実装（`apps/web/src/routes/editor.tsx`）
+- [ ] T027 [US1] 出力設定画面（入力形式/単位保持がデフォルト、将来拡張の枠を用意）
 
 ### Tests (US1)
 - [x] T025 [P] [US1] API: `/parse` の単体テスト（`apps/api/tests/test_parse.py`）
@@ -49,30 +52,44 @@
 
 ---
 
-## Phase 4: User Story 2 - 比較・部分移植 (P2)
+## Phase 4: User Story 2 - 表面転写/距離QC (P2)
 
-**Goal**: 複数構造を並べて比較/移植/整列できる
+**Goal**: 2構造(A/B)の表面転写と対応原子距離のQCができる
 
-- [x] T030 [US2] フロント: 構造リストUI（任意数管理）（`apps/web/src/routes/editor.tsx`）
-- [x] T031 [US2] フロント: 選択/コピー/貼り付け操作（`apps/web/src/routes/editor.tsx`）
-- [x] T032 [US2] フロント: 距離テーブル（`apps/web/src/routes/editor.tsx`）
-- [x] T033 [US2] フロント: 整列/シフト操作（`apps/web/src/components/compare/align.ts`）
-
----
-
-## Phase 5: User Story 3 - スーパーセル/共有 (P3)
-
-**Goal**: スーパーセル生成と共有（単一HTML）
-
-- [x] T040 [US3] API: スーパーセル生成サービス（`apps/api/services/supercell.py`）
-- [x] T041 [US3] フロント: スーパーセル画面UI（`apps/web/src/routes/supercell.tsx`）
-- [x] T042 [US3] フロント: 単一HTMLエクスポート（`apps/web/src/components/share/html-export.tsx`）
-- [x] T043 [US3] 共有リンク方式の設計メモを追加（`specs/001-chem-model-webapp/share-notes.md`）
+- [ ] T030 [US2] フロント: A/B 2構造の読み込み・切替UI（固定2枠）
+- [ ] T031 [US2] フロント: 表面領域の選択UI（手動選択をベース）
+- [ ] T032 [US2] 表面転写（インデックス対応、Cartesian座標の上書き）
+- [ ] T033 [US2] 対応原子距離レポート（PBC時は最小像）
+- [ ] T034 [US2] 事前検証（原子数/格子非互換の警告）
+- [ ] T035 [US2] フロント: 距離テーブルUI
 
 ---
 
-## Phase 6: Polish & Cross-Cutting
+## Phase 5: User Story 3 - 複合スーパーセル (P3)
+
+**Goal**: タイルパターンに従って複合スーパーセルを生成する
+
+- [ ] T040 [US3] API: 複合スーパーセル生成（タイルパターン入力）
+- [ ] T041 [US3] フロント: タイルパターン入力UI（2D配列 + GUIの下地）
+- [ ] T042 [US3] フロント: 生成結果のプレビュー
+- [ ] T043 [US3] 重複/衝突チェック（許容誤差付き、任意）
+
+---
+
+## Phase 6: User Story 4 - 格子変換 (P3)
+
+**Goal**: 格子定数とセルベクトルを相互変換できる
+
+- [ ] T060 [US4] API: 格子変換サービス（a,b,c,α,β,γ ⇄ cell vectors）
+- [ ] T061 [US4] フロント: 変換UI（単位切替: alat/bohr/angstrom）
+- [ ] T062 [US4] 変換の単体テスト追加
+
+---
+
+## Phase 7: Polish & Cross-Cutting
 
 - [x] T050 [P] UI/UX の細部調整（ショートカット、アクセシビリティ）
 - [x] T051 [P] パフォーマンス最適化（大規模構造の表示）
 - [x] T052 [P] ドキュメント更新（`specs/001-chem-model-webapp/quickstart.md`）
+- [x] T053 [P] 開発補助: Justfile で Web/API 同時起動を追加（`Justfile`）
+- [x] T054 [US1] .in パースの手動フォールバック追加（`apps/api/services/parse.py`）

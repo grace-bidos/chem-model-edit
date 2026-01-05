@@ -196,7 +196,13 @@ function SupercellPage() {
                 <Layers className="h-4 w-4" />
               </div>
               <div className="mt-4 min-h-[240px] flex-1">
-                <MolstarViewer pdbText={atoms.length ? pdb : undefined} />
+                <MolstarViewer
+                  structures={
+                    atoms.length
+                      ? [{ id: 'supercell', pdbText: pdb, opacity: 1, visible: true }]
+                      : []
+                  }
+                />
               </div>
             </div>
           </div>

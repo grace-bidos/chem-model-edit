@@ -34,6 +34,8 @@ type StructureState = {
   color: string
   atoms: Atom[]
   drafts: AtomDraft[]
+  isVisible: boolean
+  opacity: number
 }
 
 export const Route = createFileRoute('/editor')({
@@ -55,6 +57,8 @@ function EditorPage() {
       color: palette[0],
       atoms: [],
       drafts: [],
+      isVisible: true,
+      opacity: 1,
     },
     {
       id: 'B',
@@ -62,9 +66,12 @@ function EditorPage() {
       color: palette[1],
       atoms: [],
       drafts: [],
+      isVisible: true,
+      opacity: 0.5,
     },
   ])
   const [activeId, setActiveId] = useState(structures[0]?.id ?? 'A')
+  const [overlayEnabled, setOverlayEnabled] = useState(true)
   const sampleQe = [
     '&CONTROL',
     "  calculation='scf'",
@@ -106,12 +113,40 @@ function EditorPage() {
     'ATOM      3  H2  HOH A   1      -0.757   0.586   0.000  1.00  0.00           H',
     'END',
   ].join('\n')
-  const displayPdb = useMemo(() => {
-    if (atoms.length === 0) {
-      return samplePdb
+  const overlayTargets = useMemo(() => {
+    if (overlayEnabled) {
+      return structures
     }
-    return atomsToPdb(atoms)
-  }, [atoms, samplePdb])
+    return structures.filter((structure) => structure.id === activeId)
+  }, [activeId, overlayEnabled, structures])
+  const viewerStructures = useMemo(() => {
+    return overlayTargets.flatMap((structure) => {
+      if (!structure.isVisible) {
+        return []
+      }
+      const pdbText =
+        structure.atoms.length > 0
+          ? atomsToPdb(structure.atoms)
+          : structure.id === activeId
+            ? samplePdb
+            : null
+      if (!pdbText) {
+        return []
+      }
+      return [
+        {
+          id: structure.id,
+          pdbText,
+          opacity: structure.opacity,
+          visible: structure.isVisible,
+        },
+      ]
+    })
+  }, [activeId, overlayTargets, samplePdb])
+  const visibleOverlayCount = useMemo(
+    () => overlayTargets.filter((structure) => structure.isVisible).length,
+    [overlayTargets],
+  )
   const selectedAtoms = useMemo(
     () => selectedIndices.map((index) => atoms[index]).filter(Boolean),
     [atoms, selectedIndices],
@@ -132,6 +167,15 @@ function EditorPage() {
       prev.map((structure) =>
         structure.id === activeId ? updater(structure) : structure,
       ),
+    )
+  }
+
+  const updateStructure = (
+    id: string,
+    updater: (structure: StructureState) => StructureState,
+  ) => {
+    setStructures((prev) =>
+      prev.map((structure) => (structure.id === id ? updater(structure) : structure)),
     )
   }
 
@@ -191,12 +235,15 @@ function EditorPage() {
   }
 
   const handleShareHtml = () => {
-    if (atoms.length === 0) {
+    const shareTargets = overlayTargets.filter(
+      (structure) => structure.isVisible && structure.atoms.length > 0,
+    )
+    if (shareTargets.length === 0) {
       setError('共有する原子がありません。')
       return
     }
     setError(null)
-    downloadShareHtml(atoms)
+    downloadShareHtml(structures, { activeId, overlayEnabled })
   }
 
   const handleAtomChange = (
@@ -252,6 +299,15 @@ function EditorPage() {
         { symbol: 'X', x: '0.0000', y: '0.0000', z: '0.0000' },
       ],
     }))
+  }
+
+  const handleToggleVisibility = (id: string, next: boolean) => {
+    updateStructure(id, (structure) => ({ ...structure, isVisible: next }))
+  }
+
+  const handleOpacityChange = (id: string, value: number) => {
+    const nextOpacity = Math.min(1, Math.max(0, value))
+    updateStructure(id, (structure) => ({ ...structure, opacity: nextOpacity }))
   }
 
   const toggleSelect = (index: number) => {
@@ -360,6 +416,8 @@ function EditorPage() {
         color: palette[(index - 1) % palette.length],
         atoms: [],
         drafts: [],
+        isVisible: true,
+        opacity: 1,
       }
       setActiveId(id)
       setSelectedIndices([])
@@ -413,12 +471,24 @@ function EditorPage() {
                 <p className="text-xs uppercase tracking-[0.3em] text-white/50">
                   Structures
                 </p>
-                <button
-                  className="rounded-full border border-white/10 bg-white/5 p-1.5 text-white/60 transition hover:text-white"
-                  onClick={handleAddStructure}
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    className={`rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.3em] transition ${
+                      overlayEnabled
+                        ? 'border-amber-200/60 text-amber-100/90'
+                        : 'border-white/10 text-white/50 hover:text-white/70'
+                    }`}
+                    onClick={() => setOverlayEnabled((prev) => !prev)}
+                  >
+                    Overlay {overlayEnabled ? 'On' : 'Off'}
+                  </button>
+                  <button
+                    className="rounded-full border border-white/10 bg-white/5 p-1.5 text-white/60 transition hover:text-white"
+                    onClick={handleAddStructure}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
               <div className="mt-4 space-y-3">
                 {structures.map((structure) => (
@@ -452,6 +522,44 @@ function EditorPage() {
                       <span className="rounded-full border border-white/10 px-2 py-1">
                         {structure.id === activeId ? 'Active' : 'Idle'}
                       </span>
+                    </div>
+                    <div
+                      className="mt-3 space-y-2 text-xs text-white/60"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <label className="flex items-center justify-between gap-2">
+                        <span>Visible</span>
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 accent-amber-300"
+                          checked={structure.isVisible}
+                          onChange={(event) =>
+                            handleToggleVisibility(structure.id, event.target.checked)
+                          }
+                        />
+                      </label>
+                      <div className="flex items-center justify-between gap-2">
+                        <span>Opacity</span>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="range"
+                            min={0}
+                            max={100}
+                            step={1}
+                            value={Math.round(structure.opacity * 100)}
+                            onChange={(event) =>
+                              handleOpacityChange(
+                                structure.id,
+                                Number(event.target.value) / 100,
+                              )
+                            }
+                            className="h-1 w-24 cursor-pointer accent-amber-300"
+                          />
+                          <span className="w-10 text-right text-white/70">
+                            {Math.round(structure.opacity * 100)}%
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -772,20 +880,22 @@ function EditorPage() {
                 </div>
                 <div className="mt-4 space-y-3 text-sm text-white/70">
                   <div className="flex items-center justify-between">
-                    <span>Background</span>
+                    <span>Overlay Mode</span>
                     <span className="rounded-full border border-white/10 px-3 py-1 text-xs">
-                      Polar Dark
+                      {overlayEnabled ? 'On' : 'Off'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span>Labels</span>
-                    <span className="rounded-full border border-amber-200/50 px-3 py-1 text-xs text-amber-200">
-                      On
+                    <span>Visible Structures</span>
+                    <span className="rounded-full border border-white/10 px-3 py-1 text-xs">
+                      {visibleOverlayCount}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span>Opacity</span>
-                    <span className="text-xs">65%</span>
+                    <span>Active Opacity</span>
+                    <span className="text-xs">
+                      {Math.round((activeStructure?.opacity ?? 1) * 100)}%
+                    </span>
                   </div>
                 </div>
               </div>
@@ -804,7 +914,7 @@ function EditorPage() {
                 <Layers className="h-4 w-4 text-white/40" />
               </div>
               <div className="mt-4 h-80 flex-1 lg:h-full">
-                <MolstarViewer pdbText={displayPdb} />
+                <MolstarViewer structures={viewerStructures} />
               </div>
               <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-white/70">
                 <button className="rounded-lg border border-white/10 px-3 py-2 transition hover:border-white/30">

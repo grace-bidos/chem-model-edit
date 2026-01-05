@@ -1,32 +1,77 @@
-import { useEffect, useRef } from 'react'
-import { Viewer } from 'molstar/lib/apps/viewer/app'
-import 'molstar/lib/mol-plugin-ui/skin/light.scss'
+import { useEffect, useMemo, useRef } from 'react'
+import type { Viewer } from 'molstar/lib/apps/viewer/app'
+
+type MolstarStructure = {
+  id: string
+  pdbText: string
+  opacity?: number
+  visible?: boolean
+}
 
 type MolstarViewerProps = {
   pdbText?: string
+  structures?: MolstarStructure[]
 }
 
-export default function MolstarViewer({ pdbText }: MolstarViewerProps) {
+export default function MolstarViewer({ pdbText, structures }: MolstarViewerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const viewerRef = useRef<Viewer | null>(null)
-  const lastPdbRef = useRef<string | null>(null)
+  const lastSignatureRef = useRef<string | null>(null)
   const timerRef = useRef<number | null>(null)
 
-  const loadBallAndStick = async (viewer: Viewer, pdb: string) => {
+  const normalizedStructures = useMemo<MolstarStructure[]>(() => {
+    if (structures && structures.length > 0) {
+      return structures
+    }
+    if (pdbText) {
+      return [{ id: 'single', pdbText, opacity: 1, visible: true }]
+    }
+    return []
+  }, [pdbText, structures])
+
+  const signature = useMemo(() => {
+    if (normalizedStructures.length === 0) {
+      return ''
+    }
+    return normalizedStructures
+      .map((structure) => {
+        const opacity = structure.opacity ?? 1
+        const visible = structure.visible ?? true
+        return `${structure.id}|${opacity}|${visible}|${structure.pdbText}`
+      })
+      .join('::')
+  }, [normalizedStructures])
+
+  const loadBallAndStick = async (viewer: Viewer, items: MolstarStructure[]) => {
     const plugin = (viewer as unknown as { plugin: any }).plugin
     await plugin.clear()
-    const data = await plugin.builders.data.rawData({ data: pdb }, { state: { isGhost: true } })
-    const trajectory = await plugin.builders.structure.parseTrajectory(data, 'pdb')
-    const model = await plugin.builders.structure.createModel(trajectory)
-    const structure = await plugin.builders.structure.createStructure(model)
-    const component = await plugin.builders.structure.tryCreateComponentStatic(structure, 'all')
-    if (component) {
-      await plugin.builders.structure.representation.addRepresentation(component, {
-        type: 'ball-and-stick',
-        color: 'element-symbol',
-      })
+    for (const item of items) {
+      if (!item.pdbText || item.visible === false) {
+        continue
+      }
+      const data = await plugin.builders.data.rawData(
+        { data: item.pdbText },
+        { state: { isGhost: true } },
+      )
+      const trajectory = await plugin.builders.structure.parseTrajectory(data, 'pdb')
+      const model = await plugin.builders.structure.createModel(trajectory)
+      const structure = await plugin.builders.structure.createStructure(model)
+      const component = await plugin.builders.structure.tryCreateComponentStatic(structure, 'all')
+      if (component) {
+        const opacity = Math.min(1, Math.max(0, item.opacity ?? 1))
+        await plugin.builders.structure.representation.addRepresentation(component, {
+          type: 'ball-and-stick',
+          color: 'element-symbol',
+          typeParams: { alpha: opacity },
+        })
+      }
     }
     plugin.managers?.camera?.reset?.()
+  }
+
+  const clearViewer = async (viewer: Viewer) => {
+    const plugin = (viewer as unknown as { plugin: any }).plugin
+    await plugin.clear()
   }
 
   useEffect(() => {
@@ -36,23 +81,30 @@ export default function MolstarViewer({ pdbText }: MolstarViewerProps) {
 
     let active = true
 
-    Viewer.create(containerRef.current, {
-      layoutIsExpanded: false,
-      layoutShowControls: false,
-      layoutShowLeftPanel: false,
-      layoutShowSequence: false,
-      layoutShowLog: false,
-      layoutShowSidebar: false,
-      viewportShowExpand: false,
-      viewportShowControls: false,
-      backgroundColor: 0x0b1120,
-    }).then((viewer) => {
-      if (!active) {
-        viewer.dispose()
-        return
+    void (async () => {
+      try {
+        await import('molstar/lib/mol-plugin-ui/skin/light.scss')
+        const { Viewer } = await import('molstar/lib/apps/viewer/app')
+        const viewer = await Viewer.create(containerRef.current, {
+          layoutIsExpanded: false,
+          layoutShowControls: false,
+          layoutShowLeftPanel: false,
+          layoutShowSequence: false,
+          layoutShowLog: false,
+          layoutShowSidebar: false,
+          viewportShowExpand: false,
+          viewportShowControls: false,
+          backgroundColor: 0x0b1120,
+        })
+        if (!active) {
+          viewer.dispose()
+          return
+        }
+        viewerRef.current = viewer
+      } catch (error) {
+        console.error('Mol* Viewerの初期化に失敗しました。', error)
       }
-      viewerRef.current = viewer
-    })
+    })()
 
     return () => {
       active = false
@@ -64,10 +116,18 @@ export default function MolstarViewer({ pdbText }: MolstarViewerProps) {
   }, [])
 
   useEffect(() => {
-    if (!viewerRef.current || !pdbText) {
+    if (!viewerRef.current) {
       return
     }
-    if (lastPdbRef.current === pdbText) {
+    if (signature.length === 0) {
+      if (lastSignatureRef.current !== signature) {
+        void clearViewer(viewerRef.current).then(() => {
+          lastSignatureRef.current = signature
+        })
+      }
+      return
+    }
+    if (lastSignatureRef.current === signature) {
       return
     }
     if (timerRef.current) {
@@ -77,8 +137,8 @@ export default function MolstarViewer({ pdbText }: MolstarViewerProps) {
       if (!viewerRef.current) {
         return
       }
-      void loadBallAndStick(viewerRef.current, pdbText).then(() => {
-        lastPdbRef.current = pdbText
+      void loadBallAndStick(viewerRef.current, normalizedStructures).then(() => {
+        lastSignatureRef.current = signature
       })
     }, 150)
     return () => {
@@ -86,12 +146,12 @@ export default function MolstarViewer({ pdbText }: MolstarViewerProps) {
         window.clearTimeout(timerRef.current)
       }
     }
-  }, [pdbText])
+  }, [normalizedStructures, signature])
 
   return (
     <div
       ref={containerRef}
-      className="h-full w-full overflow-hidden rounded-xl border border-white/10"
+      className="relative h-full w-full overflow-hidden rounded-xl border border-white/10"
     />
   )
 }

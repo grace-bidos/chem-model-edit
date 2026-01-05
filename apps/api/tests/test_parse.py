@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from main import app
+from services import parse as parse_service
 
 CLIENT = TestClient(app)
 
@@ -39,3 +40,31 @@ def test_parse_qe_ok():
 def test_parse_qe_invalid():
     response = CLIENT.post('/parse', json={'content': 'invalid'})
     assert response.status_code == 400
+
+
+def test_parse_qe_manual_fallback(monkeypatch):
+    qe_input = """
+&CONTROL
+  calculation='scf'
+/
+&SYSTEM
+  ibrav=2, celldm(1)=10.2, nat=2, ntyp=1
+/
+&ELECTRONS
+/
+ATOMIC_SPECIES
+ C 12.0107 C.pbe-rrkjus.UPF
+ATOMIC_POSITIONS angstrom
+ C 0.0 0.0 0.0
+ C 1.0 1.0 1.0
+""".strip()
+
+    def _raise(*_args, **_kwargs):
+        raise ValueError("force fallback")
+
+    monkeypatch.setattr(parse_service, "_from_ase", _raise)
+    monkeypatch.setattr(parse_service, "_from_pymatgen", _raise)
+
+    structure = parse_service.parse_qe_in(qe_input)
+    assert len(structure.atoms) == 2
+    assert structure.atoms[0].symbol == 'C'

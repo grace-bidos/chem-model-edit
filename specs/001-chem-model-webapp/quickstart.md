@@ -3,26 +3,31 @@
 ## 前提
 - Node.js + pnpm
 - Python 3.13+（uv で環境管理）
+- （任意）just
 
 ## セットアップ
 
 ### Frontend
 ```bash
 pnpm install
-pnpm -C apps/web dev
+pnpm -C apps/web dev --port 3001
 ```
 
 ### Backend
 ```bash
-cd apps/api
 uv sync
-uv run uvicorn main:app --reload
+uv run uvicorn apps.api.main:app --reload --port 8000
+```
+
+### Frontend + Backend（同時起動, 任意）
+```bash
+just dev
 ```
 
 ## 動作確認
 
 ### 1) Editor
-1. `http://localhost:3000/editor` を開く
+1. `http://localhost:3001/editor` を開く
 2. `.in` を貼り付けて Parse
 3. Atom Table で編集 → Mol* に反映
 4. Export .in / Share HTML で出力

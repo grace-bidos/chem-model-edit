@@ -8,7 +8,12 @@ import { nitro } from 'nitro/vite'
 
 const config = defineConfig({
   plugins: [
-    devtools(),
+    devtools({
+      eventBusConfig: {
+        enabled: process.env.TANSTACK_DEVTOOLS_EVENTBUS === 'true',
+        port: Number(process.env.TANSTACK_DEVTOOLS_PORT ?? 42069),
+      },
+    }),
     nitro(),
     // this is the plugin that enables path aliases
     viteTsConfigPaths({
