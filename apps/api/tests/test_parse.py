@@ -47,6 +47,13 @@ def test_parse_qe_invalid():
     assert response.status_code == 400
 
 
+def test_parse_qe_non_structure_message():
+    response = CLIENT.post('/parse', json={'content': '&INPUTPP\\n/\\n'})
+    assert response.status_code == 400
+    detail = response.json().get('detail', '')
+    assert '構造データではありません' in detail
+
+
 def test_parse_qe_manual_fallback(monkeypatch):
     qe_input = """
 &CONTROL

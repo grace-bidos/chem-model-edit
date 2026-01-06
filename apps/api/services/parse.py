@@ -51,6 +51,7 @@ _POSITION_HEADER = re.compile(
     r"^\s*ATOMIC_POSITIONS\b(?:\s*[\{\(]?\s*([a-zA-Z_]+)\s*[\}\)]?)?",
     re.IGNORECASE,
 )
+_POSITION_ANY = re.compile(r"^\s*ATOMIC_POSITIONS\b", re.IGNORECASE | re.MULTILINE)
 _CELL_HEADER = re.compile(
     r"^\s*CELL_PARAMETERS\b(?:\s*[\{\(]?\s*([a-zA-Z_]+)\s*[\}\)]?)?",
     re.IGNORECASE,
@@ -314,6 +315,8 @@ def _from_manual_positions(content: str) -> Structure:
 
 
 def parse_qe_in(content: str) -> Structure:
+    if not _POSITION_ANY.search(content):
+        raise ValueError("構造データではありません。")
     try:
         return _from_ase(content)
     except Exception as ase_error:  # pragma: no cover - fallback path varies
