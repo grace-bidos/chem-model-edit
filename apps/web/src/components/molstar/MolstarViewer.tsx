@@ -75,7 +75,8 @@ export default function MolstarViewer({ pdbText, structures }: MolstarViewerProp
   }
 
   useEffect(() => {
-    if (!containerRef.current || viewerRef.current) {
+    const container = containerRef.current
+    if (!container || viewerRef.current) {
       return
     }
 
@@ -85,7 +86,7 @@ export default function MolstarViewer({ pdbText, structures }: MolstarViewerProp
       try {
         await import('molstar/lib/mol-plugin-ui/skin/light.scss')
         const { Viewer } = await import('molstar/lib/apps/viewer/app')
-        const viewer = await Viewer.create(containerRef.current, {
+        const viewer = await Viewer.create(container, {
           layoutIsExpanded: false,
           layoutShowControls: false,
           layoutShowLeftPanel: false,

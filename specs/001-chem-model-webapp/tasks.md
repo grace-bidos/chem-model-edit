@@ -44,7 +44,7 @@
 - [x] T022 [US1] フロント: Atom Table（編集可能）実装（`apps/web/src/routes/editor.tsx`）
 - [x] T023 [US1] フロント: 3D表示に座標編集を反映（`apps/web/src/routes/editor.tsx`, `apps/web/src/components/molstar/*`）
 - [x] T024 [US1] エクスポートUI（.in 保存）実装（`apps/web/src/routes/editor.tsx`）
-- [ ] T027 [US1] 出力設定画面（入力形式/単位保持がデフォルト、将来拡張の枠を用意）
+- [x] T027 [US1] 出力設定画面（入力形式/単位保持がデフォルト、将来拡張の枠を用意）
 
 ### Tests (US1)
 - [x] T025 [P] [US1] API: `/parse` の単体テスト（`apps/api/tests/test_parse.py`）
@@ -71,10 +71,10 @@
 
 **Goal**: タイルパターンに従って複合スーパーセルを生成する
 
-- [ ] T040 [US3] API: 複合スーパーセル生成（タイルパターン入力）
-- [ ] T041 [US3] フロント: タイルパターン入力UI（2D配列 + GUIの下地）
-- [ ] T042 [US3] フロント: 生成結果のプレビュー
-- [ ] T043 [US3] 重複/衝突チェック（許容誤差付き、任意）
+- [x] T040 [US3] API: 複合スーパーセル生成（タイルパターン入力）
+- [x] T041 [US3] フロント: タイルパターン入力UI（2D配列 + GUIの下地）
+- [x] T042 [US3] フロント: 生成結果のプレビュー
+- [x] T043 [US3] 重複/衝突チェック（許容誤差付き、任意）
 
 ---
 
@@ -82,9 +82,9 @@
 
 **Goal**: 格子定数とセルベクトルを相互変換できる
 
-- [ ] T060 [US4] API: 格子変換サービス（a,b,c,α,β,γ ⇄ cell vectors）
-- [ ] T061 [US4] フロント: 変換UI（単位切替: alat/bohr/angstrom）
-- [ ] T062 [US4] 変換の単体テスト追加
+- [x] T060 [US4] API: 格子変換サービス（a,b,c,α,β,γ ⇄ cell vectors）
+- [x] T061 [US4] フロント: 変換UI（単位切替: alat/bohr/angstrom）
+- [x] T062 [US4] 変換の単体テスト追加
 
 ---
 

@@ -6,14 +6,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from models import (
     ExportRequest,
     ExportResponse,
+    LatticeConvertFromParamsRequest,
+    LatticeConvertFromVectorsRequest,
+    LatticeConvertResponse,
     ParseRequest,
     ParseResponse,
     SupercellRequest,
     SupercellResponse,
+    TiledSupercellRequest,
 )
 from services.export import export_qe_in
+from services.lattice import params_to_vectors, vectors_to_params
 from services.parse import parse_qe_in
-from services.supercell import generate_supercell
+from services.supercell import generate_supercell, generate_tiled_supercell
 
 app = FastAPI(title="Chem Model API", version="0.1.0")
 
@@ -56,9 +61,46 @@ def supercell(request: SupercellRequest) -> SupercellResponse:
             request.structureA,
             request.structureB,
             request.sequence,
-            (request.lattice.a.x, request.lattice.a.y, request.lattice.a.z),
-            (request.lattice.b.x, request.lattice.b.y, request.lattice.b.z),
+            request.lattice,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return SupercellResponse(structure=structure, meta=meta)
+
+
+@app.post("/supercell/tiled", response_model=SupercellResponse)
+def supercell_tiled(request: TiledSupercellRequest) -> SupercellResponse:
+    try:
+        structure, meta = generate_tiled_supercell(
+            request.structureA,
+            request.structureB,
+            request.pattern,
+            request.lattice,
+            check_overlap=request.checkOverlap,
+            overlap_tolerance=request.overlapTolerance,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return SupercellResponse(structure=structure, meta=meta)
+
+
+@app.post("/lattice/vectors-to-params", response_model=LatticeConvertResponse)
+def lattice_vectors_to_params(
+    request: LatticeConvertFromVectorsRequest,
+) -> LatticeConvertResponse:
+    try:
+        params = vectors_to_params(request.lattice)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return LatticeConvertResponse(lattice=request.lattice, params=params, unit=request.unit)
+
+
+@app.post("/lattice/params-to-vectors", response_model=LatticeConvertResponse)
+def lattice_params_to_vectors(
+    request: LatticeConvertFromParamsRequest,
+) -> LatticeConvertResponse:
+    try:
+        lattice = params_to_vectors(request.params)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return LatticeConvertResponse(lattice=lattice, params=request.params, unit=request.unit)

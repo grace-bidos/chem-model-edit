@@ -3,7 +3,7 @@ from __future__ import annotations
 from io import StringIO
 import math
 import re
-from typing import List, Optional, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 from ase import Atoms as ASEAtoms
 from ase.io import read as ase_read
@@ -123,7 +123,7 @@ def _parse_system_params(content: str) -> dict[str, Optional[float]]:
 
 
 def _lattice_from_vectors(
-    vectors: Optional[List[List[float]]],
+    vectors: Optional[Sequence[Sequence[float]]],
 ) -> Optional[Lattice]:
     if not vectors or len(vectors) < 3:
         return None

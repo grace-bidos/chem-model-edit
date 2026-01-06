@@ -1132,6 +1132,44 @@ function EditorPage() {
                 </div>
               </div>
             </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs uppercase tracking-[0.3em] text-white/50">
+                  Export Settings
+                </p>
+                <span className="text-xs text-white/40">Fixed (v1)</span>
+              </div>
+              <div className="mt-4 grid gap-3 text-sm text-white/70">
+                <div className="flex items-center justify-between">
+                  <span>Format</span>
+                  <span className="rounded-full border border-white/10 px-3 py-1 text-xs">
+                    Match Input
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Units</span>
+                  <span className="rounded-full border border-white/10 px-3 py-1 text-xs">
+                    Match Input
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Coordinates</span>
+                  <span className="rounded-full border border-white/10 px-3 py-1 text-xs">
+                    Match Input
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>celldm</span>
+                  <span className="rounded-full border border-white/10 px-3 py-1 text-xs">
+                    Keep
+                  </span>
+                </div>
+                <p className="text-xs text-white/40">
+                  出力は入力形式・単位を保持します。将来のオプション拡張に備えた枠です。
+                </p>
+              </div>
+            </div>
           </section>
 
           <section className="flex w-full flex-col gap-4 lg:max-w-[360px]">

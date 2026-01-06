@@ -1,4 +1,4 @@
-import type { Lattice, Structure, SupercellMeta } from './types'
+import type { Lattice, LatticeParams, Structure, SupercellMeta } from './types'
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8000'
 
@@ -54,4 +54,48 @@ export async function generateSupercell(params: {
     body: JSON.stringify(params),
   })
   return handleResponse<{ structure: Structure; meta: SupercellMeta }>(response)
+}
+
+export async function generateTiledSupercell(params: {
+  structureA: Structure
+  structureB: Structure
+  pattern: string[][]
+  lattice: Lattice
+  checkOverlap: boolean
+  overlapTolerance?: number
+}): Promise<{ structure: Structure; meta: SupercellMeta }> {
+  const response = await fetch(`${API_BASE}/supercell/tiled`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  })
+  return handleResponse<{ structure: Structure; meta: SupercellMeta }>(response)
+}
+
+export async function latticeVectorsToParams(params: {
+  lattice: Lattice
+  unit: string
+}): Promise<{ lattice: Lattice; params: LatticeParams; unit: string }> {
+  const response = await fetch(`${API_BASE}/lattice/vectors-to-params`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  })
+  return handleResponse<{ lattice: Lattice; params: LatticeParams; unit: string }>(
+    response,
+  )
+}
+
+export async function latticeParamsToVectors(params: {
+  params: LatticeParams
+  unit: string
+}): Promise<{ lattice: Lattice; params: LatticeParams; unit: string }> {
+  const response = await fetch(`${API_BASE}/lattice/params-to-vectors`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  })
+  return handleResponse<{ lattice: Lattice; params: LatticeParams; unit: string }>(
+    response,
+  )
 }

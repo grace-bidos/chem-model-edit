@@ -22,8 +22,18 @@ export type Lattice = {
   c: Vector3
 }
 
+export type LatticeParams = {
+  a: number
+  b: number
+  c: number
+  alpha: number
+  beta: number
+  gamma: number
+}
+
 export type SupercellMeta = {
   na: number
   nb: number
   layers: number
+  overlapCount?: number
 }
