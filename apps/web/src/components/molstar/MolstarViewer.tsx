@@ -10,7 +10,7 @@ type MolstarStructure = {
 
 type MolstarViewerProps = {
   pdbText?: string
-  structures?: MolstarStructure[]
+  structures?: Array<MolstarStructure>
 }
 
 export default function MolstarViewer({ pdbText, structures }: MolstarViewerProps) {
@@ -18,8 +18,9 @@ export default function MolstarViewer({ pdbText, structures }: MolstarViewerProp
   const viewerRef = useRef<Viewer | null>(null)
   const lastSignatureRef = useRef<string | null>(null)
   const timerRef = useRef<number | null>(null)
+  const activeRef = useRef(true)
 
-  const normalizedStructures = useMemo<MolstarStructure[]>(() => {
+  const normalizedStructures = useMemo<Array<MolstarStructure>>(() => {
     if (structures && structures.length > 0) {
       return structures
     }
@@ -42,7 +43,10 @@ export default function MolstarViewer({ pdbText, structures }: MolstarViewerProp
       .join('::')
   }, [normalizedStructures])
 
-  const loadBallAndStick = async (viewer: Viewer, items: MolstarStructure[]) => {
+  const loadBallAndStick = async (
+    viewer: Viewer,
+    items: Array<MolstarStructure>,
+  ) => {
     const plugin = (viewer as unknown as { plugin: any }).plugin
     await plugin.clear()
     for (const item of items) {
@@ -80,7 +84,7 @@ export default function MolstarViewer({ pdbText, structures }: MolstarViewerProp
       return
     }
 
-    let active = true
+    activeRef.current = true
 
     void (async () => {
       try {
@@ -97,7 +101,7 @@ export default function MolstarViewer({ pdbText, structures }: MolstarViewerProp
           viewportShowControls: false,
           backgroundColor: 0x0b1120,
         })
-        if (!active) {
+        if (!activeRef.current) {
           viewer.dispose()
           return
         }
@@ -108,7 +112,7 @@ export default function MolstarViewer({ pdbText, structures }: MolstarViewerProp
     })()
 
     return () => {
-      active = false
+      activeRef.current = false
       if (viewerRef.current) {
         viewerRef.current.dispose()
         viewerRef.current = null

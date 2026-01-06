@@ -67,6 +67,18 @@
 
 ---
 
+## Phase 4b: User Story 2b - Δ移植 (P2)
+
+**Goal**: 小スラブ出力の最終座標から変位を算出し、大スラブへ移植する
+
+- [x] T038 [US2b] API: Δ移植サービス実装（入力: small_in/out/large_in, 出力: transplanted .in）
+- [x] T039 [US2b] API: ルート追加（`/transplant/delta`）
+- [x] T040 [US2b] API: Δ移植のテスト追加（正常系/異常系）
+- [x] T041 [US2b] フロント: 専用ページUI（3入力 + 実行 + 結果表示）
+- [x] T042 [US2b] フロント: 結果のコピー/ダウンロード
+
+---
+
 ## Phase 5: User Story 3 - 複合スーパーセル (P3)
 
 **Goal**: タイルパターンに従って複合スーパーセルを生成する

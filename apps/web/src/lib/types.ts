@@ -6,7 +6,7 @@ export type Atom = {
 }
 
 export type Structure = {
-  atoms: Atom[]
+  atoms: Array<Atom>
   lattice?: Lattice | null
 }
 

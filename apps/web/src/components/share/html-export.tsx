@@ -1,10 +1,10 @@
-import type { Atom } from '../../lib/types'
 import { atomsToPdb } from '../../lib/pdb'
+import type { Atom } from '../../lib/types'
 
 type ShareStructure = {
   id: string
   name: string
-  atoms: Atom[]
+  atoms: Array<Atom>
   opacity: number
   isVisible: boolean
 }
@@ -15,7 +15,7 @@ type ShareModel = {
   opacity: number
 }
 
-function buildHtml(models: ShareModel[]): string {
+function buildHtml(models: Array<ShareModel>): string {
   const serializedModels = JSON.stringify(models)
   return `<!doctype html>
 <html lang="en">
@@ -51,7 +51,7 @@ function buildHtml(models: ShareModel[]): string {
 }
 
 export function downloadShareHtml(
-  structures: ShareStructure[],
+  structures: Array<ShareStructure>,
   options: { activeId: string; overlayEnabled: boolean; filename?: string },
 ) {
   const targets = options.overlayEnabled

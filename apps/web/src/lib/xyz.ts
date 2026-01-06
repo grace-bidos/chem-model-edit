@@ -3,8 +3,8 @@ import type { Atom } from './types'
 const LINE_RE =
   /^\s*(?<sym>[A-Za-z]{1,3})\s+(?<x>-?\d+\.?\d*(?:[eE][+-]?\d+)?)\s+(?<y>-?\d+\.?\d*(?:[eE][+-]?\d+)?)\s+(?<z>-?\d+\.?\d*(?:[eE][+-]?\d+)?)/
 
-export function parseXyzBlock(text: string): Atom[] {
-  const atoms: Atom[] = []
+export function parseXyzBlock(text: string): Array<Atom> {
+  const atoms: Array<Atom> = []
   const lines = text.split(/\r?\n/).map((line) => line.trim())
   for (const line of lines) {
     if (!line) continue
@@ -20,7 +20,7 @@ export function parseXyzBlock(text: string): Atom[] {
   return atoms
 }
 
-export function atomsToXyz(atoms: Atom[]): string {
+export function atomsToXyz(atoms: Array<Atom>): string {
   return atoms
     .map(
       (atom) =>

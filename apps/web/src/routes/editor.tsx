@@ -11,15 +11,15 @@ import {
 } from 'lucide-react'
 import MolstarViewer from '../components/molstar/MolstarViewer'
 import { downloadShareHtml } from '../components/share/html-export'
-import { exportQeInput, parseQeInput } from '../lib/api'
-import { atomsToPdb } from '../lib/pdb'
-import type { Atom, Lattice, Vector3 } from '../lib/types'
-import { atomsToXyz, parseXyzBlock } from '../lib/xyz'
 import {
   alignSelectedCentroid,
   alignSelectedToOrigin,
   shiftAtoms,
 } from '../components/compare/align'
+import { exportQeInput, parseQeInput } from '../lib/api'
+import { atomsToPdb } from '../lib/pdb'
+import { atomsToXyz, parseXyzBlock } from '../lib/xyz'
+import type { Atom, Lattice, Vector3 } from '../lib/types'
 
 type AtomDraft = {
   symbol: string
@@ -32,8 +32,8 @@ type StructureState = {
   id: string
   name: string
   color: string
-  atoms: Atom[]
-  drafts: AtomDraft[]
+  atoms: Array<Atom>
+  drafts: Array<AtomDraft>
   isVisible: boolean
   opacity: number
   lattice?: Lattice | null
@@ -133,7 +133,7 @@ function EditorPage() {
     'from-amber-300 to-yellow-200',
     'from-fuchsia-300 to-purple-300',
   ]
-  const [structures, setStructures] = useState<StructureState[]>([
+  const [structures, setStructures] = useState<Array<StructureState>>([
     {
       id: 'A',
       name: 'Catalyst-A',
@@ -179,7 +179,7 @@ function EditorPage() {
     ' H -0.7570 0.5860 0.0000',
   ].join('\n')
   const [qeInput, setQeInput] = useState(sampleQe)
-  const [selectedIndices, setSelectedIndices] = useState<number[]>([])
+  const [selectedIndices, setSelectedIndices] = useState<Array<number>>([])
   const [shiftDraft, setShiftDraft] = useState({ x: '0.000', y: '0.000', z: '0.000' })
   const [isParsing, setIsParsing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -189,8 +189,8 @@ function EditorPage() {
 
   const activeStructure =
     structures.find((structure) => structure.id === activeId) ?? structures[0]
-  const atoms = activeStructure?.atoms ?? []
-  const atomDrafts = activeStructure?.drafts ?? []
+  const atoms = activeStructure.atoms
+  const atomDrafts = activeStructure.drafts
 
   const samplePdb = [
     'HEADER    SAMPLE',
@@ -254,7 +254,7 @@ function EditorPage() {
     if (!compareTarget) {
       return { enabled: false, reason: '比較対象なし' }
     }
-    const latticeA = activeStructure?.lattice ?? null
+    const latticeA = activeStructure.lattice ?? null
     const latticeB = compareTarget.lattice ?? null
     if (!latticeA || !latticeB) {
       return { enabled: false, reason: '格子情報が不足' }
@@ -270,9 +270,12 @@ function EditorPage() {
       return { enabled: false, reason: '格子が特異', mismatch: false }
     }
     return { enabled: true, reason: 'PBC有効', matrix: matrixA, inverse }
-  }, [activeStructure?.lattice, compareTarget, activeStructure])
+  }, [activeStructure.lattice, compareTarget])
   const selectedAtoms = useMemo(
-    () => selectedIndices.map((index) => atoms[index]).filter(Boolean),
+    () =>
+      selectedIndices
+        .filter((index) => index >= 0 && index < atoms.length)
+        .map((index) => atoms[index]),
     [atoms, selectedIndices],
   )
   const distanceRows = useMemo(() => {
@@ -292,10 +295,11 @@ function EditorPage() {
         y: source.y - target.y,
         z: source.z - target.z,
       }
-      const adjusted =
-        pbcState.enabled && pbcState.matrix && pbcState.inverse
-          ? minimumImageDelta(delta, pbcState.matrix, pbcState.inverse)
-          : delta
+      const usePbc =
+        pbcState.enabled && 'matrix' in pbcState && 'inverse' in pbcState
+      const adjusted = usePbc
+        ? minimumImageDelta(delta, pbcState.matrix, pbcState.inverse)
+        : delta
       return {
         index,
         source,
@@ -332,7 +336,7 @@ function EditorPage() {
     )
   }
 
-  const makeDrafts = (nextAtoms: Atom[]) =>
+  const makeDrafts = (nextAtoms: Array<Atom>) =>
     nextAtoms.map((atom) => ({
       symbol: atom.symbol,
       x: atom.x.toFixed(4),
@@ -340,7 +344,7 @@ function EditorPage() {
       z: atom.z.toFixed(4),
     }))
 
-  const syncDrafts = (nextAtoms: Atom[]) => {
+  const syncDrafts = (nextAtoms: Array<Atom>) => {
     updateActive((structure) => ({
       ...structure,
       drafts: makeDrafts(nextAtoms),
@@ -413,10 +417,10 @@ function EditorPage() {
     if (field === 'symbol') {
       updateActive((structure) => {
         const nextAtoms = [...structure.atoms]
-        const current = nextAtoms[index]
-        if (!current) {
+        if (index < 0 || index >= nextAtoms.length) {
           return structure
         }
+        const current = nextAtoms[index]
         nextAtoms[index] = {
           ...current,
           symbol: value.trim() || current.symbol,
@@ -432,10 +436,10 @@ function EditorPage() {
     }
     updateActive((structure) => {
       const nextAtoms = [...structure.atoms]
-      const current = nextAtoms[index]
-      if (!current) {
+      if (index < 0 || index >= nextAtoms.length) {
         return structure
       }
+      const current = nextAtoms[index]
       nextAtoms[index] = { ...current, [field]: parsed }
       return { ...structure, atoms: nextAtoms }
     })
@@ -1126,7 +1130,7 @@ function EditorPage() {
                   <div className="flex items-center justify-between">
                     <span>Active Opacity</span>
                     <span className="text-xs">
-                      {Math.round((activeStructure?.opacity ?? 1) * 100)}%
+                      {Math.round(activeStructure.opacity * 100)}%
                     </span>
                   </div>
                 </div>

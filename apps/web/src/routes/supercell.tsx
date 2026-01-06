@@ -8,8 +8,8 @@ import {
   latticeVectorsToParams,
 } from '../lib/api'
 import { atomsToPdb } from '../lib/pdb'
-import type { Atom, Lattice, LatticeParams, SupercellMeta } from '../lib/types'
 import { parseXyzBlock } from '../lib/xyz'
+import type { Atom, Lattice, LatticeParams, SupercellMeta } from '../lib/types'
 
 export const Route = createFileRoute('/supercell')({
   component: SupercellPage,
@@ -23,7 +23,7 @@ function SupercellPage() {
   const [xyzA, setXyzA] = useState(sampleXyzA)
   const [xyzB, setXyzB] = useState(sampleXyzB)
   const [patternText, setPatternText] = useState('AB\nBA')
-  const [patternGrid, setPatternGrid] = useState<string[][]>([
+  const [patternGrid, setPatternGrid] = useState<Array<Array<string>>>([
     ['A', 'B'],
     ['B', 'A'],
   ])
@@ -35,7 +35,7 @@ function SupercellPage() {
     b: { x: '0.0', y: '5.0', z: '0.0' },
     c: { x: '0.0', y: '0.0', z: '5.0' },
   })
-  const [atoms, setAtoms] = useState<Atom[]>([])
+  const [atoms, setAtoms] = useState<Array<Atom>>([])
   const [meta, setMeta] = useState<SupercellMeta>({
     na: 0,
     nb: 0,
@@ -76,28 +76,30 @@ function SupercellPage() {
 
   const pdb = useMemo(() => atomsToPdb(atoms), [atoms])
 
-  const gridToText = (grid: string[][]) =>
+  const gridToText = (grid: Array<Array<string>>) =>
     grid.map((row) => row.join('')).join('\n')
 
-  const parsePatternText = (text: string) => {
+  const parsePatternText = (
+    text: string,
+  ): { grid: Array<Array<string>>; error: string | null } => {
     const rows = text
       .split('\n')
       .map((line) => line.trim())
       .filter((line) => line.length > 0)
       .map((line) => line.replace(/\s+/g, '').toUpperCase())
     if (rows.length === 0) {
-      return { grid: [] as string[][], error: 'タイルパターンが空です。' }
+      return { grid: [], error: 'タイルパターンが空です。' }
     }
     const grid = rows.map((row) => row.split(''))
     if (grid.some((row) => row.length === 0)) {
-      return { grid: [] as string[][], error: 'タイルパターンが空です。' }
+      return { grid: [], error: 'タイルパターンが空です。' }
     }
     if (grid.some((row) => row.some((cell) => cell !== 'A' && cell !== 'B'))) {
-      return { grid: [] as string[][], error: 'タイルは A/B のみで指定してください。' }
+      return { grid: [], error: 'タイルは A/B のみで指定してください。' }
     }
     const width = grid[0].length
     if (grid.some((row) => row.length !== width)) {
-      return { grid: [] as string[][], error: '行の長さが揃っていません。' }
+      return { grid: [], error: '行の長さが揃っていません。' }
     }
     return { grid, error: null }
   }
@@ -113,7 +115,7 @@ function SupercellPage() {
     setPatternGrid(parsed.grid)
   }
 
-  const updatePatternGrid = (next: string[][]) => {
+  const updatePatternGrid = (next: Array<Array<string>>) => {
     setPatternGrid(next)
     setPatternText(gridToText(next))
     setPatternError(null)

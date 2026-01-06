@@ -60,6 +60,16 @@ class ExportResponse(BaseModel):
     content: str
 
 
+class DeltaTransplantRequest(BaseModel):
+    small_in: str
+    small_out: str
+    large_in: str
+
+
+class DeltaTransplantResponse(BaseModel):
+    content: str
+
+
 class Vector3(BaseModel):
     x: float
     y: float

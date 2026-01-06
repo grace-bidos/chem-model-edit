@@ -42,6 +42,24 @@ export async function exportQeInput(structure: Structure): Promise<string> {
   return data.content
 }
 
+export async function deltaTransplant(params: {
+  smallIn: string
+  smallOut: string
+  largeIn: string
+}): Promise<string> {
+  const response = await fetch(`${API_BASE}/transplant/delta`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      small_in: params.smallIn,
+      small_out: params.smallOut,
+      large_in: params.largeIn,
+    }),
+  })
+  const data = await handleResponse<{ content: string }>(response)
+  return data.content
+}
+
 export async function generateSupercell(params: {
   structureA: Structure
   structureB: Structure
@@ -59,7 +77,7 @@ export async function generateSupercell(params: {
 export async function generateTiledSupercell(params: {
   structureA: Structure
   structureB: Structure
-  pattern: string[][]
+  pattern: Array<Array<string>>
   lattice: Lattice
   checkOverlap: boolean
   overlapTolerance?: number

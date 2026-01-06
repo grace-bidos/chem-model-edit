@@ -3,10 +3,10 @@ import type { Atom } from '../../lib/types'
 type Vec3 = { x: number; y: number; z: number }
 
 export function shiftAtoms(
-  atoms: Atom[],
-  indices: number[],
+  atoms: Array<Atom>,
+  indices: Array<number>,
   delta: Vec3,
-): Atom[] {
+): Array<Atom> {
   if (indices.length === 0) return atoms
   const set = new Set(indices)
   return atoms.map((atom, index) =>
@@ -16,10 +16,14 @@ export function shiftAtoms(
   )
 }
 
-export function alignSelectedToOrigin(atoms: Atom[], indices: number[]): Atom[] {
+export function alignSelectedToOrigin(
+  atoms: Array<Atom>,
+  indices: Array<number>,
+): Array<Atom> {
   if (indices.length === 0) return atoms
-  const anchor = atoms[indices[0]]
-  if (!anchor) return atoms
+  const anchorIndex = indices[0]
+  if (anchorIndex < 0 || anchorIndex >= atoms.length) return atoms
+  const anchor = atoms[anchorIndex]
   return shiftAtoms(atoms, indices, {
     x: -anchor.x,
     y: -anchor.y,
@@ -27,10 +31,16 @@ export function alignSelectedToOrigin(atoms: Atom[], indices: number[]): Atom[] 
   })
 }
 
-export function alignSelectedCentroid(atoms: Atom[], indices: number[]): Atom[] {
+export function alignSelectedCentroid(
+  atoms: Array<Atom>,
+  indices: Array<number>,
+): Array<Atom> {
   if (indices.length === 0) return atoms
-  const selected = indices.map((i) => atoms[i]).filter(Boolean)
-  if (selected.length === 0) return atoms
+  const selectedIndices = indices.filter(
+    (index) => index >= 0 && index < atoms.length,
+  )
+  if (selectedIndices.length === 0) return atoms
+  const selected = selectedIndices.map((index) => atoms[index])
   const sum = selected.reduce(
     (acc, atom) => ({
       x: acc.x + atom.x,

@@ -4,6 +4,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from models import (
+    DeltaTransplantRequest,
+    DeltaTransplantResponse,
     ExportRequest,
     ExportResponse,
     LatticeConvertFromParamsRequest,
@@ -19,6 +21,7 @@ from services.export import export_qe_in
 from services.lattice import params_to_vectors, vectors_to_params
 from services.parse import parse_qe_in
 from services.supercell import generate_supercell, generate_tiled_supercell
+from services.transplant import transplant_delta
 
 app = FastAPI(title="Chem Model API", version="0.1.0")
 
@@ -52,6 +55,21 @@ def export_qe(request: ExportRequest) -> ExportResponse:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return ExportResponse(content=content)
+
+
+@app.post("/transplant/delta", response_model=DeltaTransplantResponse)
+def transplant_delta_route(
+    request: DeltaTransplantRequest,
+) -> DeltaTransplantResponse:
+    try:
+        content = transplant_delta(
+            request.small_in,
+            request.small_out,
+            request.large_in,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return DeltaTransplantResponse(content=content)
 
 
 @app.post("/supercell", response_model=SupercellResponse)

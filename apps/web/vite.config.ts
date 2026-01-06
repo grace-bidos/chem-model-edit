@@ -1,10 +1,11 @@
-import { defineConfig, type PluginOption } from 'vite'
 import { devtools } from '@tanstack/devtools-vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import viteReact from '@vitejs/plugin-react'
 import viteTsConfigPaths from 'vite-tsconfig-paths'
 import tailwindcss from '@tailwindcss/vite'
 import { nitro } from 'nitro/vite'
+import { defineConfig } from 'vite'
+import type { PluginOption } from 'vite'
 
 const config = defineConfig(({ mode }) => {
   const isTest = mode === 'test' || process.env.VITEST === 'true'
@@ -24,7 +25,7 @@ const config = defineConfig(({ mode }) => {
     tailwindcss(),
     !isTest && tanstackStart(),
     viteReact(),
-  ].filter(Boolean) as PluginOption[]
+  ].filter(Boolean) as Array<PluginOption>
 
   return { plugins }
 })
