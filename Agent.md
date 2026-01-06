@@ -21,6 +21,8 @@
 - `packages/shared`: 共通型
 - `specs/001-chem-model-webapp`: Spec/Plan/Task
 - `ref-legacy`: 旧実装 (参照用)
+- `samples/qe-in`: テスト用の Quantum ESPRESSO `.in` サンプル
+- `uploads`: ユーザーが外部ドキュメント/データ/サンプルをアップロードする場所
 
 ## 重要なUI/機能 (web)
 - 複数構造管理、選択コピー/貼り付け、距離表示、シフト/整列
@@ -34,6 +36,7 @@
   - Spec → Plan → Task を先に整備
   - 変更が想定外ならSpecを更新して再承認
 - 既存の仕様/タスクに従う
+- `uploads` 配下のユーザーアップロード済みデータは、作業上必要であれば移動・整理・削除してよい
 
 ## 開発/検証コマンド
 - Web:

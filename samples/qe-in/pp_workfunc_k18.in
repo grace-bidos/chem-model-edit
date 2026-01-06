@@ -1,0 +1,17 @@
+&INPUTPP
+  prefix  = 'C_graphite',
+  outdir  = './tmp',
+  filplot = 'vpot_k18.dat',
+  plot_num = 11
+/
+&PLOT
+  nfile = 1
+  filepp(1) = 'vpot_k18.dat'
+  weight(1) = 1.0
+  iflag = 3
+  output_format = 0
+  fileout = 'vpot_k18.1d'
+  e1(1) = 0.0; e1(2) = 0.0; e1(3) = 1.0
+  x0(1) = 0.0; x0(2) = 0.0; x0(3) = 0.0
+  nx = 4000
+/
