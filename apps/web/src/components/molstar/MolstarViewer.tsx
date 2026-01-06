@@ -13,6 +13,15 @@ type MolstarViewerProps = {
   structures?: Array<MolstarStructure>
 }
 
+const hashString = (value: string) => {
+  let hash = 0
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(i)
+    hash |= 0
+  }
+  return hash.toString(16)
+}
+
 export default function MolstarViewer({ pdbText, structures }: MolstarViewerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const viewerRef = useRef<Viewer | null>(null)
@@ -38,7 +47,7 @@ export default function MolstarViewer({ pdbText, structures }: MolstarViewerProp
       .map((structure) => {
         const opacity = structure.opacity ?? 1
         const visible = structure.visible ?? true
-        return `${structure.id}|${opacity}|${visible}|${structure.pdbText}`
+        return `${structure.id}|${opacity}|${visible}|${hashString(structure.pdbText)}`
       })
       .join('::')
   }, [normalizedStructures])
