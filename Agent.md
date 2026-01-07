@@ -41,6 +41,7 @@
 ## 開発/検証コマンド
 - Web:
   - `pnpm -C apps/web dev --port 3001`
+  - `XDG_RUNTIME_DIR=.xdg-runtime just web` (justが権限エラーになる場合)
   - `pnpm -C apps/web typecheck`
 - API:
   - `uv run uvicorn apps.api.main:app --reload --port 8000`
@@ -51,6 +52,7 @@
 - Mol*は`Viewer.create`を使い、PDB読み込み後に`ball-and-stick`表現を追加
 - Import/Exportの入出力は`.in` (QE) と座標/原子種に限定
 - `apps/web/src/components/molstar/MolstarViewer.tsx` が表示の中心
+- pnpmストアは `/home/grace/projects/chem-model-edit/.pnpm-store` を共通利用する方針（`.pnpm-store` はgit ignore）
 
 ## 進め方のベストプラクティス
 - 変更前に影響範囲と対象ファイルを明確化
