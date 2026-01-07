@@ -118,3 +118,48 @@ dev:
   popd >/dev/null
   pnpm -C apps/web dev --port "$web_port" &
   wait
+
+api-test:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pushd apps/api >/dev/null
+  cache_dir="${UV_CACHE_DIR:-{{uv_cache_dir}}}"
+  tmp_dir="${TMPDIR:-{{uv_tmp_dir}}}"
+  mkdir -p "$cache_dir" "$tmp_dir"
+  uv_flags=()
+  if [[ "${UV_NO_CACHE:-}" == "1" ]]; then
+    uv_flags+=(--no-cache)
+  fi
+  TMPDIR="$tmp_dir" UV_CACHE_DIR="$cache_dir" uv sync "${uv_flags[@]}"
+  TMPDIR="$tmp_dir" UV_CACHE_DIR="$cache_dir" uv run "${uv_flags[@]}" pytest
+  popd >/dev/null
+
+api-ruff:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pushd apps/api >/dev/null
+  cache_dir="${UV_CACHE_DIR:-{{uv_cache_dir}}}"
+  tmp_dir="${TMPDIR:-{{uv_tmp_dir}}}"
+  mkdir -p "$cache_dir" "$tmp_dir"
+  uv_flags=()
+  if [[ "${UV_NO_CACHE:-}" == "1" ]]; then
+    uv_flags+=(--no-cache)
+  fi
+  TMPDIR="$tmp_dir" UV_CACHE_DIR="$cache_dir" uv sync "${uv_flags[@]}"
+  TMPDIR="$tmp_dir" UV_CACHE_DIR="$cache_dir" uv run "${uv_flags[@]}" ruff check .
+  popd >/dev/null
+
+api-mypy:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pushd apps/api >/dev/null
+  cache_dir="${UV_CACHE_DIR:-{{uv_cache_dir}}}"
+  tmp_dir="${TMPDIR:-{{uv_tmp_dir}}}"
+  mkdir -p "$cache_dir" "$tmp_dir"
+  uv_flags=()
+  if [[ "${UV_NO_CACHE:-}" == "1" ]]; then
+    uv_flags+=(--no-cache)
+  fi
+  TMPDIR="$tmp_dir" UV_CACHE_DIR="$cache_dir" uv sync "${uv_flags[@]}"
+  TMPDIR="$tmp_dir" UV_CACHE_DIR="$cache_dir" uv run "${uv_flags[@]}" mypy .
+  popd >/dev/null
