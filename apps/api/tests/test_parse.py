@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
 
 from main import app
@@ -54,7 +55,7 @@ def test_parse_qe_non_structure_message():
     assert "構造データではありません" in detail
 
 
-def test_parse_qe_manual_fallback(monkeypatch):
+def test_parse_qe_no_manual_fallback(monkeypatch):
     qe_input = """
 &CONTROL
   calculation='scf'
@@ -77,6 +78,10 @@ ATOMIC_POSITIONS angstrom
     monkeypatch.setattr(parse_service, "_from_ase", _raise)
     monkeypatch.setattr(parse_service, "_from_pymatgen", _raise)
 
-    structure = parse_service.parse_qe_in(qe_input)
-    assert len(structure.atoms) == 2
-    assert structure.atoms[0].symbol == "C"
+    with pytest.raises(ValueError) as excinfo:
+        parse_service.parse_qe_in(qe_input)
+
+    message = str(excinfo.value)
+    assert "QE .in のパースに失敗しました" in message
+    assert "ASE=force fallback" in message
+    assert "pymatgen=force fallback" in message
