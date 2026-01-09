@@ -2,6 +2,8 @@
 
 English | [Japanese](./README.ja.md)
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/grace-bidos/chem-model-edit)
+
 Note: the Japanese README is a short summary; this English version is the canonical reference.
 
 Web app for editing and visualizing chemical structures (Quantum ESPRESSO `.in`).
