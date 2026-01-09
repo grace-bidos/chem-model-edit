@@ -97,3 +97,7 @@ def test_zpe_kpoints_reflected(monkeypatch, tmp_path: Path) -> None:
     assert resp.status_code == 200
     result = resp.json()["result"]
     assert result["kpts"] == [2, 3, 4]
+
+    resp = client.get(f"/calc/zpe/jobs/{job_id}/files", params={"kind": "summary"})
+    assert resp.status_code == 200
+    assert resp.text.startswith("# ZPE summary")

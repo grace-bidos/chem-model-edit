@@ -206,10 +206,10 @@ def run_zpe_job(payload: Dict[str, Any]) -> Dict[str, object]:
     if job is not None:
         job.meta.update(
             {
-                "work_dir": str(job_dir),
-                "summary_file": str(summary_path),
-                "freqs_file": str(csv_path),
-                "result_file": str(result_path),
+                "work_dir": str(job_dir.resolve()),
+                "summary_file": str(summary_path.resolve()),
+                "freqs_file": str(csv_path.resolve()),
+                "result_file": str(result_path.resolve()),
             }
         )
         job.save_meta()
