@@ -6,7 +6,9 @@ from typing import Iterable, List, Tuple
 import numpy as np
 from ase.units import kB
 
-H_PLANCK = 6.62607015e-34  # J*s (CODATA 2023)
+J_PER_EV = 1.602176634e-19
+H_PLANCK_J = 6.62607015e-34  # J*s (CODATA 2023)
+H_PLANCK_EV = H_PLANCK_J / J_PER_EV
 HC_EV_CM = 1.239841984e-4
 C_LIGHT = 2.99792458e10
 
@@ -49,7 +51,7 @@ def calc_zpe_and_s_vib(
     freqs_hz = np.array(valid, dtype=float) * C_LIGHT
     s_vib = 0.0
     for nu in freqs_hz:
-        x = H_PLANCK * nu / (kB * temperature)
+        x = H_PLANCK_EV * nu / (kB * temperature)
         if not math.isfinite(x) or x <= 1.0e-12:
             continue
         exp_x = math.exp(x)

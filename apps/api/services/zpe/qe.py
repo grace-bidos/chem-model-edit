@@ -30,13 +30,20 @@ def build_espresso_profile(
     kwargs: Dict[str, Any] = {}
     sig = inspect.signature(EspressoProfile)
     params = set(sig.parameters)
-    if "command" in params:
-        kwargs["command"] = settings.mpi_cmd if use_mpi else pw
     if "pseudo_dir" in params:
         kwargs["pseudo_dir"] = pseudo_dir
-    if "argv" in params:
-        kwargs["argv"] = argv[2:] if use_mpi else argv[1:]
-    if not kwargs:
+
+    if {"command", "argv"} <= params:
+        kwargs["command"] = settings.mpi_cmd if use_mpi else pw
+        if use_mpi:
+            kwargs["argv"] = ["-np", str(np_core), pw] + (["-environ"] if environ else [])
+        else:
+            kwargs["argv"] = ["-environ"] if environ else []
+    elif "command" in params:
+        kwargs["command"] = " ".join(argv)
+    elif "argv" in params:
+        kwargs["argv"] = argv
+    else:
         raise RuntimeError("Unsupported EspressoProfile signature")
     return EspressoProfile(**kwargs)
 
