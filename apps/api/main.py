@@ -17,12 +17,15 @@ from models import (
     SupercellRequest,
     SupercellResponse,
     TiledSupercellRequest,
+    ZPEParseRequest,
+    ZPEParseResponse,
 )
 from services.export import export_qe_in
 from services.lattice import params_to_vectors, vectors_to_params
 from services.parse import parse_qe_in
 from services.supercell import generate_supercell, generate_tiled_supercell
 from services.transplant import transplant_delta
+from services.zpe import parse_qe_structure
 
 app = FastAPI(title="Chem Model API", version="0.1.0")
 
@@ -111,3 +114,9 @@ def lattice_params_to_vectors(
     return LatticeConvertResponse(
         lattice=lattice, params=request.params, unit=request.unit
     )
+
+
+@app.post("/calc/zpe/parse", response_model=ZPEParseResponse)
+def zpe_parse(request: ZPEParseRequest) -> ZPEParseResponse:
+    structure, fixed_indices = parse_qe_structure(request.content)
+    return ZPEParseResponse(structure=structure, fixed_indices=fixed_indices)
