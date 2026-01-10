@@ -6,3 +6,6 @@ ignoredBuiltDependencies:
   - '@scarf/scarf'
   - esbuild
   - unrs-resolver
+
+onlyBuiltDependencies:
+  - '@parcel/watcher'
