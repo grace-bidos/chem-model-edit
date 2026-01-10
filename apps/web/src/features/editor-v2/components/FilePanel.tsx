@@ -70,12 +70,6 @@ export function FilePanel({
               </div>
             )}
           </div>
-          <div className="flex items-center justify-between border-t border-slate-200 bg-white px-3 py-2 text-xs text-slate-500">
-            <span className="font-medium">{data.label}</span>
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] uppercase tracking-wide">
-              Mol*
-            </span>
-          </div>
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1">
