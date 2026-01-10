@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
+import type { DockviewApi, DockviewReadyEvent, IDockviewPanelProps } from 'dockview-react'
+import { DockviewReact } from 'dockview-react'
 import {
   Activity,
   ArrowLeftRight,
@@ -17,6 +19,7 @@ import type { ToolMode, WorkspaceFile } from './types'
 import { FilePanel } from './components/FilePanel'
 import { ToolPanel } from './components/ToolPanel'
 import { DEMO_STRUCTURES } from './demoStructures'
+import 'dockview/dist/styles/dockview.css'
 
 const MOCK_FILES: WorkspaceFile[] = [
   {
@@ -65,25 +68,185 @@ const TOOL_NAV: Array<{ id: ToolMode; label: string; icon: ReactNode }> =
   ]
 
 const FILES_BY_ID = new Map(MOCK_FILES.map((file) => [file.id, file]))
+const FILE_PANEL_PREFIX = 'file'
+const TOOL_PANEL_PREFIX = 'tool'
+const HISTORY_PANEL_ID = 'lineage'
+
+const filePanelId = (id: string) => `${FILE_PANEL_PREFIX}-${id}`
+const toolPanelId = (id: ToolMode) => `${TOOL_PANEL_PREFIX}-${id}`
 
 export default function EditorV2Page() {
-  const [openFileIds, setOpenFileIds] = useState<string[]>(['1', '2', '3'])
   const [activeTool, setActiveTool] = useState<ToolMode | null>(null)
+  const [activeFileId, setActiveFileId] = useState<string | null>(
+    MOCK_FILES[0]?.id ?? null,
+  )
+  const dockviewApiRef = useRef<DockviewApi | null>(null)
+  const disposablesRef = useRef<Array<{ dispose: () => void }>>([])
 
-  const openFile = (id: string) => {
-    if (openFileIds.includes(id)) {
+  const openFile = useCallback((id: string) => {
+    const api = dockviewApiRef.current
+    const file = FILES_BY_ID.get(id)
+    if (!api || !file) {
       return
     }
-    setOpenFileIds((prev) => [...prev, id])
-  }
+    const panelId = filePanelId(id)
+    const existing = api.getPanel(panelId)
+    if (existing) {
+      existing.api.setActive()
+      return
+    }
+    api.addPanel({
+      id: panelId,
+      title: file.name,
+      component: 'structure',
+      params: { fileId: id },
+    })
+  }, [])
 
-  const closeFile = (id: string) => {
-    setOpenFileIds((prev) => prev.filter((fileId) => fileId !== id))
-  }
+  const openTool = useCallback((mode: ToolMode) => {
+    const api = dockviewApiRef.current
+    if (!api) {
+      return
+    }
+    const panelId = toolPanelId(mode)
+    const existing = api.getPanel(panelId)
+    if (existing) {
+      existing.api.setActive()
+      return
+    }
+    api.addPanel({
+      id: panelId,
+      title: TOOL_NAV.find((tool) => tool.id === mode)?.label ?? mode,
+      component: 'tool',
+      params: { mode },
+    })
+  }, [])
 
-  const toggleTool = (mode: ToolMode) => {
-    setActiveTool((prev) => (prev === mode ? null : mode))
-  }
+  const handleReady = useCallback((event: DockviewReadyEvent) => {
+    dockviewApiRef.current = event.api
+
+    const first = MOCK_FILES[0]
+    const second = MOCK_FILES[1]
+    const third = MOCK_FILES[2]
+
+    if (first) {
+      event.api.addPanel({
+        id: filePanelId(first.id),
+        title: first.name,
+        component: 'structure',
+        params: { fileId: first.id },
+      })
+    }
+
+    if (first && second) {
+      event.api.addPanel({
+        id: filePanelId(second.id),
+        title: second.name,
+        component: 'structure',
+        params: { fileId: second.id },
+        position: {
+          referencePanel: filePanelId(first.id),
+          direction: 'right',
+        },
+      })
+    }
+
+    if (first && third) {
+      event.api.addPanel({
+        id: filePanelId(third.id),
+        title: third.name,
+        component: 'structure',
+        params: { fileId: third.id },
+        position: {
+          referencePanel: filePanelId(first.id),
+          direction: 'below',
+        },
+      })
+    }
+
+    if (second) {
+      event.api.addPanel({
+        id: HISTORY_PANEL_ID,
+        title: 'Lineage',
+        component: 'history',
+        position: {
+          referencePanel: filePanelId(second.id),
+          direction: 'below',
+        },
+      })
+    }
+
+    disposablesRef.current = [
+      event.api.onDidActivePanelChange((panel) => {
+        if (!panel) {
+          setActiveFileId(null)
+          setActiveTool(null)
+          return
+        }
+        if (panel.id.startsWith(`${FILE_PANEL_PREFIX}-`)) {
+          setActiveFileId(panel.id.replace(`${FILE_PANEL_PREFIX}-`, ''))
+          setActiveTool(null)
+          return
+        }
+        if (panel.id.startsWith(`${TOOL_PANEL_PREFIX}-`)) {
+          const mode = panel.id.replace(`${TOOL_PANEL_PREFIX}-`, '') as ToolMode
+          setActiveTool(mode)
+          return
+        }
+        setActiveTool(null)
+      }),
+    ]
+  }, [])
+
+  const dockviewComponents = useMemo(
+    () => ({
+      structure: ({
+        params,
+      }: IDockviewPanelProps<{ fileId: string }>) => {
+        const file = params?.fileId ? FILES_BY_ID.get(params.fileId) : null
+        if (!file) {
+          return (
+            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+              Missing structure data
+            </div>
+          )
+        }
+        return (
+          <FilePanel
+            data={file}
+            showHeader={false}
+            className="h-full w-full border-none p-3"
+          />
+        )
+      },
+      tool: ({
+        params,
+        api,
+      }: IDockviewPanelProps<{ mode: ToolMode }>) => {
+        if (!params?.mode) {
+          return null
+        }
+        return (
+          <ToolPanel
+            mode={params.mode}
+            onClose={() => api.close()}
+            variant="dock"
+            showClose={false}
+            className="h-full w-full border-none"
+          />
+        )
+      },
+      history: () => <HistoryPanel />,
+    }),
+    [],
+  )
+
+  useEffect(() => {
+    return () => {
+      disposablesRef.current.forEach((disposable) => disposable.dispose())
+      disposablesRef.current = []
+    }
+  }, [])
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background font-sans text-foreground">
@@ -101,7 +264,10 @@ export default function EditorV2Page() {
               key={item.id}
               icon={item.icon}
               label={item.label}
-              onClick={() => toggleTool(item.id)}
+              onClick={() => {
+                setActiveTool(item.id)
+                openTool(item.id)
+              }}
               isActive={activeTool === item.id}
             />
           ))}
@@ -146,20 +312,20 @@ export default function EditorV2Page() {
               <h2 className="text-sm font-semibold text-slate-900">Structures</h2>
             </div>
 
-            <div className="flex-1 space-y-1 overflow-y-auto p-3">
-              {MOCK_FILES.map((file) => {
-                const isOpen = openFileIds.includes(file.id)
-                return (
-                  <button
-                    type="button"
-                    key={file.id}
-                    onClick={() => (isOpen ? null : openFile(file.id))}
-                    className={`flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-all ${
-                      isOpen
-                        ? 'border-blue-200 bg-blue-50 shadow-sm'
-                        : 'border-slate-200 bg-white opacity-70 hover:border-blue-300 hover:opacity-100 hover:shadow-sm'
-                    }`}
-                  >
+          <div className="flex-1 space-y-1 overflow-y-auto p-3">
+            {MOCK_FILES.map((file) => {
+              const isActive = activeFileId === file.id
+              return (
+                <button
+                  type="button"
+                  key={file.id}
+                  onClick={() => openFile(file.id)}
+                  className={`flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-all ${
+                    isActive
+                      ? 'border-blue-200 bg-blue-50 shadow-sm'
+                      : 'border-slate-200 bg-white opacity-70 hover:border-blue-300 hover:opacity-100 hover:shadow-sm'
+                  }`}
+                >
                     <FileText
                       className={`h-4 w-4 ${
                         isOpen ? 'text-blue-600' : 'text-slate-400'
@@ -172,9 +338,9 @@ export default function EditorV2Page() {
                     >
                       {file.name}
                     </span>
-                    {!isOpen ? (
-                      <span className="ml-auto text-[10px] text-slate-400">
-                        Hidden
+                    {isActive ? (
+                      <span className="ml-auto text-[10px] text-blue-500">
+                        Active
                       </span>
                     ) : null}
                   </button>
@@ -196,33 +362,51 @@ export default function EditorV2Page() {
             </div>
           </div>
 
-          <main className="flex-1 overflow-x-auto overflow-y-hidden bg-slate-100/50">
-            <div className="flex h-full min-w-max items-start gap-6 p-6">
-              {openFileIds.map((id) => {
-                const fileData = FILES_BY_ID.get(id)
-                if (!fileData) {
-                  return null
-                }
-                return (
-                  <div
-                    key={id}
-                    className="h-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow duration-300 hover:shadow-md"
-                  >
-                    <FilePanel data={fileData} onClose={() => closeFile(id)} />
-                  </div>
-                )
-              })}
-
-              {activeTool ? (
-                <div className="h-full overflow-hidden rounded-xl border border-blue-100 bg-white shadow-lg ring-1 ring-blue-100">
-                  <ToolPanel mode={activeTool} onClose={() => setActiveTool(null)} />
-                </div>
-              ) : null}
-
-              <div className="h-full w-12 opacity-0" />
-            </div>
+          <main className="flex-1 overflow-hidden bg-slate-100/50 p-4">
+            <DockviewReact
+              components={dockviewComponents}
+              onReady={handleReady}
+              className="dockview-theme-light h-full w-full"
+            />
           </main>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function HistoryPanel() {
+  return (
+    <div className="flex h-full flex-col gap-4 bg-white p-4 text-sm text-slate-700">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+            Lineage
+          </p>
+          <p className="text-base font-semibold text-slate-800">
+            Derived Structures
+          </p>
+        </div>
+        <span className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-500">
+          3 items
+        </span>
+      </div>
+      <div className="flex-1 space-y-3 overflow-y-auto">
+        {['benzen.in → transfer', 'h2o.in → supercell', 'phenol.in → draft'].map(
+          (item, index) => (
+            <div
+              key={`${item}-${index}`}
+              className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"
+            >
+              <p className="text-xs font-medium text-slate-600">Step {index + 1}</p>
+              <p className="text-sm text-slate-800">{item}</p>
+              <p className="text-[10px] text-slate-400">Pending review</p>
+            </div>
+          ),
+        )}
+      </div>
+      <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-400">
+        Drag a panel to link lineage
       </div>
     </div>
   )

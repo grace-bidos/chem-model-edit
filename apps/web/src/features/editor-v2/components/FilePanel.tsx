@@ -3,41 +3,58 @@ import { Cuboid, Minus, X } from 'lucide-react'
 import type { WorkspaceFile } from '../types'
 import { CollapsibleSection } from './CollapsibleSection'
 import MolstarViewer from '@/components/molstar/MolstarViewer'
+import { cn } from '@/lib/utils'
 
 interface FilePanelProps {
   data: WorkspaceFile
-  onClose: () => void
+  onClose?: () => void
+  showHeader?: boolean
+  className?: string
 }
 
-export function FilePanel({ data, onClose }: FilePanelProps) {
+export function FilePanel({
+  data,
+  onClose,
+  showHeader = true,
+  className,
+}: FilePanelProps) {
   return (
-    <div className="flex h-full w-80 flex-shrink-0 flex-col gap-4 border-r border-border bg-background p-4 animate-in fade-in slide-in-from-left-4 duration-300">
-      <div className="flex items-center justify-between">
-        <h2
-          className="flex-1 truncate text-lg font-semibold tracking-tight"
-          title={data.name}
-        >
-          {data.name}
-        </h2>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
-            title="Minimize"
+    <div
+      className={cn(
+        'flex h-full w-80 flex-shrink-0 flex-col gap-4 border-r border-border bg-background p-4 animate-in fade-in slide-in-from-left-4 duration-300',
+        className,
+      )}
+    >
+      {showHeader ? (
+        <div className="flex items-center justify-between">
+          <h2
+            className="flex-1 truncate text-lg font-semibold tracking-tight"
+            title={data.name}
           >
-            <Minus className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded p-1 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
-            title="Close"
-          >
-            <X className="h-4 w-4" />
-          </button>
+            {data.name}
+          </h2>
+          {onClose ? (
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+                title="Minimize"
+              >
+                <Minus className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded p-1 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
+                title="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ) : null}
         </div>
-      </div>
+      ) : null}
 
       <div className="group relative flex w-full flex-col overflow-hidden rounded-lg border border-slate-200 bg-white">
         <div className="absolute inset-0 bg-grid-slate-200/50 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.7))]" />

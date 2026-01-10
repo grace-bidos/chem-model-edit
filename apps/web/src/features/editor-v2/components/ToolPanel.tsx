@@ -3,10 +3,15 @@ import { Activity, Grid3x3, Layers, MousePointerClick, Play, X } from 'lucide-re
 
 import type { ToolMode } from '../types'
 import { CollapsibleSection } from './CollapsibleSection'
+import { cn } from '@/lib/utils'
 
 interface ToolPanelProps {
   mode: ToolMode
-  onClose: () => void
+  onClose?: () => void
+  variant?: 'stack' | 'dock'
+  showHeader?: boolean
+  showClose?: boolean
+  className?: string
 }
 
 const toolTitles: Record<ToolMode, string> = {
@@ -21,21 +26,40 @@ const toolIcons: Record<ToolMode, ReactNode> = {
   vibration: <Play className="mb-2 h-16 w-16 text-rose-300" />,
 }
 
-export function ToolPanel({ mode, onClose }: ToolPanelProps) {
+export function ToolPanel({
+  mode,
+  onClose,
+  variant = 'stack',
+  showHeader = true,
+  showClose = true,
+  className,
+}: ToolPanelProps) {
   return (
-    <div className="flex h-full w-[60rem] flex-shrink-0 flex-col gap-4 border-r border-border border-l-4 border-l-blue-500/20 bg-slate-50/80 p-4 animate-in fade-in slide-in-from-right-4 duration-300">
-      <div className="flex shrink-0 items-center justify-between">
-        <h2 className="text-lg font-semibold tracking-tight text-slate-800">
-          {toolTitles[mode]}
-        </h2>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600"
-        >
-          <X className="h-4 w-4" />
-        </button>
-      </div>
+    <div
+      className={cn(
+        'flex h-full flex-col gap-4 bg-slate-50/80 p-4',
+        variant === 'stack'
+          ? 'w-[60rem] flex-shrink-0 border-r border-border border-l-4 border-l-blue-500/20 animate-in fade-in slide-in-from-right-4 duration-300'
+          : 'w-full',
+        className,
+      )}
+    >
+      {showHeader ? (
+        <div className="flex shrink-0 items-center justify-between">
+          <h2 className="text-lg font-semibold tracking-tight text-slate-800">
+            {toolTitles[mode]}
+          </h2>
+          {showClose && onClose ? (
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="flex flex-1 gap-4 overflow-hidden">
         <div className="flex w-[26rem] flex-shrink-0 flex-col gap-4 overflow-y-auto pr-1">
