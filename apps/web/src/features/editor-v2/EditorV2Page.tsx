@@ -12,6 +12,7 @@ import {
   Plus,
   Search,
   Settings,
+  X,
   UserCircle,
 } from 'lucide-react'
 
@@ -50,7 +51,7 @@ const toolPanelId = (id: ToolMode) => `${TOOL_PANEL_PREFIX}-${id}`
 
 export default function EditorV2Page() {
   const [files, setFiles] = useState<WorkspaceFile[]>(() => [...INITIAL_FILES])
-  const [importError, setImportError] = useState<string | null>(null)
+  const [importFailures, setImportFailures] = useState<string[]>([])
   const [isImporting, setIsImporting] = useState(false)
   const [importProgress, setImportProgress] = useState<{
     total: number
@@ -193,7 +194,6 @@ export default function EditorV2Page() {
       if (fileList.length === 0) {
         return
       }
-      setImportError(null)
       setIsImporting(true)
       setImportProgress({ total: fileList.length, done: 0 })
       const nextFiles: WorkspaceFile[] = []
@@ -242,9 +242,10 @@ export default function EditorV2Page() {
         }
 
         if (failedFiles.length > 0) {
-          setImportError(
-            `${failedFiles.length} file(s) failed: ${failedFiles.join(', ')}`,
-          )
+          setImportFailures((prev) => {
+            const merged = new Set([...prev, ...failedFiles])
+            return Array.from(merged)
+          })
         }
       } finally {
         setIsImporting(false)
@@ -414,10 +415,41 @@ export default function EditorV2Page() {
             </div>
 
             <div className="border-t border-border bg-white p-4">
-              {importError ? (
-                <p className="mb-2 rounded-md bg-red-50 px-3 py-2 text-xs text-red-600">
-                  {importError}
-                </p>
+              {importFailures.length > 0 ? (
+                <div className="mb-2 rounded-md bg-red-50 px-3 py-2 text-xs text-red-600">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="font-medium">Failed imports</span>
+                    <button
+                      type="button"
+                      onClick={() => setImportFailures([])}
+                      className="text-[10px] font-semibold uppercase tracking-wide text-red-500 transition-colors hover:text-red-700"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {importFailures.map((name) => (
+                      <span
+                        key={name}
+                        className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-1 text-[11px] text-red-600 shadow-sm"
+                      >
+                        <span className="max-w-[140px] truncate">{name}</span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setImportFailures((prev) =>
+                              prev.filter((item) => item !== name),
+                            )
+                          }
+                          className="rounded-full p-0.5 text-red-400 transition-colors hover:bg-red-100 hover:text-red-600"
+                          aria-label={`Remove ${name}`}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
               ) : null}
               <button
                 type="button"
