@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+import logging
+import secrets
+from typing import Literal
+
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
+from pydantic import ValidationError
 from redis.exceptions import RedisError
 
 from models import (
@@ -45,6 +50,7 @@ from services.zpe.enroll import get_enroll_store
 from services.zpe.parse import parse_atomic_species, parse_kpoints_automatic, parse_qe_structure
 
 app = FastAPI(title="Chem Model API", version="0.1.0")
+logger = logging.getLogger(__name__)
 
 app.add_middleware(
     CORSMiddleware,
@@ -62,9 +68,10 @@ def handle_value_error(_: Request, exc: ValueError) -> JSONResponse:
 
 @app.exception_handler(RedisError)
 def handle_redis_error(_: Request, exc: RedisError) -> JSONResponse:
+    logger.error("Redis error", exc_info=exc)
     return JSONResponse(
         status_code=503,
-        content={"detail": "redis unavailable", "error": str(exc)},
+        content={"detail": "redis unavailable"},
     )
 
 
@@ -83,7 +90,7 @@ def require_admin(request: Request) -> None:
     if not settings.admin_token:
         return
     token = _extract_admin_token(request)
-    if not token or token != settings.admin_token:
+    if not token or not secrets.compare_digest(token, settings.admin_token):
         raise HTTPException(status_code=401, detail="unauthorized")
 
 
@@ -199,13 +206,14 @@ def zpe_jobs(request: ZPEJobRequest) -> ZPEJobResponse:
     job_id = enqueue_zpe_job(payload)
     return ZPEJobResponse(job_id=job_id)
 
-
 @app.post("/calc/zpe/compute/enroll-tokens", response_model=ZPEEnrollTokenResponse)
 def zpe_compute_enroll_token(
     request: ZPEEnrollTokenRequest,
     raw: Request,
 ) -> ZPEEnrollTokenResponse:
     require_admin(raw)
+    if request.ttl_seconds is not None and request.ttl_seconds <= 0:
+        raise HTTPException(status_code=400, detail="ttl_seconds must be >= 1")
     store = get_enroll_store()
     token = store.create_token(ttl_seconds=request.ttl_seconds, label=request.label)
     return ZPEEnrollTokenResponse(
@@ -225,7 +233,7 @@ def zpe_compute_register(
         registration = store.consume_token(
             request.token,
             name=request.name,
-            meta=request.meta or None,
+            meta=request.meta,
         )
     except KeyError as exc:
         raise HTTPException(status_code=400, detail="invalid enroll token") from exc
@@ -234,8 +242,6 @@ def zpe_compute_register(
         registered_at=registration.registered_at,
         name=registration.name,
     )
-
-
 @app.get("/calc/zpe/jobs/{job_id}", response_model=ZPEJobStatusResponse)
 def zpe_job_status(job_id: str) -> ZPEJobStatusResponse:
     store = get_result_store()
@@ -258,11 +264,17 @@ def zpe_job_result(job_id: str) -> ZPEJobResultResponse:
         result_dict = store.get_result(job_id)
     except KeyError as exc:
         raise HTTPException(status_code=500, detail="result missing after completion") from exc
-    return ZPEJobResultResponse(result=ZPEResult(**result_dict))
+    try:
+        result = ZPEResult(**result_dict)
+    except ValidationError as exc:
+        raise HTTPException(status_code=500, detail="result data invalid") from exc
+    return ZPEJobResultResponse(result=result)
 
 
 @app.get("/calc/zpe/jobs/{job_id}/files")
-def zpe_job_files(job_id: str, kind: str = Query(...)) -> Response:
+def zpe_job_files(
+    job_id: str, kind: Literal["summary", "freqs"] = Query(...)
+) -> Response:
     store = get_result_store()
     _ensure_job_finished(job_id)
     try:

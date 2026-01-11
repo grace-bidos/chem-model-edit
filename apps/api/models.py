@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional, Tuple
 
 from pydantic import BaseModel, Field
 
@@ -126,7 +126,7 @@ class ZPEJobRequest(BaseModel):
     mobile_indices: List[int]
     use_environ: bool = False
     input_dir: Optional[str] = None
-    calc_mode: str = "continue"
+    calc_mode: Literal["new", "continue"] = "continue"
 
 
 class ZPEJobResponse(BaseModel):
@@ -180,7 +180,7 @@ class ZPEEnrollTokenResponse(BaseModel):
 class ZPEComputeRegisterRequest(BaseModel):
     token: str
     name: Optional[str] = None
-    meta: Dict[str, str] = Field(default_factory=dict)
+    meta: Dict[str, Any] = Field(default_factory=dict)
 
 
 class ZPEComputeRegisterResponse(BaseModel):

@@ -4,10 +4,10 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 import json
 import secrets
-from typing import Dict, Optional, cast
+from typing import Any, Mapping, Optional
 from uuid import uuid4
 
-from redis import Redis
+from redis import Redis, WatchError
 
 from .queue import get_redis_connection
 from .settings import get_zpe_settings
@@ -42,7 +42,7 @@ class ComputeServerRegistration:
     server_id: str
     registered_at: str
     name: Optional[str] = None
-    meta: Dict[str, str] = field(default_factory=dict)
+    meta: Mapping[str, Any] = field(default_factory=dict)
 
 
 class ComputeEnrollStore:
@@ -65,8 +65,13 @@ class ComputeEnrollStore:
             "label": label or "",
         }
         key = f"{_ENROLL_PREFIX}{token}"
-        self.redis.hset(key, mapping=payload)
-        self.redis.expire(key, ttl)
+        pipe = self.redis.pipeline(transaction=True)
+        pipe.hset(key, mapping=payload)
+        pipe.expire(key, ttl)
+        _, expire_ok = pipe.execute()
+        if not expire_ok:
+            self.redis.delete(key)
+            raise RuntimeError("failed to set enroll token expiry")
         return EnrollToken(
             token=token,
             expires_at=_expires_iso(ttl),
@@ -79,12 +84,9 @@ class ComputeEnrollStore:
         token: str,
         *,
         name: Optional[str] = None,
-        meta: Optional[Dict[str, str]] = None,
+        meta: Optional[Mapping[str, Any]] = None,
     ) -> ComputeServerRegistration:
         key = f"{_ENROLL_PREFIX}{token}"
-        deleted = cast(int, self.redis.delete(key))
-        if deleted == 0:
-            raise KeyError("token not found")
         server_id = f"compute-{uuid4().hex}"
         now = _now_iso()
         payload = {
@@ -93,7 +95,24 @@ class ComputeEnrollStore:
         }
         if meta:
             payload["meta"] = json.dumps(meta, ensure_ascii=False)
-        self.redis.hset(f"{_SERVER_PREFIX}{server_id}", mapping=payload)
+        server_key = f"{_SERVER_PREFIX}{server_id}"
+        pipe = self.redis.pipeline(transaction=True)
+        for _ in range(5):
+            try:
+                pipe.watch(key)
+                if not pipe.exists(key):
+                    pipe.reset()
+                    raise KeyError("token not found")
+                pipe.multi()
+                pipe.delete(key)
+                pipe.hset(server_key, mapping=payload)
+                pipe.execute()
+                break
+            except WatchError:
+                pipe.reset()
+                continue
+        else:
+            raise RuntimeError("failed to consume enroll token")
         return ComputeServerRegistration(
             server_id=server_id,
             registered_at=now,
