@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
+import type { ChangeEvent, ReactNode } from 'react'
 import type { DockviewApi, DockviewReadyEvent, IDockviewPanelProps } from 'dockview-react'
 import { DockviewReact } from 'dockview-react'
 import {
@@ -136,9 +136,12 @@ export default function EditorV2Page() {
   }, [bumpDockviewVersion])
 
   const handleReady = useCallback((event: DockviewReadyEvent) => {
+    disposablesRef.current.forEach((disposable) => disposable.dispose())
+    disposablesRef.current = []
+
     const api = event.api as DockviewApi & {
-      onDidAddPanel?: (listener: () => void) => { dispose: () => void }
-      onDidRemovePanel?: (listener: () => void) => { dispose: () => void }
+      onDidAddPanel: (listener: (panel: unknown) => void) => { dispose: () => void }
+      onDidRemovePanel: (listener: (panel: unknown) => void) => { dispose: () => void }
     }
     dockviewApiRef.current = api
 
@@ -164,12 +167,8 @@ export default function EditorV2Page() {
         bumpDockviewVersion()
       }),
     ]
-    if (api.onDidAddPanel) {
-      disposablesRef.current.push(api.onDidAddPanel(bumpDockviewVersion))
-    }
-    if (api.onDidRemovePanel) {
-      disposablesRef.current.push(api.onDidRemovePanel(bumpDockviewVersion))
-    }
+    disposablesRef.current.push(api.onDidAddPanel(() => bumpDockviewVersion()))
+    disposablesRef.current.push(api.onDidRemovePanel(() => bumpDockviewVersion()))
 
     if (pendingOpenFileId && filesById.has(pendingOpenFileId)) {
       openFile(pendingOpenFileId)
@@ -210,7 +209,20 @@ export default function EditorV2Page() {
         api,
       }: IDockviewPanelProps<{ mode: ToolMode }>) => {
         if (!params?.mode) {
-          return null
+          return (
+            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+              <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-slate-200 bg-white/70 px-4 py-3 text-xs">
+                <span>Missing tool mode</span>
+                <button
+                  type="button"
+                  onClick={() => api.close()}
+                  className="rounded bg-slate-900 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )
         }
         return (
           <ToolPanel
@@ -228,8 +240,9 @@ export default function EditorV2Page() {
   )
 
   const handleImportFile = useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const fileList = Array.from(event.target.files ?? [])
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const input = event.currentTarget
+      const fileList = Array.from(input.files ?? [])
       if (fileList.length === 0) {
         return
       }
@@ -289,7 +302,7 @@ export default function EditorV2Page() {
       } finally {
         setIsImporting(false)
         setImportProgress(null)
-        event.target.value = ''
+        input.value = ''
       }
     },
     [],
