@@ -1,15 +1,17 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Viewer } from 'molstar/lib/apps/viewer/app'
 
 type MolstarStructure = {
   id: string
-  pdbText: string
+  pdbText?: string
+  bcifUrl?: string
   opacity?: number
   visible?: boolean
 }
 
 type MolstarViewerProps = {
   pdbText?: string
+  bcifUrl?: string
   structures?: Array<MolstarStructure>
 }
 
@@ -30,6 +32,7 @@ const signatureForText = (value: string) => {
 
 export default function MolstarViewer({
   pdbText,
+  bcifUrl,
   structures,
 }: MolstarViewerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -37,16 +40,20 @@ export default function MolstarViewer({
   const lastSignatureRef = useRef<string | null>(null)
   const timerRef = useRef<number | null>(null)
   const activeRef = useRef(true)
+  const [viewerReady, setViewerReady] = useState(false)
 
   const normalizedStructures = useMemo<Array<MolstarStructure>>(() => {
     if (structures && structures.length > 0) {
       return structures
     }
+    if (bcifUrl) {
+      return [{ id: 'single', bcifUrl, opacity: 1, visible: true }]
+    }
     if (pdbText) {
       return [{ id: 'single', pdbText, opacity: 1, visible: true }]
     }
     return []
-  }, [pdbText, structures])
+  }, [bcifUrl, pdbText, structures])
 
   const signature = useMemo(() => {
     if (normalizedStructures.length === 0) {
@@ -56,9 +63,12 @@ export default function MolstarViewer({
       .map((structure) => {
         const opacity = structure.opacity ?? 1
         const visible = structure.visible ?? true
-        return `${structure.id}|${opacity}|${visible}|${signatureForText(
-          structure.pdbText,
-        )}`
+        const payloadSignature = structure.bcifUrl
+          ? `bcif:${structure.bcifUrl}`
+          : structure.pdbText
+            ? `pdb:${signatureForText(structure.pdbText)}`
+            : 'empty'
+        return `${structure.id}|${opacity}|${visible}|${payloadSignature}`
       })
       .join('::')
   }, [normalizedStructures])
@@ -70,16 +80,38 @@ export default function MolstarViewer({
     const plugin = (viewer as unknown as { plugin: any }).plugin
     await plugin.clear()
     for (const item of items) {
-      if (!item.pdbText || item.visible === false) {
+      if (item.visible === false) {
         continue
       }
-      const data = await plugin.builders.data.rawData(
-        { data: item.pdbText },
-        { state: { isGhost: true } },
-      )
+      let data = null
+      let format: 'pdb' | 'bcif' = 'pdb'
+      if (item.bcifUrl) {
+        const response = await fetch(item.bcifUrl)
+        if (!response.ok) {
+          console.error('Mol* bcif 取得に失敗しました。', response.status)
+          continue
+        }
+        const buffer = await response.arrayBuffer()
+        data = await plugin.builders.data.rawData(
+          { data: new Uint8Array(buffer) },
+          { state: { isGhost: true } },
+        )
+        format = 'bcif'
+      } else if (item.pdbText) {
+        data = await plugin.builders.data.rawData(
+          { data: item.pdbText },
+          { state: { isGhost: true } },
+        )
+        format = 'pdb'
+      }
+
+      if (!data) {
+        continue
+      }
+
       const trajectory = await plugin.builders.structure.parseTrajectory(
         data,
-        'pdb',
+        format,
       )
       const model = await plugin.builders.structure.createModel(trajectory)
       const structure = await plugin.builders.structure.createStructure(model)
@@ -120,6 +152,8 @@ export default function MolstarViewer({
       try {
         await import('molstar/lib/mol-plugin-ui/skin/light.scss')
         const { Viewer } = await import('molstar/lib/apps/viewer/app')
+        const { CifCoreProvider } =
+          await import('molstar/lib/mol-plugin-state/formats/trajectory')
         const viewer = await Viewer.create(container, {
           layoutIsExpanded: false,
           layoutShowControls: false,
@@ -130,12 +164,14 @@ export default function MolstarViewer({
           viewportShowExpand: false,
           viewportShowControls: false,
           backgroundColor: 0x0b1120,
+          customFormats: [['bcif', CifCoreProvider]],
         })
         if (!activeRef.current) {
           viewer.dispose()
           return
         }
         viewerRef.current = viewer
+        setViewerReady(true)
       } catch (error) {
         console.error('Mol* Viewerの初期化に失敗しました。', error)
       }
@@ -147,11 +183,12 @@ export default function MolstarViewer({
         viewerRef.current.dispose()
         viewerRef.current = null
       }
+      setViewerReady(false)
     }
   }, [])
 
   useEffect(() => {
-    if (!viewerRef.current) {
+    if (!viewerRef.current || !viewerReady) {
       return
     }
     if (signature.length === 0) {
@@ -183,7 +220,7 @@ export default function MolstarViewer({
         window.clearTimeout(timerRef.current)
       }
     }
-  }, [normalizedStructures, signature])
+  }, [normalizedStructures, signature, viewerReady])
 
   return (
     <div
