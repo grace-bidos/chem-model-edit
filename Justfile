@@ -130,14 +130,11 @@ api-test:
   set -euo pipefail
   pushd apps/api >/dev/null
   if [[ -z "${UV_CACHE_DIR:-}" ]]; then
-    cache_dir="$(python ../../scripts/uv_pick_cache.py "{{uv_cache_dir}}" "$HOME/.cache/uv" "/tmp/uv-cache")" || {
-      echo "UV cache でクロスディレクトリrenameが失敗します。Linux ext4上のパスをUV_CACHE_DIRで指定してください。" >&2
-      exit 1
-    }
+    cache_dir="{{uv_cache_dir}}"
   else
     cache_dir="$UV_CACHE_DIR"
   fi
-  tmp_dir="${TMPDIR:-$cache_dir/tmp}"
+  tmp_dir="${TMPDIR:-{{uv_tmp_dir}}}"
   mkdir -p "$cache_dir" "$tmp_dir"
   link_mode="${UV_LINK_MODE:-copy}"
   uv_flags=()
@@ -153,14 +150,11 @@ api-ruff:
   set -euo pipefail
   pushd apps/api >/dev/null
   if [[ -z "${UV_CACHE_DIR:-}" ]]; then
-    cache_dir="$(python ../../scripts/uv_pick_cache.py "{{uv_cache_dir}}" "$HOME/.cache/uv" "/tmp/uv-cache")" || {
-      echo "UV cache でクロスディレクトリrenameが失敗します。Linux ext4上のパスをUV_CACHE_DIRで指定してください。" >&2
-      exit 1
-    }
+    cache_dir="{{uv_cache_dir}}"
   else
     cache_dir="$UV_CACHE_DIR"
   fi
-  tmp_dir="${TMPDIR:-$cache_dir/tmp}"
+  tmp_dir="${TMPDIR:-{{uv_tmp_dir}}}"
   mkdir -p "$cache_dir" "$tmp_dir"
   link_mode="${UV_LINK_MODE:-copy}"
   uv_flags=()
@@ -176,14 +170,11 @@ api-mypy:
   set -euo pipefail
   pushd apps/api >/dev/null
   if [[ -z "${UV_CACHE_DIR:-}" ]]; then
-    cache_dir="$(python ../../scripts/uv_pick_cache.py "{{uv_cache_dir}}" "$HOME/.cache/uv" "/tmp/uv-cache")" || {
-      echo "UV cache でクロスディレクトリrenameが失敗します。Linux ext4上のパスをUV_CACHE_DIRで指定してください。" >&2
-      exit 1
-    }
+    cache_dir="{{uv_cache_dir}}"
   else
     cache_dir="$UV_CACHE_DIR"
   fi
-  tmp_dir="${TMPDIR:-$cache_dir/tmp}"
+  tmp_dir="${TMPDIR:-{{uv_tmp_dir}}}"
   mkdir -p "$cache_dir" "$tmp_dir"
   link_mode="${UV_LINK_MODE:-copy}"
   uv_flags=()
