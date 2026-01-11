@@ -23,6 +23,8 @@ def _default_kpts() -> tuple[int, int, int]:
 
 def enqueue_zpe_job(payload: Dict[str, Any]) -> str:
     settings = get_zpe_settings()
+    if settings.compute_mode not in {"remote-queue", "mock"}:
+        raise ValueError("compute_mode must be 'remote-queue' or 'mock'.")
     store = get_result_store()
     if settings.compute_mode == "remote-queue":
         job = get_queue().enqueue(
@@ -33,9 +35,7 @@ def enqueue_zpe_job(payload: Dict[str, Any]) -> str:
         )
         store.set_status(job.id, "queued")
         return job.id
-    if settings.compute_mode == "mock":
-        return _run_mock_job(payload, store)
-    raise ValueError("compute_mode は remote-queue / mock のいずれかです。")
+    return _run_mock_job(payload, store)
 
 
 def _run_mock_job(payload: Dict[str, Any], store: ResultStore) -> str:

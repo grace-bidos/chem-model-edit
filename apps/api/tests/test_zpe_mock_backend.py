@@ -41,3 +41,9 @@ H 0 0 0 1 1 1
     assert result["zpe_ev"] >= 0.0
     assert len(result["freqs_cm"]) == 3
     assert result["mobile_indices"] == [0]
+
+    summary = store.get_file(job_id, "summary")
+    assert "ZPE summary" in summary
+
+    freqs_csv = store.get_file(job_id, "freqs")
+    assert "frequency_cm^-1" in freqs_csv
