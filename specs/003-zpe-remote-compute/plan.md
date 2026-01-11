@@ -55,8 +55,16 @@ apps/api/
    - 共有ストア経由の結果取得テスト
    - モックモードのE2E向け検証
 
+## Observability (MVP)
+
+- control-plane は job_id とステータス遷移、RedisError をログに残す
+- compute-plane は job_id を含む開始/完了/失敗ログを出す
+- 監視ダッシュボード・アラート・SLO は運用が安定してから追加する
+
 ## Rollback Plan
 
-- 追加したバックエンド/ストア層を削除
 - `ZPE_COMPUTE_MODE` を `local` に戻す
+- compute-plane ワーカーを停止する
 - `/calc/zpe/*` の挙動を従来のローカル方式に戻す
+- Redis 側のジョブ/結果はそのまま残す（必要に応じて手動削除）
+- 段階的切替やデータクリーンアップの詳細手順は運用が固まってから追記する
