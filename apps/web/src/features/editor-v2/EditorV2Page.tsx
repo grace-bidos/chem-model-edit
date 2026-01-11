@@ -48,6 +48,7 @@ const FILE_PANEL_PREFIX = 'file'
 const TOOL_PANEL_PREFIX = 'tool'
 const filePanelId = (id: string) => `${FILE_PANEL_PREFIX}-${id}`
 const toolPanelId = (id: ToolMode) => `${TOOL_PANEL_PREFIX}-${id}`
+const MAX_IMPORT_BYTES = 5 * 1024 * 1024
 
 type FilePanelStatus = 'visible' | 'open' | 'closed'
 
@@ -87,7 +88,8 @@ export default function EditorV2Page() {
         next.set(file.id, 'closed')
         return
       }
-      next.set(file.id, panel.api.isActive ? 'visible' : 'open')
+      const isActive = api?.activePanel ? panel === api.activePanel : false
+      next.set(file.id, isActive ? 'visible' : 'open')
     })
     return next
   }, [files, dockviewVersion])
@@ -155,7 +157,11 @@ export default function EditorV2Page() {
           return
         }
         if (panel.id.startsWith(`${TOOL_PANEL_PREFIX}-`)) {
-          const mode = panel.id.replace(`${TOOL_PANEL_PREFIX}-`, '') as ToolMode
+          const raw = panel.id.replace(`${TOOL_PANEL_PREFIX}-`, '')
+          const mode =
+            raw === 'transfer' || raw === 'supercell' || raw === 'vibration'
+              ? (raw as ToolMode)
+              : null
           setActiveTool(mode)
           bumpDockviewVersion()
           return
@@ -164,8 +170,12 @@ export default function EditorV2Page() {
         bumpDockviewVersion()
       }),
     ]
-    disposablesRef.current.push(api.onDidAddPanel(() => bumpDockviewVersion()))
-    disposablesRef.current.push(api.onDidRemovePanel(() => bumpDockviewVersion()))
+    if (typeof api.onDidAddPanel === 'function') {
+      disposablesRef.current.push(api.onDidAddPanel(() => bumpDockviewVersion()))
+    }
+    if (typeof api.onDidRemovePanel === 'function') {
+      disposablesRef.current.push(api.onDidRemovePanel(() => bumpDockviewVersion()))
+    }
 
     if (pendingOpenFileId && filesById.has(pendingOpenFileId)) {
       openFile(pendingOpenFileId)
@@ -252,6 +262,9 @@ export default function EditorV2Page() {
       try {
         for (const file of fileList) {
           try {
+            if (file.size > MAX_IMPORT_BYTES) {
+              throw new Error(`File too large (${file.size} bytes)`)
+            }
             const content = await file.text()
             const structure = await parseQeInput(content)
             const baseName = file.name.replace(/\.[^/.]+$/, '') || file.name
