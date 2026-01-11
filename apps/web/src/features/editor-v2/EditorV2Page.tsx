@@ -28,6 +28,12 @@ import type { ReactNode } from 'react'
 import type { ToolMode, WorkspaceFile } from './types'
 import { createStructureFromQe, structureViewUrl } from '@/lib/api'
 
+type ImportFailure = {
+  id: string
+  name: string
+  message: string
+}
+
 const INITIAL_FILES: Array<WorkspaceFile> = []
 
 const TOOL_NAV: Array<{ id: ToolMode; label: string; icon: ReactNode }> = [
@@ -57,7 +63,9 @@ export default function EditorV2Page() {
   const [files, setFiles] = useState<Array<WorkspaceFile>>(() => [
     ...INITIAL_FILES,
   ])
-  const [importFailures, setImportFailures] = useState<Array<string>>([])
+  const [importFailures, setImportFailures] = useState<Array<ImportFailure>>(
+    [],
+  )
   const [isImporting, setIsImporting] = useState(false)
   const [importProgress, setImportProgress] = useState<{
     total: number
@@ -123,6 +131,8 @@ export default function EditorV2Page() {
   }, [])
 
   const handleReady = useCallback((event: DockviewReadyEvent) => {
+    disposablesRef.current.forEach((disposable) => disposable.dispose())
+    disposablesRef.current = []
     dockviewApiRef.current = event.api
 
     disposablesRef.current = [
@@ -198,7 +208,7 @@ export default function EditorV2Page() {
       setIsImporting(true)
       setImportProgress({ total: fileList.length, done: 0 })
       const nextFiles: Array<WorkspaceFile> = []
-      const failedFiles: Array<string> = []
+      const failedFiles: Array<ImportFailure> = []
       let firstImportedId: string | null = null
       let doneCount = 0
       try {
@@ -232,8 +242,15 @@ export default function EditorV2Page() {
             if (!firstImportedId) {
               firstImportedId = id
             }
-          } catch (_err) {
-            failedFiles.push(file.name)
+          } catch (err) {
+            const message =
+              err instanceof Error && err.message ? err.message : String(err)
+            console.warn(`[import] failed to import ${file.name}`, err)
+            failedFiles.push({
+              id: `failed-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+              name: file.name,
+              message,
+            })
           } finally {
             doneCount += 1
             setImportProgress({ total: fileList.length, done: doneCount })
@@ -250,8 +267,13 @@ export default function EditorV2Page() {
 
         if (failedFiles.length > 0) {
           setImportFailures((prev) => {
-            const merged = new Set([...prev, ...failedFiles])
-            return Array.from(merged)
+            const merged = new Map(
+              prev.map((item) => [`${item.name}:${item.message}`, item]),
+            )
+            for (const failure of failedFiles) {
+              merged.set(`${failure.name}:${failure.message}`, failure)
+            }
+            return Array.from(merged.values())
           })
         }
       } finally {
@@ -437,21 +459,28 @@ export default function EditorV2Page() {
                     </button>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {importFailures.map((name, idx) => (
+                    {importFailures.map((failure) => (
                       <span
-                        key={`${name}-${idx}`}
-                        className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-1 text-[11px] text-red-600 shadow-sm"
+                        key={failure.id}
+                        className="inline-flex items-start gap-2 rounded-lg bg-white px-2 py-1 text-[11px] text-red-600 shadow-sm"
                       >
-                        <span className="max-w-[140px] truncate">{name}</span>
+                        <span className="flex min-w-0 flex-col">
+                          <span className="max-w-[140px] truncate">
+                            {failure.name}
+                          </span>
+                          <span className="max-w-[180px] truncate text-[10px] text-red-500/80">
+                            {failure.message}
+                          </span>
+                        </span>
                         <button
                           type="button"
                           onClick={() =>
                             setImportFailures((prev) =>
-                              prev.filter((item) => item !== name),
+                              prev.filter((item) => item.id !== failure.id),
                             )
                           }
                           className="rounded-full p-0.5 text-red-400 transition-colors hover:bg-red-100 hover:text-red-600"
-                          aria-label={`Remove ${name}`}
+                          aria-label={`Remove ${failure.name}`}
                         >
                           <X className="h-3 w-3" />
                         </button>
