@@ -137,13 +137,18 @@ export default function EditorV2Page() {
       }),
     ]
 
+    if (pendingOpenFileId && filesById.has(pendingOpenFileId)) {
+      openFile(pendingOpenFileId)
+      setPendingOpenFileId(null)
+    }
+
     requestAnimationFrame(() => {
       const container = dockviewContainerRef.current
       if (container) {
         event.api.layout(container.clientWidth, container.clientHeight, true)
       }
     })
-  }, [])
+  }, [filesById, openFile, pendingOpenFileId])
 
   const dockviewComponents = useMemo(
     () => ({
@@ -261,6 +266,9 @@ export default function EditorV2Page() {
       return
     }
     if (!filesById.has(pendingOpenFileId)) {
+      return
+    }
+    if (!dockviewApiRef.current) {
       return
     }
     openFile(pendingOpenFileId)
