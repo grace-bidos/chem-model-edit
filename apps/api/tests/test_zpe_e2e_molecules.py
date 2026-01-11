@@ -46,9 +46,9 @@ def _set_env(monkeypatch, pw_path: str, pseudo_dir: str) -> None:
     zpe_settings.get_zpe_settings.cache_clear()
 
 
-def _run_case(case: MoleculeCase, *, pseudo_dir: str) -> dict[str, object]:
+def _run_case(monkeypatch, case: MoleculeCase) -> dict[str, object]:
     fake = fakeredis.FakeRedis()
-    worker.get_result_store = lambda: RedisResultStore(redis=fake)
+    monkeypatch.setattr(worker, "get_result_store", lambda: RedisResultStore(redis=fake))
 
     job_id = f"e2e-{case.name}-{uuid4().hex[:8]}"
     payload = {
@@ -233,7 +233,7 @@ def test_zpe_e2e_molecules(monkeypatch, case: MoleculeCase):
         if not (Path(pseudo_dir) / pseudo).exists():
             pytest.skip(f"Pseudo file not found: {pseudo}")
 
-    result = _run_case(case, pseudo_dir=pseudo_dir)
+    result = _run_case(monkeypatch, case)
     freqs = cast(List[float], result["freqs_cm"])
     assert len(freqs) == 3 * case.natoms
 

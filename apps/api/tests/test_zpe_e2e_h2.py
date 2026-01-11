@@ -82,7 +82,9 @@ def test_zpe_e2e_h2(monkeypatch):
     assert len(freqs) == 6
     assert all(math.isfinite(freq) for freq in freqs)
 
-    max_freq = max(freqs)
+    low_cut = float(result["low_cut_cm"])
+    positive = [freq for freq in freqs if math.isfinite(freq) and freq > low_cut]
+    max_freq = max(positive)
     ref_freq = 4401.0
     tol_freq = float(os.environ.get("ZPE_E2E_FREQ_TOL_FRAC", "0.25"))
     assert abs(max_freq - ref_freq) <= ref_freq * tol_freq
