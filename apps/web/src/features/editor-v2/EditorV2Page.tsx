@@ -139,10 +139,7 @@ export default function EditorV2Page() {
     disposablesRef.current.forEach((disposable) => disposable.dispose())
     disposablesRef.current = []
 
-    const api = event.api as DockviewApi & {
-      onDidAddPanel: (listener: (panel: unknown) => void) => { dispose: () => void }
-      onDidRemovePanel: (listener: (panel: unknown) => void) => { dispose: () => void }
-    }
+    const api = event.api
     dockviewApiRef.current = api
 
     disposablesRef.current = [
