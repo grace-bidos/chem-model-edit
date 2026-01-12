@@ -1,9 +1,23 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Optional
+import os
+from pathlib import Path
+from typing import Any, Optional, cast
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def _resolve_env_file() -> str:
+    override = os.getenv("ZPE_ENV_FILE")
+    if override:
+        return override
+    cwd = Path.cwd()
+    for base in (cwd, *cwd.parents):
+        candidate = base / ".env"
+        if candidate.is_file():
+            return str(candidate)
+    return ".env"
 
 
 class ZPESettings(BaseSettings):
@@ -16,6 +30,10 @@ class ZPESettings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     work_dir: str = "zpe_jobs"
     queue_name: str = "zpe"
+    compute_mode: str = "remote-queue"
+    result_store: str = "redis"
+    admin_token: Optional[str] = None
+    enroll_token_ttl_seconds: int = 3600
 
     pw_command: str = "pw.x"
     pw_path: Optional[str] = None
@@ -40,4 +58,5 @@ class ZPESettings(BaseSettings):
 
 @lru_cache
 def get_zpe_settings() -> ZPESettings:
-    return ZPESettings()
+    settings_cls = cast(Any, ZPESettings)
+    return settings_cls(_env_file=_resolve_env_file())

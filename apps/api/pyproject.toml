@@ -10,7 +10,7 @@ dependencies = [
     "pydantic-settings>=2.8.0",
     "pymatgen>=2025.10.7",
     "redis>=5.0.8",
-    "rq>=1.16.2",
+    "rq>=2.6.1",
     "uvicorn[standard]>=0.40.0",
 ]
 
@@ -21,4 +21,9 @@ dev = [
     "mypy>=1.19.1",
     "pytest>=9.0.2",
     "ruff>=0.14.10",
+]
+
+[tool.pytest.ini_options]
+markers = [
+    "e2e: end-to-end tests that require external dependencies (QE, pseudopotentials)",
 ]

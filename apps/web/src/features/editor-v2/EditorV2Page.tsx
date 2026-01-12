@@ -1,4 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { ChangeEvent, ReactNode } from 'react'
+import type {
+  DockviewApi,
+  DockviewReadyEvent,
+  IDockviewPanelProps,
+} from 'dockview-react'
 import { DockviewReact } from 'dockview-react'
 import {
   Activity,
@@ -18,13 +24,6 @@ import { FilePanel } from './components/FilePanel'
 import { ToolPanel } from './components/ToolPanel'
 import 'dockview/dist/styles/dockview.css'
 
-import type {
-  DockviewApi,
-  DockviewReadyEvent,
-  IDockviewPanelProps,
-} from 'dockview-react'
-import type { ReactNode } from 'react'
-
 import type { ToolMode, WorkspaceFile } from './types'
 import { createStructureFromQe, structureViewUrl } from '@/lib/api'
 
@@ -33,6 +32,8 @@ type ImportFailure = {
   name: string
   message: string
 }
+
+type FilePanelStatus = 'visible' | 'open' | 'closed'
 
 const INITIAL_FILES: Array<WorkspaceFile> = []
 const MAX_IMPORT_BYTES = 5 * 1024 * 1024
@@ -96,24 +97,41 @@ export default function EditorV2Page() {
     done: number
   } | null>(null)
   const [activeTool, setActiveTool] = useState<ToolMode | null>(null)
-  const [activeFileId, setActiveFileId] = useState<string | null>(
-    INITIAL_FILES[0]?.id ?? null,
-  )
   const [pendingOpenFileId, setPendingOpenFileId] = useState<string | null>(
     null,
   )
   const [pendingOpenTool, setPendingOpenTool] = useState<ToolMode | null>(null)
   const [isDockviewReady, setIsDockviewReady] = useState(false)
   const [isDragOver, setIsDragOver] = useState(false)
+  const [dockviewVersion, setDockviewVersion] = useState(0)
   const dockviewApiRef = useRef<DockviewApi | null>(null)
   const disposablesRef = useRef<Array<{ dispose: () => void }>>([])
   const dockviewContainerRef = useRef<HTMLDivElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
+  const bumpDockviewVersion = useCallback(() => {
+    setDockviewVersion((value) => value + 1)
+  }, [])
+
   const filesById = useMemo(
     () => new Map(files.map((file) => [file.id, file])),
     [files],
   )
+
+  const fileStatuses = useMemo(() => {
+    const api = dockviewApiRef.current
+    const next = new Map<string, FilePanelStatus>()
+    files.forEach((file) => {
+      const panel = api?.getPanel(filePanelId(file.id))
+      if (!panel) {
+        next.set(file.id, 'closed')
+        return
+      }
+      const isActive = api?.activePanel ? panel === api.activePanel : false
+      next.set(file.id, isActive ? 'visible' : 'open')
+    })
+    return next
+  }, [files, dockviewVersion])
 
   const openFile = useCallback(
     (id: string): boolean => {
@@ -126,6 +144,7 @@ export default function EditorV2Page() {
       const existing = api.getPanel(panelId)
       if (existing) {
         existing.api.setActive()
+        bumpDockviewVersion()
         return true
       }
       api.addPanel({
@@ -134,77 +153,99 @@ export default function EditorV2Page() {
         component: 'structure',
         params: { fileId: id },
       })
+      bumpDockviewVersion()
       return true
     },
-    [filesById],
+    [bumpDockviewVersion, filesById],
   )
 
-  const openTool = useCallback((mode: ToolMode): boolean => {
-    const api = dockviewApiRef.current
-    if (!api) {
-      return false
-    }
-    const panelId = toolPanelId(mode)
-    const existing = api.getPanel(panelId)
-    if (existing) {
-      existing.api.setActive()
+  const openTool = useCallback(
+    (mode: ToolMode): boolean => {
+      const api = dockviewApiRef.current
+      if (!api) {
+        return false
+      }
+      const panelId = toolPanelId(mode)
+      const existing = api.getPanel(panelId)
+      if (existing) {
+        existing.api.setActive()
+        bumpDockviewVersion()
+        return true
+      }
+      api.addPanel({
+        id: panelId,
+        title: TOOL_NAV.find((tool) => tool.id === mode)?.label ?? mode,
+        component: 'tool',
+        params: { mode },
+      })
+      bumpDockviewVersion()
       return true
-    }
-    api.addPanel({
-      id: panelId,
-      title: TOOL_NAV.find((tool) => tool.id === mode)?.label ?? mode,
-      component: 'tool',
-      params: { mode },
-    })
-    return true
-  }, [])
+    },
+    [bumpDockviewVersion],
+  )
 
-  const handleReady = useCallback((event: DockviewReadyEvent) => {
-    disposablesRef.current.forEach((disposable) => disposable.dispose())
-    disposablesRef.current = []
-    dockviewApiRef.current = event.api
-    setIsDockviewReady(true)
+  const handleReady = useCallback(
+    (event: DockviewReadyEvent) => {
+      disposablesRef.current.forEach((disposable) => disposable.dispose())
+      disposablesRef.current = []
 
-    disposablesRef.current = [
-      event.api.onDidActivePanelChange((panel) => {
-        if (!panel) {
-          setActiveFileId(null)
-          setActiveTool(null)
-          return
-        }
-        if (panel.id.startsWith(`${FILE_PANEL_PREFIX}-`)) {
-          setActiveFileId(panel.id.replace(`${FILE_PANEL_PREFIX}-`, ''))
-          setActiveTool(null)
-          return
-        }
-        if (panel.id.startsWith(`${TOOL_PANEL_PREFIX}-`)) {
-          const mode = panel.id.replace(`${TOOL_PANEL_PREFIX}-`, '')
-          if (isToolMode(mode)) {
+      const api = event.api
+      dockviewApiRef.current = api
+      setIsDockviewReady(true)
+
+      disposablesRef.current = [
+        api.onDidActivePanelChange((panel) => {
+          if (!panel) {
+            setActiveTool(null)
+            bumpDockviewVersion()
+            return
+          }
+          if (panel.id.startsWith(`${FILE_PANEL_PREFIX}-`)) {
+            setActiveTool(null)
+            bumpDockviewVersion()
+            return
+          }
+          if (panel.id.startsWith(`${TOOL_PANEL_PREFIX}-`)) {
+            const raw = panel.id.replace(`${TOOL_PANEL_PREFIX}-`, '')
+            const mode = isToolMode(raw) ? raw : null
             setActiveTool(mode)
-            setActiveFileId(null)
+            bumpDockviewVersion()
             return
           }
           setActiveTool(null)
-          setActiveFileId(null)
-          return
-        }
-        setActiveTool(null)
-        setActiveFileId(null)
-      }),
-    ]
-
-    requestAnimationFrame(() => {
-      const container = dockviewContainerRef.current
-      if (container) {
-        event.api.layout(container.clientWidth, container.clientHeight, true)
+          bumpDockviewVersion()
+        }),
+      ]
+      if (typeof api.onDidAddPanel === 'function') {
+        disposablesRef.current.push(
+          api.onDidAddPanel(() => bumpDockviewVersion()),
+        )
       }
-    })
-  }, [])
+      if (typeof api.onDidRemovePanel === 'function') {
+        disposablesRef.current.push(
+          api.onDidRemovePanel(() => bumpDockviewVersion()),
+        )
+      }
+
+      if (pendingOpenFileId && filesById.has(pendingOpenFileId)) {
+        openFile(pendingOpenFileId)
+        setPendingOpenFileId(null)
+      }
+
+      requestAnimationFrame(() => {
+        const container = dockviewContainerRef.current
+        if (container) {
+          api.layout(container.clientWidth, container.clientHeight, true)
+        }
+      })
+    },
+    [bumpDockviewVersion, filesById, openFile, pendingOpenFileId],
+  )
 
   const dockviewComponents = useMemo(
     () => ({
       structure: ({ params }: IDockviewPanelProps<{ fileId: string }>) => {
-        const file = params.fileId ? filesById.get(params.fileId) : null
+        const file = params?.fileId ? filesById.get(params.fileId) : null
         if (!file) {
           return (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
@@ -224,11 +265,20 @@ export default function EditorV2Page() {
         params,
         api,
       }: IDockviewPanelProps<{ mode: ToolMode }>) => {
-        const mode = params.mode
+        const mode = params?.mode
         if (!isToolMode(mode)) {
           return (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-              Missing tool mode
+              <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-slate-200 bg-white/70 px-4 py-3 text-xs">
+                <span>Missing tool mode</span>
+                <button
+                  type="button"
+                  onClick={() => api.close()}
+                  className="rounded bg-slate-900 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           )
         }
@@ -321,7 +371,6 @@ export default function EditorV2Page() {
         if (nextFiles.length > 0) {
           setFiles((prev) => [...prev, ...nextFiles])
           if (firstImportedId) {
-            setActiveFileId(firstImportedId)
             if (isDockviewReady) {
               if (!openFile(firstImportedId)) {
                 setPendingOpenFileId(firstImportedId)
@@ -352,12 +401,13 @@ export default function EditorV2Page() {
   )
 
   const handleImportFile = useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const fileList = Array.from(event.target.files ?? [])
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const input = event.currentTarget
+      const fileList = Array.from(input.files ?? [])
       try {
         await importFiles(fileList)
       } finally {
-        event.target.value = ''
+        input.value = ''
       }
     },
     [importFiles],
@@ -368,6 +418,9 @@ export default function EditorV2Page() {
       return
     }
     if (!filesById.has(pendingOpenFileId)) {
+      return
+    }
+    if (!dockviewApiRef.current) {
       return
     }
     if (openFile(pendingOpenFileId)) {
@@ -414,6 +467,7 @@ export default function EditorV2Page() {
       disposablesRef.current = []
     }
   }, [])
+
   const importLabel = isImporting
     ? importProgress
       ? `Importing… (${importProgress.done}/${importProgress.total})`
@@ -468,6 +522,7 @@ export default function EditorV2Page() {
               <input
                 type="text"
                 placeholder="Search tools..."
+                aria-label="Search tools"
                 className="w-full rounded-md border-none bg-slate-100 py-2 pl-10 pr-4 text-sm text-slate-800 outline-none transition-all placeholder:text-muted-foreground focus:bg-white focus:ring-2 focus:ring-blue-500/20"
               />
             </div>
@@ -492,35 +547,59 @@ export default function EditorV2Page() {
 
             <div className="flex-1 space-y-1 overflow-y-auto p-3">
               {files.map((file) => {
-                const isActive = activeFileId === file.id
+                const status = fileStatuses.get(file.id) ?? 'closed'
+                const isVisible = status === 'visible'
+                const isOpen = status === 'open'
+                const statusLabel =
+                  status === 'visible'
+                    ? 'Visible'
+                    : status === 'open'
+                      ? 'Open'
+                      : 'Closed'
                 return (
                   <button
                     type="button"
                     key={file.id}
                     onClick={() => openFile(file.id)}
                     className={`flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-all ${
-                      isActive
+                      isVisible
                         ? 'border-blue-200 bg-blue-50 shadow-sm'
-                        : 'border-slate-200 bg-white opacity-70 hover:border-blue-300 hover:opacity-100 hover:shadow-sm'
+                        : isOpen
+                          ? 'border-slate-300 bg-white opacity-90 hover:border-blue-200 hover:opacity-100 hover:shadow-sm'
+                          : 'border-slate-200 bg-white opacity-60 hover:border-slate-300 hover:opacity-80 hover:shadow-sm'
                     }`}
                   >
                     <FileText
                       className={`h-4 w-4 ${
-                        isActive ? 'text-blue-600' : 'text-slate-400'
+                        isVisible
+                          ? 'text-blue-600'
+                          : isOpen
+                            ? 'text-slate-500'
+                            : 'text-slate-400'
                       }`}
                     />
                     <span
                       className={`truncate font-medium ${
-                        isActive ? 'text-blue-900' : 'text-slate-600'
+                        isVisible
+                          ? 'text-blue-900'
+                          : isOpen
+                            ? 'text-slate-700'
+                            : 'text-slate-500'
                       }`}
                     >
                       {file.name}
                     </span>
-                    {isActive ? (
-                      <span className="ml-auto text-[10px] text-blue-500">
-                        Active
-                      </span>
-                    ) : null}
+                    <span
+                      className={`ml-auto text-[10px] ${
+                        isVisible
+                          ? 'text-blue-500'
+                          : isOpen
+                            ? 'text-slate-500'
+                            : 'text-slate-400'
+                      }`}
+                    >
+                      {statusLabel}
+                    </span>
                   </button>
                 )
               })}
@@ -619,7 +698,7 @@ export default function EditorV2Page() {
             </div>
           </div>
 
-          <main className="flex-1 overflow-hidden bg-slate-100/50 p-4 min-h-0">
+          <main className="flex-1 min-h-0 overflow-hidden bg-slate-100/50 p-4">
             <div
               ref={dockviewContainerRef}
               className="relative h-full w-full min-h-0"
@@ -714,7 +793,7 @@ function NavItem({ icon, label, onClick, isActive }: NavItemProps) {
         {icon}
       </div>
       <span
-        className={`text-center text-[10px] font-medium leading-none ${
+        className={`text-center text-xs font-medium leading-none ${
           isActive
             ? 'font-bold text-blue-700'
             : 'text-slate-500 group-hover:text-blue-700'

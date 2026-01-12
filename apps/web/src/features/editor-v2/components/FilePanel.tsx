@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 interface FilePanelProps {
   data: WorkspaceFile
   onClose?: () => void
+  onMinimize?: () => void
   showHeader?: boolean
   className?: string
 }
@@ -18,6 +19,7 @@ interface FilePanelProps {
 export function FilePanel({
   data,
   onClose,
+  onMinimize,
   showHeader = true,
   className,
 }: FilePanelProps) {
@@ -42,31 +44,37 @@ export function FilePanel({
           >
             {data.name}
           </h2>
-          {onClose ? (
+          {onClose || onMinimize ? (
             <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
-                title="Minimize"
-              >
-                <Minus className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded p-1 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
-                title="Close"
-              >
-                <X className="h-4 w-4" />
-              </button>
+              {onMinimize ? (
+                <button
+                  type="button"
+                  onClick={onMinimize}
+                  className="rounded p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+                  title="Minimize"
+                  aria-label="Minimize file panel"
+                >
+                  <Minus className="h-4 w-4" aria-hidden="true" />
+                </button>
+              ) : null}
+              {onClose ? (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded p-1 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
+                  title="Close"
+                  aria-label="Close file panel"
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </button>
+              ) : null}
             </div>
           ) : null}
         </div>
       ) : null}
 
       <div className="flex min-h-0 flex-1 flex-col gap-4">
-        <div className="group relative flex h-1/2 min-h-[220px] w-full flex-col overflow-hidden rounded-lg border border-slate-200 bg-white">
+        <div className="group relative flex h-1/2 min-h-[220px] w-full flex-col overflow-hidden rounded-lg border border-border bg-card">
           <div className="absolute inset-0 bg-grid-slate-200/50 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.7))]" />
           <div className="relative z-10 flex w-full flex-1 flex-col">
             {data.bcifUrl ? (
@@ -143,8 +151,11 @@ export function FilePanel({
               </p>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="flex flex-col gap-1">
-                  <label className="text-slate-500">ecutwfc</label>
+                  <label htmlFor="param-ecutwfc" className="text-slate-500">
+                    ecutwfc
+                  </label>
                   <input
+                    id="param-ecutwfc"
                     type="text"
                     value="30.0"
                     className="rounded border border-slate-200 bg-slate-50 px-2 py-1"
@@ -152,8 +163,11 @@ export function FilePanel({
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-slate-500">mixing_beta</label>
+                  <label htmlFor="param-mixing-beta" className="text-slate-500">
+                    mixing_beta
+                  </label>
                   <input
+                    id="param-mixing-beta"
                     type="text"
                     value="0.7"
                     className="rounded border border-slate-200 bg-slate-50 px-2 py-1"
@@ -161,8 +175,11 @@ export function FilePanel({
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-slate-500">conv_thr</label>
+                  <label htmlFor="param-conv-thr" className="text-slate-500">
+                    conv_thr
+                  </label>
                   <input
+                    id="param-conv-thr"
                     type="text"
                     value="1.0d-8"
                     className="rounded border border-slate-200 bg-slate-50 px-2 py-1"
