@@ -268,10 +268,9 @@ export default function EditorV2Page() {
         return (
           <FilePanel
             data={file}
+            fileId={file.id}
             showHeader={false}
-            onStructureLoaded={(structure) =>
-              handleStructureLoaded(file.id, structure)
-            }
+            onStructureLoaded={handleStructureLoaded}
             className="h-full w-full border-none p-3"
           />
         )
@@ -309,7 +308,7 @@ export default function EditorV2Page() {
       },
       history: () => <HistoryPanel />,
     }),
-    [filesById],
+    [filesById, handleStructureLoaded],
   )
 
   const importFiles = useCallback(

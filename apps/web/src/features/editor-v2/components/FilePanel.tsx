@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Cuboid, Minus, X } from 'lucide-react'
 
 import { CollapsibleSection } from './CollapsibleSection'
@@ -12,7 +12,8 @@ import { cn } from '@/lib/utils'
 
 interface FilePanelProps {
   data: WorkspaceFile
-  onStructureLoaded?: (structure: Structure) => void
+  fileId: string
+  onStructureLoaded?: (fileId: string, structure: Structure) => void
   onClose?: () => void
   onMinimize?: () => void
   showHeader?: boolean
@@ -21,6 +22,7 @@ interface FilePanelProps {
 
 export function FilePanel({
   data,
+  fileId,
   onStructureLoaded,
   onClose,
   onMinimize,
@@ -33,10 +35,17 @@ export function FilePanel({
   )
   const [tableError, setTableError] = useState<string | null>(null)
   const [isTableLoading, setIsTableLoading] = useState(false)
+  const onStructureLoadedRef = useRef<FilePanelProps['onStructureLoaded']>(
+    onStructureLoaded,
+  )
 
   useEffect(() => {
     setViewerError(null)
   }, [data.bcifUrl, data.pdbText])
+
+  useEffect(() => {
+    onStructureLoadedRef.current = onStructureLoaded
+  }, [onStructureLoaded])
 
   useEffect(() => {
     setStructure(data.structure ?? null)
@@ -61,7 +70,7 @@ export function FilePanel({
         if (cancelled) return
         setStructure(nextStructure)
         setIsTableLoading(false)
-        onStructureLoaded?.(nextStructure)
+        onStructureLoadedRef.current?.(fileId, nextStructure)
       })
       .catch((err) => {
         if (cancelled) return
@@ -71,7 +80,7 @@ export function FilePanel({
     return () => {
       cancelled = true
     }
-  }, [data.structure, data.structureId, onStructureLoaded])
+  }, [data.structure, data.structureId])
 
   const atoms = structure?.atoms ?? []
 
