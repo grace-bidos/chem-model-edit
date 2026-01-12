@@ -10,6 +10,7 @@ export type WorkspaceFile = {
   structureId?: string
   structure?: Structure
   parseSource?: string
+  qeInput?: string
   initialOpenSections: {
     table: boolean
     parameter: boolean
