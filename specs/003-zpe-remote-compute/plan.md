@@ -60,6 +60,10 @@ apps/api/
 - control-plane は job_id とステータス遷移、RedisError をログに残す
 - compute-plane は job_id を含む開始/完了/失敗ログを出す
 - 監視ダッシュボード・アラート・SLO は運用が安定してから追加する
+- **Structured Logging（Planned）**
+  - JSON 形式の構造化ログを採用し、control-plane / compute-plane で相関IDを揃える
+  - 最低限のフィールド: request_id, job_id, calc_id, stage, status, exit_code, duration_ms, qe_version, backend/result_store, user_id（任意）
+  - 実装は Issue #47 で追跡する
 
 ## Rollback Plan
 
@@ -68,3 +72,7 @@ apps/api/
 - `/calc/zpe/*` の挙動を従来のローカル方式に戻す
 - Redis 側のジョブ/結果はそのまま残す（必要に応じて手動削除）
 - 段階的切替やデータクリーンアップの詳細手順は運用が固まってから追記する
+- **運用ガードレール（Planned）**
+  - 新規 remote 受付を止めるフラグ/トグル（既存ジョブは継続 or 明示キャンセル）
+  - worker の dequeue を止める運用手順
+  - 実装は Issue #47 で追跡する
