@@ -128,10 +128,13 @@
 - **FR-012**: ユーザーは重ね表示モードを切り替え、構造ごとの表示/透明度を調整できる
 - **FR-013**: 共有HTML出力は重ね表示・表示/透明度設定を再現できる
 - **FR-014**: 解析・編集の主要処理は FastAPI + ASE/pymatgen で実施できる
+- **FR-015**: システムは Structure をバックエンドに登録し、StructureId を返すことができる（Editor v2/Supercell v2 の基盤）
 
 ### Key Entities
 
 - **Structure**: 原子集合と格子情報を持つ構造データ
+- **StructureRegistry**: StructureId で ASE Atoms を保持するバックエンドのストア
+- **StructureId**: バックエンドで管理される構造ID（uuid4 hex）
 - **Model**: A/B いずれかの構造コンテナ
 - **Atom**: 元素記号・座標・付加フラグを保持
 - **Lattice**: 格子定数/ベクトル（QE入力と相互変換）
@@ -140,6 +143,7 @@
 - **DeltaTransplant**: 小スラブ出力の最終座標から変位を算出し、大スラブ可動原子へ適用するルール
 - **DistanceReport**: A/B対応原子の距離一覧
 - **TilingPattern**: 2D配列/GUIで定義されるタイル配置
+- **SupercellGrid**: StructureId を 2D 配列で並べたタイル配置（軸対応を含む）
 - **SupercellRecipe**: パターンと拡張倍率
 - **ExportSettings**: 出力単位・座標形式・celldm方針
 - **ViewState**: 重ね表示モード、構造ごとの表示/透明度
@@ -171,3 +175,5 @@
 - 非直交セルは未対応（wrap は Lx/Ly のみ）
 - UIは専用ページに実装（将来統合の可能性あり）
 - 新UIのモック/機能接続は別ルートで段階的に進める（暫定: `/editor-v2`）
+- `/structures` は Structure 直接登録に切り替え、QE などのインポートは `/structures/import` に分離する
+- Supercell v2 は StructureId の 2D グリッドを受け取り、格子は `baseStructureId` の lattice を基準にする（デフォルト軸: row->b, col->a）

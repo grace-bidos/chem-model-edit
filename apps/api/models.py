@@ -62,6 +62,27 @@ class StructureCreateResponse(BaseModel):
     source: str
 
 
+class StructureRegisterRequest(BaseModel):
+    structure: Structure
+    source: Optional[str] = None
+
+
+class StructureRegisterResponse(BaseModel):
+    structureId: str
+    source: str
+
+
+class StructureImportRequest(BaseModel):
+    content: str
+    format: Optional[str] = None
+
+
+class StructureImportResponse(BaseModel):
+    structureId: str
+    structure: Structure
+    source: str
+
+
 class ExportRequest(BaseModel):
     structure: Structure
     format: Optional[str] = None
@@ -107,6 +128,51 @@ class TiledSupercellRequest(BaseModel):
     lattice: Lattice
     checkOverlap: bool = False
     overlapTolerance: Optional[float] = None
+
+
+class SupercellGridAxis(BaseModel):
+    row: Literal["a", "b"]
+    col: Literal["a", "b"]
+
+
+class SupercellGrid(BaseModel):
+    rows: int = Field(..., ge=1)
+    cols: int = Field(..., ge=1)
+    tiles: List[List[str]]
+    axis: Optional[SupercellGridAxis] = None
+
+
+class SupercellBuildOptions(BaseModel):
+    checkOverlap: bool = False
+    overlapTolerance: Optional[float] = None
+    validateLattice: Literal["none", "warn", "error"] = "none"
+
+
+class SupercellBuildOutput(BaseModel):
+    register: bool = True
+    includeStructure: bool = False
+
+
+class SupercellBuildRequest(BaseModel):
+    baseStructureId: str
+    grid: SupercellGrid
+    options: Optional[SupercellBuildOptions] = None
+    output: Optional[SupercellBuildOutput] = None
+
+
+class SupercellBuildMeta(BaseModel):
+    rows: int
+    cols: int
+    tileCount: int
+    overlapCount: Optional[int] = None
+    baseStructureId: str
+    structureIdsUsed: List[str]
+
+
+class SupercellBuildResponse(BaseModel):
+    structureId: str
+    structure: Optional[Structure] = None
+    meta: SupercellBuildMeta
 
 
 class SupercellMeta(BaseModel):
