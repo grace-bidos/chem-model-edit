@@ -10,6 +10,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@chem-model/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@faker-js/faker':
         specifier: ^10.0.0
         version: 10.2.0

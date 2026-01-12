@@ -37,3 +37,13 @@ export type SupercellMeta = {
   layers: number
   overlapCount?: number
 }
+
+export type {
+  SupercellGridAxis,
+  SupercellGrid,
+  SupercellBuildOptions,
+  SupercellBuildOutput,
+  SupercellBuildRequest,
+  SupercellBuildMeta,
+  SupercellBuildResponse,
+} from '@chem-model/shared/types'

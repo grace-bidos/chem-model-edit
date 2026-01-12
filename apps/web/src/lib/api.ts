@@ -1,4 +1,11 @@
-import type { Lattice, LatticeParams, Structure, SupercellMeta } from './types'
+import type {
+  Lattice,
+  LatticeParams,
+  Structure,
+  SupercellBuildRequest,
+  SupercellBuildResponse,
+  SupercellMeta,
+} from './types'
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8000'
 
@@ -132,6 +139,17 @@ export async function generateTiledSupercell(params: {
     body: JSON.stringify(params),
   })
   return handleResponse<{ structure: Structure; meta: SupercellMeta }>(response)
+}
+
+export async function buildSupercell(
+  params: SupercellBuildRequest,
+): Promise<SupercellBuildResponse> {
+  const response = await fetch(`${API_BASE}/supercell/build`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  })
+  return handleResponse<SupercellBuildResponse>(response)
 }
 
 export async function latticeVectorsToParams(params: {
