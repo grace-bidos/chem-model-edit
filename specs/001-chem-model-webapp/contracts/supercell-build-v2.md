@@ -43,7 +43,7 @@ Request:
 Response:
 ```json
 {
-  "structureId": "a6b5c4d3e2f1",
+  "structureId": "a6b5c4d3e2f1a6b5c4d3e2f1a6b5c4d3",
   "structure": {
     "atoms": [{ "symbol": "O", "x": 0, "y": 0, "z": 0 }],
     "lattice": {
@@ -61,13 +61,13 @@ Response:
 Request:
 ```json
 {
-  "baseStructureId": "s-1",
+  "baseStructureId": "11111111111111111111111111111111",
   "grid": {
     "rows": 2,
     "cols": 3,
     "tiles": [
-      ["s-1", "s-2", "s-1"],
-      ["s-3", "s-1", "s-2"]
+      ["11111111111111111111111111111111", "22222222222222222222222222222222", "11111111111111111111111111111111"],
+      ["33333333333333333333333333333333", "11111111111111111111111111111111", "22222222222222222222222222222222"]
     ],
     "axis": { "row": "b", "col": "a" }
   },
@@ -86,23 +86,53 @@ Request:
 Response:
 ```json
 {
-  "structureId": "s-out-1",
+  "structureId": "44444444444444444444444444444444",
   "meta": {
     "rows": 2,
     "cols": 3,
     "tileCount": 6,
     "overlapCount": 1,
-    "baseStructureId": "s-1",
-    "structureIdsUsed": ["s-1", "s-2", "s-3"]
+    "baseStructureId": "11111111111111111111111111111111",
+    "structureIdsUsed": [
+      "11111111111111111111111111111111",
+      "22222222222222222222222222222222",
+      "33333333333333333333333333333333"
+    ]
   }
 }
+```
+
+### Field definitions (supercell/build)
+
+- grid.axis: map grid rows/cols to lattice axes (`row` and `col` must be different).
+- options.validateLattice:
+  - `none` (default): skip lattice validation.
+  - `warn`: proceed even if lattices mismatch; server may log a warning.
+  - `error`: reject the request if lattices mismatch.
+- options.checkOverlap: when true, the build still succeeds and `overlapCount` is returned.
+
+### Error responses
+
+Invalid grid dimensions (400):
+```json
+{ "detail": "tiles[1] has 2 cols, expected 3" }
+```
+
+Unknown structureId (404):
+```json
+{ "detail": "Structure not found" }
+```
+
+Missing base lattice (400):
+```json
+{ "detail": "base structure has no lattice" }
 ```
 
 ## Notes
 
 - Unit: angstrom (Cartesian coordinates and lattice vectors).
-- baseStructureId の lattice を基準にタイルを平行移動する。
-- grid.axis が省略された場合は row->b, col->a をデフォルトとする。
-- tiles は矩形であること、rows/cols と一致すること。
-- structureId はバックエンドの StructureRegistry（ASE Atoms）を参照する。
-- output.includeStructure=true の場合は Response に Structure を含める。
+- Tiles are translated based on the lattice of baseStructureId.
+- If grid.axis is omitted, row->b and col->a are used by default.
+- tiles must be rectangular and match rows/cols.
+- structureId references the backend StructureRegistry (ASE Atoms).
+- When output.includeStructure=true, the response includes the Structure payload.

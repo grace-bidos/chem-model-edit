@@ -87,10 +87,9 @@ export type SupercellResponse = {
   }
 }
 
-export type SupercellGridAxis = {
-  row: 'a' | 'b'
-  col: 'a' | 'b'
-}
+export type SupercellGridAxis =
+  | { row: 'a'; col: 'b' }
+  | { row: 'b'; col: 'a' }
 
 export type SupercellGrid = {
   rows: number

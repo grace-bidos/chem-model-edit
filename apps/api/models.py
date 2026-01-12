@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Literal, Optional, Tuple
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class Atom(BaseModel):
@@ -134,12 +134,29 @@ class SupercellGridAxis(BaseModel):
     row: Literal["a", "b"]
     col: Literal["a", "b"]
 
+    @model_validator(mode="after")
+    def check_distinct_axes(self) -> "SupercellGridAxis":
+        if self.row == self.col:
+            raise ValueError("row and col must map to different axes")
+        return self
+
 
 class SupercellGrid(BaseModel):
     rows: int = Field(..., ge=1)
     cols: int = Field(..., ge=1)
     tiles: List[List[str]]
     axis: Optional[SupercellGridAxis] = None
+
+    @model_validator(mode="after")
+    def check_tile_dimensions(self) -> "SupercellGrid":
+        if len(self.tiles) != self.rows:
+            raise ValueError(f"tiles has {len(self.tiles)} rows, expected {self.rows}")
+        for index, row in enumerate(self.tiles):
+            if len(row) != self.cols:
+                raise ValueError(
+                    f"tiles[{index}] has {len(row)} cols, expected {self.cols}"
+                )
+        return self
 
 
 class SupercellBuildOptions(BaseModel):
