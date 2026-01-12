@@ -37,7 +37,6 @@ export type SupercellMeta = {
   layers: number
   overlapCount?: number
 }
-
 export type ZPEParseResponse = {
   structure: Structure
   fixed_indices: Array<number>
@@ -84,3 +83,12 @@ export type ZPEResult = {
   ecutwfc?: number | null
   ecutrho?: number | null
 }
+export type {
+  SupercellGridAxis,
+  SupercellGrid,
+  SupercellBuildOptions,
+  SupercellBuildOutput,
+  SupercellBuildRequest,
+  SupercellBuildMeta,
+  SupercellBuildResponse,
+} from '@chem-model/shared/types'

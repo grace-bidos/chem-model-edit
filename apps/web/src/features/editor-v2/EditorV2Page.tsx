@@ -1,10 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { ChangeEvent, ReactNode } from 'react'
-import type {
-  DockviewApi,
-  DockviewReadyEvent,
-  IDockviewPanelProps,
-} from 'dockview-react'
 import { DockviewReact } from 'dockview-react'
 import {
   Activity,
@@ -24,7 +18,14 @@ import { FilePanel } from './components/FilePanel'
 import { ToolPanel } from './components/ToolPanel'
 import 'dockview/dist/styles/dockview.css'
 
+import type { ChangeEvent, ReactNode } from 'react'
+import type {
+  DockviewApi,
+  DockviewReadyEvent,
+  IDockviewPanelProps,
+} from 'dockview-react'
 import type { ToolMode, WorkspaceFile } from './types'
+import type { Structure, SupercellBuildMeta } from '@/lib/types'
 import { createStructureFromQe, structureViewUrl } from '@/lib/api'
 
 type ImportFailure = {
@@ -109,6 +110,33 @@ export default function EditorV2Page() {
   const dockviewContainerRef = useRef<HTMLDivElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
+  const handleSupercellCreated = useCallback(
+    (result: { structureId: string; meta: SupercellBuildMeta }) => {
+      const timestamp = new Date()
+        .toISOString()
+        .slice(0, 19)
+        .replace(/[:.]/g, '')
+        .replace('T', '-')
+      const name = `supercell-${result.meta.rows}x${result.meta.cols}-${timestamp}.in`
+      const nextFile: WorkspaceFile = {
+        id: createImportId(),
+        name,
+        kind: 'out',
+        label: `Supercell ${result.meta.rows}x${result.meta.cols}`,
+        structureId: result.structureId,
+        bcifUrl: structureViewUrl(result.structureId, {
+          format: 'bcif',
+          lossy: false,
+          precision: 3,
+        }),
+        parseSource: 'supercell',
+        initialOpenSections: { table: false, parameter: false },
+      }
+      setFiles((prev) => [...prev, nextFile])
+    },
+    [],
+  )
+
   const bumpDockviewVersion = useCallback(() => {
     setDockviewVersion((value) => value + 1)
   }, [])
@@ -176,12 +204,23 @@ export default function EditorV2Page() {
         id: panelId,
         title: TOOL_NAV.find((tool) => tool.id === mode)?.label ?? mode,
         component: 'tool',
-        params: { mode },
+        params: { mode, structures: files },
       })
       bumpDockviewVersion()
       return true
     },
-    [bumpDockviewVersion],
+    [bumpDockviewVersion, files],
+  )
+
+  const handleStructureLoaded = useCallback(
+    (fileId: string, structure: Structure) => {
+      setFiles((prev) =>
+        prev.map((file) =>
+          file.id === fileId ? { ...file, structure } : file,
+        ),
+      )
+    },
+    [],
   )
 
   const handleReady = useCallback(
@@ -245,7 +284,7 @@ export default function EditorV2Page() {
   const dockviewComponents = useMemo(
     () => ({
       structure: ({ params }: IDockviewPanelProps<{ fileId: string }>) => {
-        const file = params?.fileId ? filesById.get(params.fileId) : null
+        const file = params.fileId ? filesById.get(params.fileId) : null
         if (!file) {
           return (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
@@ -256,16 +295,21 @@ export default function EditorV2Page() {
         return (
           <FilePanel
             data={file}
+            fileId={file.id}
             showHeader={false}
+            onStructureLoaded={handleStructureLoaded}
             className="h-full w-full border-none p-3"
           />
         )
       },
       tool: ({
-        params,
+        params = {},
         api,
-      }: IDockviewPanelProps<{ mode: ToolMode }>) => {
-        const mode = params?.mode
+      }: IDockviewPanelProps<{
+        mode?: ToolMode
+        structures?: Array<WorkspaceFile>
+      }>) => {
+        const mode = params.mode
         if (!isToolMode(mode)) {
           return (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
@@ -282,6 +326,7 @@ export default function EditorV2Page() {
             </div>
           )
         }
+        const structures = params.structures ?? []
         return (
           <ToolPanel
             mode={mode}
@@ -290,12 +335,14 @@ export default function EditorV2Page() {
             variant="dock"
             showClose={false}
             className="h-full w-full border-none"
+            structures={structures}
+            onSupercellCreated={handleSupercellCreated}
           />
         )
       },
       history: () => <HistoryPanel />,
     }),
-    [filesById, files],
+    [files, filesById, handleStructureLoaded, handleSupercellCreated],
   )
 
   const importFiles = useCallback(
@@ -438,6 +485,19 @@ export default function EditorV2Page() {
       setPendingOpenTool(null)
     }
   }, [isDockviewReady, openTool, pendingOpenTool])
+
+  useEffect(() => {
+    const api = dockviewApiRef.current
+    if (!api) {
+      return
+    }
+    TOOL_NAV.forEach((tool) => {
+      const panel = api.getPanel(toolPanelId(tool.id))
+      if (panel) {
+        panel.api.updateParameters({ mode: tool.id, structures: files })
+      }
+    })
+  }, [files])
 
   useEffect(() => {
     const container = dockviewContainerRef.current

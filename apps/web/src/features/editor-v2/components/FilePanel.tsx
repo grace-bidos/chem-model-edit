@@ -1,15 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Cuboid, Minus, X } from 'lucide-react'
 
 import { CollapsibleSection } from './CollapsibleSection'
 
 import type { WorkspaceFile } from '../types'
+import type { Structure } from '@/lib/types'
 
 import MolstarViewer from '@/components/molstar/MolstarViewer'
+import { getStructure } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
 interface FilePanelProps {
   data: WorkspaceFile
+  fileId: string
+  onStructureLoaded?: (fileId: string, structure: Structure) => void
   onClose?: () => void
   onMinimize?: () => void
   showHeader?: boolean
@@ -18,16 +22,67 @@ interface FilePanelProps {
 
 export function FilePanel({
   data,
+  fileId,
+  onStructureLoaded,
   onClose,
   onMinimize,
   showHeader = true,
   className,
 }: FilePanelProps) {
   const [viewerError, setViewerError] = useState<string | null>(null)
+  const [structure, setStructure] = useState<Structure | null>(
+    data.structure ?? null,
+  )
+  const [tableError, setTableError] = useState<string | null>(null)
+  const [isTableLoading, setIsTableLoading] = useState(false)
+  const onStructureLoadedRef = useRef<FilePanelProps['onStructureLoaded']>(
+    onStructureLoaded,
+  )
 
   useEffect(() => {
     setViewerError(null)
   }, [data.bcifUrl, data.pdbText])
+
+  useEffect(() => {
+    onStructureLoadedRef.current = onStructureLoaded
+  }, [onStructureLoaded])
+
+  useEffect(() => {
+    setStructure(data.structure ?? null)
+  }, [data.structure, data.structureId])
+
+  useEffect(() => {
+    if (data.structure) {
+      setIsTableLoading(false)
+      setTableError(null)
+      return
+    }
+    if (!data.structureId) {
+      setIsTableLoading(false)
+      setTableError(null)
+      return
+    }
+    let cancelled = false
+    setIsTableLoading(true)
+    setTableError(null)
+    getStructure(data.structureId)
+      .then((nextStructure) => {
+        if (cancelled) return
+        setStructure(nextStructure)
+        setIsTableLoading(false)
+        onStructureLoadedRef.current?.(fileId, nextStructure)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        setTableError(err instanceof Error ? err.message : String(err))
+        setIsTableLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [data.structure, data.structureId])
+
+  const atoms = structure?.atoms ?? []
 
   return (
     <div
@@ -125,18 +180,24 @@ export function FilePanel({
                   <span>Y</span>
                   <span>Z</span>
                 </div>
-                <div className="grid grid-cols-4 gap-2">
-                  <span>C</span> <span>1.45</span> <span>3.62</span>{' '}
-                  <span>4.25</span>
-                </div>
-                <div className="grid grid-cols-4 gap-2">
-                  <span>H</span> <span>0.82</span> <span>2.11</span>{' '}
-                  <span>3.10</span>
-                </div>
-                <div className="grid grid-cols-4 gap-2">
-                  <span>O</span> <span>2.15</span> <span>4.01</span>{' '}
-                  <span>1.22</span>
-                </div>
+                {isTableLoading ? (
+                  <div className="py-2 text-slate-400">Loading...</div>
+                ) : tableError ? (
+                  <div className="py-2 text-red-500">
+                    Failed to load structure.
+                  </div>
+                ) : atoms.length === 0 ? (
+                  <div className="py-2 text-slate-400">No atoms.</div>
+                ) : (
+                  atoms.map((atom, index) => (
+                    <div key={`${atom.symbol}-${index}`} className="grid grid-cols-4 gap-2">
+                      <span>{atom.symbol}</span>
+                      <span>{atom.x.toFixed(4)}</span>
+                      <span>{atom.y.toFixed(4)}</span>
+                      <span>{atom.z.toFixed(4)}</span>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </CollapsibleSection>

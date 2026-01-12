@@ -3,6 +3,8 @@ import type {
   LatticeParams,
   Structure,
   SupercellMeta,
+  SupercellBuildRequest,
+  SupercellBuildResponse,
   ZPEJobRequest,
   ZPEJobResponse,
   ZPEJobStatus,
@@ -73,6 +75,13 @@ export async function createStructureFromQe(content: string): Promise<{
     structure: Structure
     source: string
   }>(response)
+}
+
+export async function getStructure(structureId: string): Promise<Structure> {
+  const safeId = encodeURIComponent(structureId)
+  const response = await fetch(`${API_BASE}/structures/${safeId}`)
+  const data = await handleResponse<{ structure: Structure }>(response)
+  return data.structure
 }
 
 export function structureViewUrl(
@@ -151,6 +160,17 @@ export async function generateTiledSupercell(params: {
     body: JSON.stringify(params),
   })
   return handleResponse<{ structure: Structure; meta: SupercellMeta }>(response)
+}
+
+export async function buildSupercell(
+  params: SupercellBuildRequest,
+): Promise<SupercellBuildResponse> {
+  const response = await fetch(`${API_BASE}/supercell/build`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  })
+  return handleResponse<SupercellBuildResponse>(response)
 }
 
 export async function latticeVectorsToParams(params: {

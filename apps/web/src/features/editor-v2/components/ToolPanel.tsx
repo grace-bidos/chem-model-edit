@@ -19,10 +19,12 @@ import {
 } from '@tanstack/react-table'
 
 import { CollapsibleSection } from './CollapsibleSection'
+import { SupercellTool } from './SupercellTool'
 
 import type { ReactNode } from 'react'
 
 import type { ToolMode, WorkspaceFile } from '../types'
+import type { SupercellBuildMeta } from '@/lib/types'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -61,6 +63,11 @@ interface ToolPanelProps {
   showHeader?: boolean
   showClose?: boolean
   className?: string
+  structures?: Array<WorkspaceFile>
+  onSupercellCreated?: (result: {
+    structureId: string
+    meta: SupercellBuildMeta
+  }) => void
 }
 
 const toolTitles: Record<ToolMode, string> = {
@@ -1034,6 +1041,8 @@ export function ToolPanel({
   showHeader = true,
   showClose = true,
   className,
+  structures,
+  onSupercellCreated,
 }: ToolPanelProps) {
   return (
     <div
@@ -1064,6 +1073,11 @@ export function ToolPanel({
 
       {mode === 'vibration' ? (
         <ZpeToolPanel files={files} />
+      ) : mode === 'supercell' ? (
+        <SupercellTool
+          structures={structures ?? []}
+          onSupercellCreated={onSupercellCreated}
+        />
       ) : (
         <div className="flex flex-1 gap-4 overflow-hidden">
           <div className="flex w-[26rem] flex-shrink-0 flex-col gap-4 overflow-y-auto pr-1">
@@ -1119,39 +1133,6 @@ export function ToolPanel({
                         Apply Transfer
                       </button>
                     </div>
-                  </div>
-                ) : null}
-
-                {mode === 'supercell' ? (
-                  <div className="space-y-4">
-                    <button className="w-full rounded border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm transition-colors hover:border-blue-400 hover:text-blue-600">
-                      Select Base Structure
-                    </button>
-
-                    <div className="space-y-2 border-t border-slate-100 pt-2">
-                      <div className="flex items-center justify-between text-xs text-slate-500">
-                        <span>Supercell Grid</span>
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px]">
-                          5x5
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-5 gap-1.5 rounded border border-slate-100 bg-slate-50 p-1">
-                        {Array.from({ length: 25 }).map((_, i) => (
-                          <button
-                            key={i}
-                            className={`aspect-square rounded-sm border transition-all duration-200 ${
-                              i === 12
-                                ? 'border-indigo-600 bg-indigo-500 shadow-sm'
-                                : 'border-slate-200 bg-white hover:border-indigo-300'
-                            }`}
-                          />
-                        ))}
-                      </div>
-                    </div>
-
-                    <button className="mt-auto w-full rounded bg-indigo-600 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-indigo-700">
-                      Build Supercell
-                    </button>
                   </div>
                 ) : null}
               </div>
