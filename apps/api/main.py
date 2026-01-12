@@ -245,14 +245,11 @@ def supercell_build(request: SupercellBuildRequest) -> SupercellBuildResponse:
 
     tiles: dict[str, Any] = {}
     structure_ids_used: list[str] = []
-    seen: set[str] = set()
     for row in request.grid.tiles:
         for structure_id in row:
-            if structure_id not in seen:
-                seen.add(structure_id)
-                structure_ids_used.append(structure_id)
             if structure_id in tiles:
                 continue
+            structure_ids_used.append(structure_id)
             try:
                 entry = get_structure_entry(structure_id)
             except KeyError as exc:
@@ -271,7 +268,10 @@ def supercell_build(request: SupercellBuildRequest) -> SupercellBuildResponse:
             if lattice_ok:
                 continue
             if options.validateLattice == "error":
-                raise HTTPException(status_code=400, detail="lattice mismatch")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"lattice mismatch for structure {structure_id}",
+                )
             logger.warning(
                 "supercell.build lattice mismatch: %s vs base %s",
                 structure_id,

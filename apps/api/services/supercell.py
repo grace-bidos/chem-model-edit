@@ -204,6 +204,7 @@ def build_supercell_from_grid(
                 positions.append(new_pos)
                 symbols.append(symbol)
 
+    # axis.row and axis.col are guaranteed distinct by SupercellGridAxis validation.
     repeat_a = grid.rows if axis.row == "a" else grid.cols
     repeat_b = grid.rows if axis.row == "b" else grid.cols
 
