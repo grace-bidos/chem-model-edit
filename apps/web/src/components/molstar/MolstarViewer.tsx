@@ -159,17 +159,36 @@ export default function MolstarViewer({
       disabledSet && disabledSet.size > 0
         ? indices.filter((index) => !disabledSet.has(index))
         : indices
-    viewer.structureInteractivity({ action: 'select' })
+    try {
+      viewer.structureInteractivity({ action: 'select' })
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : 'Mol* selection update failed.'
+      console.error('Mol* selection clear failed.', error)
+      onError?.(message)
+      return
+    }
     if (!filtered || filtered.length === 0) {
       return
     }
-    viewer.structureInteractivity({
-      action: 'select',
-      applyGranularity: false,
-      elements: {
-        items: filtered.map((index) => ({ atom_index: index })),
-      },
-    })
+    try {
+      viewer.structureInteractivity({
+        action: 'select',
+        applyGranularity: false,
+        elements: {
+          items: { atom_index: filtered },
+        },
+      })
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : 'Mol* selection update failed.'
+      console.error('Mol* selection apply failed.', error)
+      onError?.(message)
+    }
   }
 
   const loadBallAndStick = async (
@@ -310,6 +329,8 @@ export default function MolstarViewer({
   }
 
   const clearViewer = async (viewer: Viewer) => {
+    abortRef.current?.abort()
+    abortRef.current = null
     const plugin = (viewer as unknown as { plugin: any }).plugin
     await plugin.clear()
     structureReadyRef.current = null
@@ -489,7 +510,7 @@ export default function MolstarViewer({
           if (!helpers) {
             return
           }
-          const loci = event?.current?.loci
+          const loci = event?.current
           let elementLoci = loci
           if (helpers.Bond?.isLoci?.(loci)) {
             elementLoci = helpers.Bond.toFirstStructureElementLoci(loci)
