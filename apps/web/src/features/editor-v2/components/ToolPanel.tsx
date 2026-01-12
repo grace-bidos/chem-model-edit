@@ -137,13 +137,13 @@ const downloadTextFile = (content: string, filename: string, type: string) => {
 const createTransferFilename = (targetName: string) => {
   const trimmed = targetName.trim()
   if (!trimmed) {
-    return 'Transfered.in'
+    return 'Transferred.in'
   }
   const match = trimmed.match(/\.[^/.]+$/)
   const base = match ? trimmed.slice(0, -match[0].length) : trimmed
   const extension =
     match && match[0].toLowerCase() === '.in' ? match[0] : '.in'
-  return `${base}Transfered${extension}`
+  return `${base}Transferred${extension}`
 }
 
 function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
@@ -1383,7 +1383,7 @@ function TransferToolPanel({
       setTransferError('No transferred .in file is ready to download.')
       return
     }
-    const filename = exportFilename || 'Transfered.in'
+    const filename = exportFilename || 'Transferred.in'
     downloadTextFile(exportContent, filename, 'text/plain')
   }
 
