@@ -23,6 +23,27 @@ type MolstarViewerProps = {
   className?: string
 }
 
+type MolstarLoci = unknown
+type MolstarLocation = unknown
+
+type MolstarHelpers = {
+  StructureElement: {
+    Loci: {
+      is: (loci: MolstarLoci) => boolean
+      getFirstLocation: (loci: MolstarLoci) => MolstarLocation | null | undefined
+    }
+  }
+  StructureProperties: {
+    atom: {
+      sourceIndex: (location: MolstarLocation) => number
+    }
+  }
+  Bond: {
+    isLoci: (loci: MolstarLoci) => boolean
+    toFirstStructureElementLoci: (loci: MolstarLoci) => MolstarLoci
+  }
+}
+
 const hashString = (value: string) => {
   let hash = 0
   for (let i = 0; i < value.length; i += 1) {
@@ -59,11 +80,7 @@ export default function MolstarViewer({
   const selectionSignatureRef = useRef<string | null>(null)
   const pendingSelectionRef = useRef<Array<number> | null>(null)
   const latestSelectionRef = useRef<Array<number>>([])
-  const helpersRef = useRef<{
-    StructureElement: any
-    StructureProperties: any
-    Bond: any
-  } | null>(null)
+  const helpersRef = useRef<MolstarHelpers | null>(null)
   const clickSubRef = useRef<{ unsubscribe: () => void } | null>(null)
   const onAtomToggleRef = useRef<typeof onAtomToggle>(onAtomToggle)
   const disabledSetRef = useRef<Set<number>>(new Set())
