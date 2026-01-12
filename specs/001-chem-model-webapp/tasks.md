@@ -130,3 +130,13 @@
 - [ ] T083 [US1] File Panel に Mol* ビューを埋め込み
 - [ ] T084 [US1] Import/Export の導線を新UIへ接続
 - [ ] T085 [US2/US3] Tools パネルに転写/スーパーセル機能を段階移植
+
+---
+
+## Phase 9b: Editor v2 Supercell Contract (StructureId)
+
+**Goal**: Editor v2 で Supercell v2 を並行実装できる契約を確定する
+
+- [x] T086 [P] [US3] 契約ドキュメントを追加（StructureId グリッド / baseStructure lattice）
+- [x] T087 [P] [US3] API/共有型に Supercell v2 の型定義を追加
+- [x] T088 [P] [US1/US3] Spec/Plan に StructureRegistry と /structures 直接登録方針を反映

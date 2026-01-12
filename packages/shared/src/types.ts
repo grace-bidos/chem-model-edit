@@ -49,6 +49,27 @@ export type ExportResponse = {
   content: string
 }
 
+export type StructureRegisterRequest = {
+  structure: Structure
+  source?: string
+}
+
+export type StructureRegisterResponse = {
+  structureId: string
+  source: string
+}
+
+export type StructureImportRequest = {
+  content: string
+  format?: string
+}
+
+export type StructureImportResponse = {
+  structureId: string
+  structure: Structure
+  source: string
+}
+
 export type SupercellRequest = {
   structureA: Structure
   structureB: Structure
@@ -64,4 +85,48 @@ export type SupercellResponse = {
     layers: number
     overlapCount?: number
   }
+}
+
+export type SupercellGridAxis =
+  | { row: 'a'; col: 'b' }
+  | { row: 'b'; col: 'a' }
+
+export type SupercellGrid = {
+  rows: number
+  cols: number
+  tiles: string[][]
+  axis?: SupercellGridAxis
+}
+
+export type SupercellBuildOptions = {
+  checkOverlap?: boolean
+  overlapTolerance?: number
+  validateLattice?: 'none' | 'warn' | 'error'
+}
+
+export type SupercellBuildOutput = {
+  register?: boolean
+  includeStructure?: boolean
+}
+
+export type SupercellBuildRequest = {
+  baseStructureId: string
+  grid: SupercellGrid
+  options?: SupercellBuildOptions
+  output?: SupercellBuildOutput
+}
+
+export type SupercellBuildMeta = {
+  rows: number
+  cols: number
+  tileCount: number
+  overlapCount?: number
+  baseStructureId: string
+  structureIdsUsed: string[]
+}
+
+export type SupercellBuildResponse = {
+  structureId: string
+  structure?: Structure
+  meta: SupercellBuildMeta
 }
