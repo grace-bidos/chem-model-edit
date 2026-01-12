@@ -3,7 +3,7 @@ import type { Viewer } from 'molstar/lib/apps/viewer/app'
 
 import { cn } from '@/lib/utils'
 
-type MolstarStructure = {
+type MolstarViewerStructure = {
   id: string
   pdbText?: string
   bcifUrl?: string
@@ -14,7 +14,7 @@ type MolstarStructure = {
 type MolstarViewerProps = {
   pdbText?: string
   bcifUrl?: string
-  structures?: Array<MolstarStructure>
+  structures?: Array<MolstarViewerStructure>
   onError?: (message: string) => void
   onLoad?: () => void
   selectedAtomIndices?: Array<number>
@@ -86,7 +86,7 @@ export default function MolstarViewer({
   const disabledSetRef = useRef<Set<number>>(new Set())
   const [viewerReady, setViewerReady] = useState(false)
 
-  const normalizedStructures = useMemo<Array<MolstarStructure>>(() => {
+  const normalizedStructures = useMemo<Array<MolstarViewerStructure>>(() => {
     if (structures && structures.length > 0) {
       return structures
     }
@@ -174,7 +174,7 @@ export default function MolstarViewer({
 
   const loadBallAndStick = async (
     viewer: Viewer,
-    items: Array<MolstarStructure>,
+    items: Array<MolstarViewerStructure>,
     loadSignature: string,
   ) => {
     const plugin = (viewer as unknown as { plugin: any }).plugin
