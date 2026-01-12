@@ -44,6 +44,7 @@ export default function MolstarViewer({
   const lastSignatureRef = useRef<string | null>(null)
   const timerRef = useRef<number | null>(null)
   const activeRef = useRef(true)
+  const abortRef = useRef<AbortController | null>(null)
   const [viewerReady, setViewerReady] = useState(false)
 
   const normalizedStructures = useMemo<Array<MolstarStructure>>(() => {
@@ -82,80 +83,121 @@ export default function MolstarViewer({
     items: Array<MolstarStructure>,
   ) => {
     const plugin = (viewer as unknown as { plugin: any }).plugin
-    await plugin.clear()
-    let loadedCount = 0
-    let lastError: string | null = null
-    for (const item of items) {
-      if (item.visible === false) {
-        continue
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+    const isCancelled = () =>
+      !activeRef.current || abortRef.current !== controller
+    try {
+      if (isCancelled()) {
+        return
       }
-      try {
-        let data = null
-        let format: 'pdb' | 'bcif' = 'pdb'
-        if (item.bcifUrl) {
-          const response = await fetch(item.bcifUrl)
-          if (!response.ok) {
-            lastError = `BCIF fetch failed (HTTP ${response.status})`
-            console.error('Mol* bcif 取得に失敗しました。', response.status)
-            continue
-          }
-          const buffer = await response.arrayBuffer()
-          data = await plugin.builders.data.rawData(
-            { data: new Uint8Array(buffer) },
-            { state: { isGhost: true } },
-          )
-          format = 'bcif'
-        } else if (item.pdbText) {
-          data = await plugin.builders.data.rawData(
-            { data: item.pdbText },
-            { state: { isGhost: true } },
-          )
-          format = 'pdb'
+      await plugin.clear()
+      let loadedCount = 0
+      let lastError: string | null = null
+      for (const item of items) {
+        if (isCancelled()) {
+          break
         }
-
-        if (!data) {
-          lastError = 'No structure data was provided.'
+        if (item.visible === false) {
           continue
         }
+        try {
+          let data = null
+          let format: 'pdb' | 'bcif' = 'pdb'
+          if (item.bcifUrl) {
+            const response = await fetch(item.bcifUrl, {
+              signal: controller.signal,
+            })
+            if (!response.ok) {
+              lastError = `BCIF fetch failed (HTTP ${response.status})`
+              console.error('Mol* bcif 取得に失敗しました。', response.status)
+              continue
+            }
+            if (isCancelled()) {
+              break
+            }
+            const buffer = await response.arrayBuffer()
+            if (isCancelled()) {
+              break
+            }
+            data = await plugin.builders.data.rawData(
+              { data: new Uint8Array(buffer) },
+              { state: { isGhost: true } },
+            )
+            format = 'bcif'
+          } else if (item.pdbText) {
+            data = await plugin.builders.data.rawData(
+              { data: item.pdbText },
+              { state: { isGhost: true } },
+            )
+            format = 'pdb'
+          }
 
-        const trajectory = await plugin.builders.structure.parseTrajectory(
-          data,
-          format,
-        )
-        const model = await plugin.builders.structure.createModel(trajectory)
-        const structure = await plugin.builders.structure.createStructure(model)
-        const component =
-          await plugin.builders.structure.tryCreateComponentStatic(
-            structure,
-            'all',
+          if (!data) {
+            lastError = 'No structure data was provided.'
+            continue
+          }
+
+          const trajectory = await plugin.builders.structure.parseTrajectory(
+            data,
+            format,
           )
-        if (component) {
-          const opacity = Math.min(1, Math.max(0, item.opacity ?? 1))
-          await plugin.builders.structure.representation.addRepresentation(
-            component,
-            {
-              type: 'ball-and-stick',
-              color: 'element-symbol',
-              typeParams: { alpha: opacity },
-            },
+          if (isCancelled()) {
+            break
+          }
+          const model = await plugin.builders.structure.createModel(trajectory)
+          if (isCancelled()) {
+            break
+          }
+          const structure = await plugin.builders.structure.createStructure(
+            model,
           )
-          loadedCount += 1
+          if (isCancelled()) {
+            break
+          }
+          const component =
+            await plugin.builders.structure.tryCreateComponentStatic(
+              structure,
+              'all',
+            )
+          if (component) {
+            const opacity = Math.min(1, Math.max(0, item.opacity ?? 1))
+            await plugin.builders.structure.representation.addRepresentation(
+              component,
+              {
+                type: 'ball-and-stick',
+                color: 'element-symbol',
+                typeParams: { alpha: opacity },
+              },
+            )
+            loadedCount += 1
+          }
+        } catch (error) {
+          if (isCancelled()) {
+            break
+          }
+          const message =
+            error instanceof Error && error.message
+              ? error.message
+              : 'Mol* failed to render structure.'
+          lastError = message
+          console.error('Mol* Viewer load failed.', error)
         }
-      } catch (error) {
-        const message =
-          error instanceof Error && error.message
-            ? error.message
-            : 'Mol* failed to render structure.'
-        lastError = message
-        console.error('Mol* Viewer load failed.', error)
+      }
+      if (activeRef.current && abortRef.current === controller) {
+        if (loadedCount > 0) {
+          onLoad?.()
+        } else if (lastError) {
+          onError?.(lastError)
+        }
+        plugin.managers?.camera?.reset?.()
+      }
+    } finally {
+      if (abortRef.current === controller) {
+        abortRef.current = null
       }
     }
-    if (loadedCount > 0) {
-      onLoad?.()
-    } else if (lastError) {
-      onError?.(lastError)
-    }
-    plugin.managers?.camera?.reset?.()
   }
 
   const clearViewer = async (viewer: Viewer) => {
@@ -202,6 +244,8 @@ export default function MolstarViewer({
 
     return () => {
       activeRef.current = false
+      abortRef.current?.abort()
+      abortRef.current = null
       if (viewerRef.current) {
         viewerRef.current.dispose()
         viewerRef.current = null

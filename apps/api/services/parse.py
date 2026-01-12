@@ -23,7 +23,10 @@ def _ase_atoms_from_content(content: str) -> ASEAtoms:
 def _pymatgen_atoms_from_content(content: str) -> ASEAtoms:
     pw_input = PWInput.from_str(content)
     structure = pw_input.structure
-    symbols = [str(site.specie) for site in structure.sites]
+    symbols = [
+        getattr(site.specie, "symbol", str(site.specie))
+        for site in structure.sites
+    ]
     positions = [site.coords for site in structure.sites]
     return ASEAtoms(
         symbols=symbols,
