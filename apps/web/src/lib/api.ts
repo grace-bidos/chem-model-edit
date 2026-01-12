@@ -2,9 +2,14 @@ import type {
   Lattice,
   LatticeParams,
   Structure,
+  SupercellMeta,
   SupercellBuildRequest,
   SupercellBuildResponse,
-  SupercellMeta,
+  ZPEJobRequest,
+  ZPEJobResponse,
+  ZPEJobStatus,
+  ZPEParseResponse,
+  ZPEResult,
 } from './types'
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8000'
@@ -27,6 +32,22 @@ async function handleResponse<T>(response: Response): Promise<T> {
     throw new Error(message)
   }
   return (await response.json()) as T
+}
+
+async function handleTextResponse(response: Response): Promise<string> {
+  if (!response.ok) {
+    let message = response.statusText
+    try {
+      const data = (await response.json()) as ApiError
+      if (data.detail) {
+        message = data.detail
+      }
+    } catch (_err) {
+      // ignore JSON parsing errors
+    }
+    throw new Error(message)
+  }
+  return response.text()
 }
 
 export async function parseQeInput(content: string): Promise<Structure> {
@@ -182,4 +203,48 @@ export async function latticeParamsToVectors(params: {
     params: LatticeParams
     unit: string
   }>(response)
+}
+
+export async function parseZpeInput(content: string): Promise<ZPEParseResponse> {
+  const response = await fetch(`${API_BASE}/calc/zpe/parse`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content }),
+  })
+  return handleResponse<ZPEParseResponse>(response)
+}
+
+export async function createZpeJob(
+  request: ZPEJobRequest,
+): Promise<ZPEJobResponse> {
+  const response = await fetch(`${API_BASE}/calc/zpe/jobs`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  })
+  return handleResponse<ZPEJobResponse>(response)
+}
+
+export async function fetchZpeStatus(jobId: string): Promise<ZPEJobStatus> {
+  const safeId = encodeURIComponent(jobId)
+  const response = await fetch(`${API_BASE}/calc/zpe/jobs/${safeId}`)
+  return handleResponse<ZPEJobStatus>(response)
+}
+
+export async function fetchZpeResult(jobId: string): Promise<ZPEResult> {
+  const safeId = encodeURIComponent(jobId)
+  const response = await fetch(`${API_BASE}/calc/zpe/jobs/${safeId}/result`)
+  const data = await handleResponse<{ result: ZPEResult }>(response)
+  return data.result
+}
+
+export async function downloadZpeFile(
+  jobId: string,
+  kind: 'summary' | 'freqs',
+): Promise<string> {
+  const safeId = encodeURIComponent(jobId)
+  const response = await fetch(
+    `${API_BASE}/calc/zpe/jobs/${safeId}/files?kind=${kind}`,
+  )
+  return handleTextResponse(response)
 }

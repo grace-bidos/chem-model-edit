@@ -30,3 +30,6 @@ pnpm-debug.log*
 
 # User uploads (temporary)
 /uploads
+
+# Non-Public Documents
+/docs/reports

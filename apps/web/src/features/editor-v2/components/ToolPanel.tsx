@@ -1,11 +1,22 @@
+import { useEffect, useMemo, useState } from 'react'
 import {
   Activity,
+  AlertTriangle,
+  CheckCircle2,
+  Download,
   Grid3x3,
   Layers,
   MousePointerClick,
   Play,
+  RefreshCw,
   X,
 } from 'lucide-react'
+import {
+  type ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+} from '@tanstack/react-table'
 
 import { CollapsibleSection } from './CollapsibleSection'
 import { SupercellTool } from './SupercellTool'
@@ -15,10 +26,38 @@ import type { ReactNode } from 'react'
 import type { ToolMode, WorkspaceFile } from '../types'
 import type { SupercellBuildMeta } from '@/lib/types'
 
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import {
+  createZpeJob,
+  downloadZpeFile,
+  fetchZpeResult,
+  fetchZpeStatus,
+  parseZpeInput,
+} from '@/lib/api'
+import type { ZPEJobStatus, ZPEParseResponse, ZPEResult } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 interface ToolPanelProps {
   mode: ToolMode
+  files?: Array<WorkspaceFile>
   onClose?: () => void
   variant?: 'stack' | 'dock'
   showHeader?: boolean
@@ -34,7 +73,7 @@ interface ToolPanelProps {
 const toolTitles: Record<ToolMode, string> = {
   transfer: 'Structure Transfer',
   supercell: 'Supercell Builder',
-  vibration: 'Vibrations (Preview)',
+  vibration: 'ZPE / Vibrations',
 }
 
 const toolIcons: Record<ToolMode, ReactNode> = {
@@ -43,8 +82,960 @@ const toolIcons: Record<ToolMode, ReactNode> = {
   vibration: <Play className="mb-2 h-16 w-16 text-rose-300" />,
 }
 
+type ZpeAtomRow = {
+  index: number
+  symbol: string
+  x: number
+  y: number
+  z: number
+  fixed: boolean
+}
+
+const formatNumber = (value: number | null | undefined, digits = 3) => {
+  if (value === null || value === undefined) {
+    return '—'
+  }
+  return value.toFixed(digits)
+}
+
+const statusTone = (status?: string | null) => {
+  switch (status) {
+    case 'finished':
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    case 'failed':
+      return 'border-red-200 bg-red-50 text-red-700'
+    case 'started':
+      return 'border-blue-200 bg-blue-50 text-blue-700'
+    case 'queued':
+      return 'border-amber-200 bg-amber-50 text-amber-700'
+    default:
+      return 'border-slate-200 bg-slate-100 text-slate-600'
+  }
+}
+
+const statusLabel = (status?: string | null) => {
+  if (!status) {
+    return 'idle'
+  }
+  return status
+}
+
+const downloadTextFile = (content: string, filename: string, type: string) => {
+  const blob = new Blob([content], { type })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
+  const availableFiles = useMemo(
+    () => files.filter((file) => file.kind === 'in'),
+    [files],
+  )
+  const [selectedFileId, setSelectedFileId] = useState<string | null>(null)
+  const [parseResult, setParseResult] = useState<ZPEParseResponse | null>(null)
+  const [parseError, setParseError] = useState<string | null>(null)
+  const [isParsing, setIsParsing] = useState(false)
+  const [mobileIndices, setMobileIndices] = useState<Set<number>>(new Set())
+  const [atomFilter, setAtomFilter] = useState('')
+  const [jobId, setJobId] = useState<string | null>(null)
+  const [jobStatus, setJobStatus] = useState<ZPEJobStatus | null>(null)
+  const [jobResult, setJobResult] = useState<ZPEResult | null>(null)
+  const [runError, setRunError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [useEnviron, setUseEnviron] = useState(false)
+  const [calcMode, setCalcMode] = useState<'new' | 'continue'>('continue')
+  const [inputDir, setInputDir] = useState('')
+
+  useEffect(() => {
+    if (availableFiles.length === 0) {
+      setSelectedFileId(null)
+      return
+    }
+    if (!selectedFileId) {
+      setSelectedFileId(availableFiles[0].id)
+      return
+    }
+    if (!availableFiles.some((file) => file.id === selectedFileId)) {
+      setSelectedFileId(availableFiles[0].id)
+    }
+  }, [availableFiles, selectedFileId])
+
+  const selectedFile = useMemo(
+    () =>
+      selectedFileId
+        ? availableFiles.find((file) => file.id === selectedFileId) ?? null
+        : null,
+    [availableFiles, selectedFileId],
+  )
+
+  useEffect(() => {
+    setParseResult(null)
+    setParseError(null)
+    setMobileIndices(new Set())
+    setJobId(null)
+    setJobStatus(null)
+    setJobResult(null)
+    setRunError(null)
+    setAtomFilter('')
+  }, [selectedFileId])
+
+  useEffect(() => {
+    if (!jobId) {
+      return
+    }
+    let active = true
+    let intervalId: number | null = null
+
+    const pollStatus = async () => {
+      try {
+        const status = await fetchZpeStatus(jobId)
+        if (!active) {
+          return
+        }
+        setJobStatus(status)
+        if (status.status === 'finished') {
+          const result = await fetchZpeResult(jobId)
+          if (!active) {
+            return
+          }
+          setJobResult(result)
+          if (intervalId) {
+            window.clearInterval(intervalId)
+          }
+        } else if (status.status === 'failed') {
+          if (intervalId) {
+            window.clearInterval(intervalId)
+          }
+        }
+      } catch (err) {
+        if (!active) {
+          return
+        }
+        setRunError(
+          err instanceof Error
+            ? err.message
+            : 'Failed to fetch ZPE job status.',
+        )
+        if (intervalId) {
+          window.clearInterval(intervalId)
+        }
+      }
+    }
+
+    void pollStatus()
+    intervalId = window.setInterval(pollStatus, 2000)
+    return () => {
+      active = false
+      if (intervalId) {
+        window.clearInterval(intervalId)
+      }
+    }
+  }, [jobId])
+
+  const fixedIndexSet = useMemo(
+    () => new Set(parseResult?.fixed_indices ?? []),
+    [parseResult],
+  )
+
+  const atomRows = useMemo<Array<ZpeAtomRow>>(() => {
+    if (!parseResult) {
+      return []
+    }
+    return parseResult.structure.atoms.map((atom, index) => ({
+      index,
+      symbol: atom.symbol,
+      x: atom.x,
+      y: atom.y,
+      z: atom.z,
+      fixed: fixedIndexSet.has(index),
+    }))
+  }, [fixedIndexSet, parseResult])
+
+  const filteredRows = useMemo(() => {
+    const query = atomFilter.trim().toLowerCase()
+    if (!query) {
+      return atomRows
+    }
+    return atomRows.filter((row) => {
+      if (row.symbol.toLowerCase().includes(query)) {
+        return true
+      }
+      const indexLabel = String(row.index + 1)
+      return indexLabel.includes(query)
+    })
+  }, [atomFilter, atomRows])
+
+  const speciesEntries = useMemo(
+    () => Object.entries(parseResult?.atomic_species ?? {}),
+    [parseResult],
+  )
+
+  const freqSummary = useMemo(() => {
+    if (!jobResult || jobResult.freqs_cm.length === 0) {
+      return null
+    }
+    const values = jobResult.freqs_cm
+    const min = Math.min(...values)
+    const max = Math.max(...values)
+    const imagCount = values.filter((value) => value < 0).length
+    return {
+      count: values.length,
+      min,
+      max,
+      imagCount,
+    }
+  }, [jobResult])
+
+  const handleParse = async () => {
+    if (!selectedFile?.qeInput) {
+      setParseError('QE input is missing. Re-import the .in file.')
+      return
+    }
+    setIsParsing(true)
+    setParseError(null)
+    try {
+      const result = await parseZpeInput(selectedFile.qeInput)
+      setParseResult(result)
+      const fixedSet = new Set(result.fixed_indices)
+      const nextMobile = new Set<number>()
+      result.structure.atoms.forEach((_atom, index) => {
+        if (!fixedSet.has(index)) {
+          nextMobile.add(index)
+        }
+      })
+      setMobileIndices(nextMobile)
+    } catch (err) {
+      setParseError(
+        err instanceof Error ? err.message : 'ZPE parse failed to run.',
+      )
+    } finally {
+      setIsParsing(false)
+    }
+  }
+
+  const handleRun = async () => {
+    if (!selectedFile?.qeInput) {
+      setRunError('QE input is missing. Re-import the .in file.')
+      return
+    }
+    if (!parseResult) {
+      setRunError('Parse the input before running ZPE.')
+      return
+    }
+    if (mobileIndices.size === 0) {
+      setRunError('Select at least one mobile atom to run ZPE.')
+      return
+    }
+    setRunError(null)
+    setIsSubmitting(true)
+    setJobStatus(null)
+    setJobResult(null)
+    try {
+      const response = await createZpeJob({
+        content: selectedFile.qeInput,
+        mobile_indices: Array.from(mobileIndices).sort((a, b) => a - b),
+        use_environ: useEnviron,
+        input_dir: inputDir.trim() ? inputDir.trim() : null,
+        calc_mode: calcMode,
+      })
+      setJobId(response.job_id)
+    } catch (err) {
+      setRunError(
+        err instanceof Error ? err.message : 'ZPE job submission failed.',
+      )
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleDownload = async (kind: 'summary' | 'freqs') => {
+    if (!jobId) {
+      setRunError('No completed job available for download.')
+      return
+    }
+    setRunError(null)
+    try {
+      const content = await downloadZpeFile(jobId, kind)
+      const suffix = kind === 'summary' ? 'summary' : 'freqs'
+      const extension = kind === 'summary' ? 'txt' : 'csv'
+      downloadTextFile(
+        content,
+        `zpe-${suffix}-${jobId.slice(0, 8)}.${extension}`,
+        kind === 'summary' ? 'text/plain' : 'text/csv',
+      )
+    } catch (err) {
+      setRunError(err instanceof Error ? err.message : 'Download failed.')
+    }
+  }
+
+  const handleToggleMobile = (index: number, fixed: boolean) => {
+    if (fixed) {
+      return
+    }
+    setMobileIndices((prev) => {
+      const next = new Set(prev)
+      if (next.has(index)) {
+        next.delete(index)
+      } else {
+        next.add(index)
+      }
+      return next
+    })
+  }
+
+  const handleSelectAll = () => {
+    const next = new Set<number>()
+    atomRows.forEach((row) => {
+      if (!row.fixed) {
+        next.add(row.index)
+      }
+    })
+    setMobileIndices(next)
+  }
+
+  const handleSelectNone = () => {
+    setMobileIndices(new Set())
+  }
+
+  const handleInvertSelection = () => {
+    setMobileIndices((prev) => {
+      const next = new Set<number>()
+      atomRows.forEach((row) => {
+        if (row.fixed) {
+          return
+        }
+        if (!prev.has(row.index)) {
+          next.add(row.index)
+        }
+      })
+      return next
+    })
+  }
+
+  const handleResetSelection = () => {
+    if (!parseResult) {
+      return
+    }
+    const fixedSet = new Set(parseResult.fixed_indices)
+    const next = new Set<number>()
+    parseResult.structure.atoms.forEach((_atom, index) => {
+      if (!fixedSet.has(index)) {
+        next.add(index)
+      }
+    })
+    setMobileIndices(next)
+  }
+
+  const columns = useMemo<ColumnDef<ZpeAtomRow>[]>(
+    () => [
+      {
+        accessorKey: 'index',
+        header: '#',
+        cell: ({ row }) => (
+          <span className="text-xs font-medium text-slate-500">
+            {row.original.index + 1}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'symbol',
+        header: 'El',
+        cell: ({ row }) => (
+          <span className="font-semibold text-slate-700">
+            {row.original.symbol}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'x',
+        header: 'X',
+        cell: ({ row }) => (
+          <span className="font-mono text-xs text-slate-600">
+            {formatNumber(row.original.x, 3)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'y',
+        header: 'Y',
+        cell: ({ row }) => (
+          <span className="font-mono text-xs text-slate-600">
+            {formatNumber(row.original.y, 3)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'z',
+        header: 'Z',
+        cell: ({ row }) => (
+          <span className="font-mono text-xs text-slate-600">
+            {formatNumber(row.original.z, 3)}
+          </span>
+        ),
+      },
+      {
+        id: 'fixed',
+        header: 'Fixed',
+        cell: ({ row }) => (
+          <Badge
+            variant={row.original.fixed ? 'secondary' : 'outline'}
+            className={cn(
+              'rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wide',
+              row.original.fixed
+                ? 'bg-slate-200 text-slate-600'
+                : 'border-slate-200 text-slate-500',
+            )}
+          >
+            {row.original.fixed ? 'Yes' : 'No'}
+          </Badge>
+        ),
+      },
+      {
+        id: 'mobile',
+        header: 'Mobile',
+        cell: ({ row }) => {
+          const active = mobileIndices.has(row.original.index)
+          const disabled = row.original.fixed
+          return (
+            <button
+              type="button"
+              onClick={() =>
+                handleToggleMobile(row.original.index, row.original.fixed)
+              }
+              disabled={disabled}
+              className={cn(
+                'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition',
+                disabled
+                  ? 'cursor-not-allowed bg-slate-100 text-slate-400'
+                  : active
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : 'bg-slate-100 text-slate-500 hover:bg-slate-200',
+              )}
+            >
+              <span
+                className={cn(
+                  'h-1.5 w-1.5 rounded-full',
+                  active ? 'bg-emerald-600' : 'bg-slate-400',
+                )}
+              />
+              {active ? 'On' : 'Off'}
+            </button>
+          )
+        },
+      },
+    ],
+    [mobileIndices],
+  )
+
+  const table = useReactTable({
+    data: filteredRows,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  })
+
+  const atomCount = atomRows.length
+  const fixedCount = fixedIndexSet.size
+  const mobileCount = mobileIndices.size
+  const hasParsedAtoms = atomCount > 0
+  const canRun =
+    Boolean(selectedFile?.qeInput) && hasParsedAtoms && mobileIndices.size > 0
+
+  return (
+    <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden xl:grid-cols-[22rem_minmax(0,1fr)_22rem]">
+      <div className="flex min-h-0 flex-col gap-3 overflow-y-auto pr-1">
+        <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                ZPE Input
+              </p>
+              <p className="text-sm font-semibold text-slate-800">
+                QE .in Source
+              </p>
+            </div>
+            <Badge
+              variant="outline"
+              className="rounded-full border-slate-200 px-2 text-[10px] uppercase tracking-wide text-slate-500"
+            >
+              {selectedFile?.qeInput ? 'ready' : 'missing'}
+            </Badge>
+          </div>
+          <div className="mt-3 space-y-3">
+            <div>
+              <label className="text-xs font-medium text-slate-500">
+                Workspace file
+              </label>
+              <Select
+                value={selectedFile?.id}
+                onValueChange={(value) => setSelectedFileId(value)}
+                disabled={availableFiles.length === 0}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue
+                    placeholder={
+                      availableFiles.length > 0
+                        ? 'Select .in file'
+                        : 'No .in file'
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableFiles.map((file) => (
+                    <SelectItem key={file.id} value={file.id}>
+                      {file.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                className="h-8 bg-rose-600 px-3 text-xs font-semibold text-white hover:bg-rose-700"
+                onClick={handleParse}
+                disabled={isParsing || !selectedFile?.qeInput}
+              >
+                {isParsing ? 'Parsing...' : 'Parse Input'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-3 text-xs"
+                onClick={handleResetSelection}
+                disabled={!hasParsedAtoms}
+              >
+                <RefreshCw className="h-3 w-3" />
+                Reset Mobile
+              </Button>
+            </div>
+
+            {parseError ? (
+              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">
+                {parseError}
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                Parse Summary
+              </p>
+              <p className="text-sm font-semibold text-slate-800">
+                Fixed / Mobile Atoms
+              </p>
+            </div>
+            <div className="flex items-center gap-1 text-xs text-slate-500">
+              <span>{atomCount} atoms</span>
+            </div>
+          </div>
+          <div className="mt-3 space-y-3 text-xs text-slate-600">
+            <div className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
+              <span>Fixed</span>
+              <span className="font-semibold">{fixedCount}</span>
+            </div>
+            <div className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
+              <span>Mobile</span>
+              <span className="font-semibold">{mobileCount}</span>
+            </div>
+            <div className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
+              <span>K-points</span>
+              <span className="font-mono text-[11px]">
+                {parseResult?.kpoints
+                  ? parseResult.kpoints.join(' × ')
+                  : 'n/a'}
+              </span>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.3em] text-slate-400">
+                Atomic species
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1">
+                {speciesEntries.length > 0 ? (
+                  speciesEntries.map(([symbol, pseudo]) => (
+                    <span
+                      key={symbol}
+                      className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] text-slate-500"
+                      title={pseudo}
+                    >
+                      {symbol}: {pseudo}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-[11px] text-slate-400">
+                    ATOMIC_SPECIES not found
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-500 shadow-sm">
+          <div className="flex items-center gap-2">
+            <Activity className="h-4 w-4 text-rose-500" />
+            <span className="font-semibold text-slate-700">
+              ZPE selection notes
+            </span>
+          </div>
+          <ul className="mt-2 space-y-1 text-[11px] text-slate-500">
+            <li>Fixed atoms are locked from mobile selection.</li>
+            <li>Selection is 1-based in UI, 0-based in API.</li>
+            <li>Parse to refresh mobile defaults from flags.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div className="flex min-h-0 flex-col gap-3 overflow-hidden">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-100 px-3 py-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                  Atom Table
+                </p>
+                <p className="text-sm font-semibold text-slate-800">
+                  Mobile Selection
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  value={atomFilter}
+                  onChange={(event) => setAtomFilter(event.target.value)}
+                  placeholder="Filter by element or index"
+                  className="h-8 w-44 text-xs"
+                  disabled={!hasParsedAtoms}
+                />
+                <div className="flex flex-wrap gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-2 text-[11px]"
+                    onClick={handleSelectAll}
+                    disabled={!hasParsedAtoms}
+                  >
+                    All
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-2 text-[11px]"
+                    onClick={handleSelectNone}
+                    disabled={!hasParsedAtoms}
+                  >
+                    None
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-2 text-[11px]"
+                    onClick={handleInvertSelection}
+                    disabled={!hasParsedAtoms}
+                  >
+                    Invert
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex min-h-0 flex-1 flex-col">
+            {hasParsedAtoms ? (
+              <Table containerClassName="h-full">
+                <TableHeader className="sticky top-0 bg-slate-50">
+                  {table.getHeaderGroups().map((headerGroup) => (
+                    <TableRow key={headerGroup.id}>
+                      {headerGroup.headers.map((header) => (
+                        <TableHead key={header.id}>
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(
+                                header.column.columnDef.header,
+                                header.getContext(),
+                              )}
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableHeader>
+                <TableBody>
+                  {table.getRowModel().rows.length ? (
+                    table.getRowModel().rows.map((row) => (
+                      <TableRow
+                        key={row.id}
+                        className={cn(
+                          row.original.fixed ? 'bg-slate-50/60' : 'bg-white',
+                        )}
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell key={cell.id}>
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext(),
+                            )}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell
+                        colSpan={columns.length}
+                        className="py-10 text-center text-sm text-slate-500"
+                      >
+                        No matching atoms found.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="flex flex-1 items-center justify-center text-sm text-slate-500">
+                Parse the QE input to load atoms.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex min-h-0 flex-col gap-3 overflow-y-auto">
+        <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                Run
+              </p>
+              <p className="text-sm font-semibold text-slate-800">
+                ZPE Job Settings
+              </p>
+            </div>
+          </div>
+          <div className="mt-3 space-y-3 text-xs text-slate-600">
+            <div className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
+              <span>Use environ.in</span>
+              <Switch
+                checked={useEnviron}
+                onCheckedChange={setUseEnviron}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-500">
+                Calc mode
+              </label>
+              <Select
+                value={calcMode}
+                onValueChange={(value) =>
+                  setCalcMode(value as 'new' | 'continue')
+                }
+              >
+                <SelectTrigger className="mt-1 h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="continue">continue</SelectItem>
+                  <SelectItem value="new">new</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <CollapsibleSection title="Advanced" defaultOpen={false}>
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-slate-500">
+                  Input directory
+                </label>
+                <Input
+                  value={inputDir}
+                  onChange={(event) => setInputDir(event.target.value)}
+                  placeholder="Optional input_dir"
+                  className="h-8 text-xs"
+                />
+              </div>
+            </CollapsibleSection>
+
+            <Button
+              className="mt-2 h-10 w-full bg-rose-600 text-sm font-semibold text-white hover:bg-rose-700"
+              onClick={handleRun}
+              disabled={!canRun || isSubmitting}
+            >
+              <Play className="h-4 w-4" />
+              {isSubmitting ? 'Submitting...' : 'Run ZPE'}
+            </Button>
+            {!selectedFile?.qeInput ? (
+              <p className="text-[11px] text-slate-400">
+                Import a QE .in file to enable ZPE.
+              </p>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                Status
+              </p>
+              <p className="text-sm font-semibold text-slate-800">
+                Job Monitor
+              </p>
+            </div>
+            <span
+              className={cn(
+                'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+                statusTone(jobStatus?.status),
+              )}
+            >
+              {jobStatus?.status === 'finished' ? (
+                <CheckCircle2 className="h-3 w-3" />
+              ) : jobStatus?.status === 'failed' ? (
+                <AlertTriangle className="h-3 w-3" />
+              ) : null}
+              {statusLabel(jobStatus?.status)}
+            </span>
+          </div>
+          <div className="mt-3 space-y-2 text-xs text-slate-600">
+            <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
+              <p className="text-[10px] uppercase tracking-[0.3em] text-slate-400">
+                Job ID
+              </p>
+              <p className="mt-1 break-all font-mono text-[11px]">
+                {jobId ?? '—'}
+              </p>
+            </div>
+            <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
+              <p className="text-[10px] uppercase tracking-[0.3em] text-slate-400">
+                Updated
+              </p>
+              <p className="mt-1 text-[11px]">
+                {jobStatus?.updated_at ?? '—'}
+              </p>
+            </div>
+            {jobStatus?.detail ? (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
+                {jobStatus.detail}
+              </div>
+            ) : null}
+            {runError ? (
+              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-600">
+                {runError}
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                Result
+              </p>
+              <p className="text-sm font-semibold text-slate-800">
+                ZPE Summary
+              </p>
+            </div>
+          </div>
+          <div className="mt-3 space-y-3">
+            {jobResult ? (
+              <div className="grid gap-2 text-xs text-slate-600">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
+                    <p className="text-[10px] uppercase tracking-[0.3em] text-slate-400">
+                      ZPE (eV)
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-slate-700">
+                      {formatNumber(jobResult.zpe_ev, 6)}
+                    </p>
+                  </div>
+                  <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
+                    <p className="text-[10px] uppercase tracking-[0.3em] text-slate-400">
+                      S_vib
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-slate-700">
+                      {formatNumber(jobResult.s_vib_jmol_k, 3)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
+                    <p className="text-[10px] uppercase tracking-[0.3em] text-slate-400">
+                      Elapsed
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-slate-700">
+                      {formatNumber(jobResult.elapsed_seconds, 2)}s
+                    </p>
+                  </div>
+                  <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
+                    <p className="text-[10px] uppercase tracking-[0.3em] text-slate-400">
+                      Modes
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-slate-700">
+                      {jobResult.freqs_cm.length}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2 text-[11px] text-slate-500">
+                  <div className="flex items-center justify-between">
+                    <span>freqs min / max</span>
+                    <span className="font-mono">
+                      {freqSummary
+                        ? `${formatNumber(freqSummary.min, 2)} / ${formatNumber(freqSummary.max, 2)}`
+                        : '—'}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between">
+                    <span>imaginary modes</span>
+                    <span className="font-mono">
+                      {freqSummary ? freqSummary.imagCount : '—'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-md border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
+                Results appear after the job finishes.
+              </div>
+            )}
+
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={() => handleDownload('summary')}
+                disabled={!jobResult}
+              >
+                <Download className="h-3 w-3" />
+                summary.txt
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={() => handleDownload('freqs')}
+                disabled={!jobResult}
+              >
+                <Download className="h-3 w-3" />
+                freqs.csv
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function ToolPanel({
   mode,
+  files,
   onClose,
   variant = 'stack',
   showHeader = true,
@@ -80,7 +1071,9 @@ export function ToolPanel({
         </div>
       ) : null}
 
-      {mode === 'supercell' ? (
+      {mode === 'vibration' ? (
+        <ZpeToolPanel files={files} />
+      ) : mode === 'supercell' ? (
         <SupercellTool
           structures={structures ?? []}
           onSupercellCreated={onSupercellCreated}
@@ -95,11 +1088,6 @@ export function ToolPanel({
                 <span className="font-medium text-slate-500">
                   Action Preview
                 </span>
-                {mode === 'vibration' ? (
-                  <span className="mt-1 text-xs text-slate-400">
-                    Preview only
-                  </span>
-                ) : null}
               </div>
             </div>
 
@@ -145,26 +1133,6 @@ export function ToolPanel({
                         Apply Transfer
                       </button>
                     </div>
-                  </div>
-                ) : null}
-
-                {mode === 'vibration' ? (
-                  <div className="flex h-full flex-col items-center justify-center gap-4">
-                    <div className="rounded-full bg-rose-50 p-4">
-                      <Activity className="h-8 w-8 text-rose-400" />
-                    </div>
-                    <div className="space-y-1 text-center">
-                      <p className="text-sm font-medium text-slate-700">
-                        Preview Only
-                      </p>
-                      <p className="rounded bg-slate-100 px-2 py-0.5 text-xs font-mono text-slate-400">
-                        mode: phonopy
-                      </p>
-                    </div>
-                    <button className="mt-2 flex w-full items-center justify-center gap-2 rounded-md bg-rose-600 py-2.5 font-medium text-white shadow-md transition-colors hover:bg-rose-700">
-                      <Play className="h-4 w-4 fill-current" />
-                      Run Preview
-                    </button>
                   </div>
                 ) : null}
               </div>

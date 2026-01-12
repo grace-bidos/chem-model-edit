@@ -37,7 +37,52 @@ export type SupercellMeta = {
   layers: number
   overlapCount?: number
 }
+export type ZPEParseResponse = {
+  structure: Structure
+  fixed_indices: Array<number>
+  atomic_species: Record<string, string>
+  kpoints?: [number, number, number] | null
+}
 
+export type ZPEJobRequest = {
+  content: string
+  mobile_indices: Array<number>
+  use_environ?: boolean
+  input_dir?: string | null
+  calc_mode?: 'new' | 'continue'
+}
+
+export type ZPEJobResponse = {
+  job_id: string
+}
+
+export type ZPEJobStatus = {
+  status: string
+  detail?: string | null
+  updated_at?: string | null
+}
+
+export type ZPEResult = {
+  freqs_cm: Array<number>
+  zpe_ev: number
+  s_vib_jmol_k: number
+  mobile_indices: Array<number>
+  fixed_indices: Array<number>
+  kpts: [number, number, number]
+  delta: number
+  low_cut_cm: number
+  temperature: number
+  use_environ: boolean
+  qe_input: string
+  pseudo_dir: string
+  calc_start_time: string
+  calc_end_time: string
+  elapsed_seconds: number
+  cache_checked: number
+  cache_deleted: number
+  ecutwfc?: number | null
+  ecutrho?: number | null
+}
 export type {
   SupercellGridAxis,
   SupercellGrid,

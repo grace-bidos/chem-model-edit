@@ -330,6 +330,7 @@ export default function EditorV2Page() {
         return (
           <ToolPanel
             mode={mode}
+            files={files}
             onClose={() => api.close()}
             variant="dock"
             showClose={false}
@@ -341,7 +342,7 @@ export default function EditorV2Page() {
       },
       history: () => <HistoryPanel />,
     }),
-    [filesById, handleStructureLoaded, handleSupercellCreated],
+    [files, filesById, handleStructureLoaded, handleSupercellCreated],
   )
 
   const importFiles = useCallback(
@@ -388,6 +389,7 @@ export default function EditorV2Page() {
               structure,
               bcifUrl,
               parseSource: source,
+              qeInput: content,
               initialOpenSections: { table: false, parameter: true },
             }
             nextFiles.push(nextFile)
