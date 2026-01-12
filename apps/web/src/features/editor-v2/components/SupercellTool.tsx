@@ -205,31 +205,34 @@ export function SupercellTool({
 
   const handleBuild = async () => {
     setBuildError(null)
+    setPreviewError(null)
+    setPreviewMeta(null)
+    setPreviewStructureId(null)
     if (!baseId) {
-      setBuildError('ベース構造を選択してください。')
+      setBuildError('Select a base structure.')
       return
     }
     if (!baseHasLattice) {
-      setBuildError('ベース構造に格子情報がありません。')
+      setBuildError('Base structure has no lattice data.')
       return
     }
     if (!gridRows || !gridCols) {
-      setBuildError('グリッドが空です。')
+      setBuildError('Grid is empty.')
       return
     }
     if (grid.some((row) => row.length !== gridCols)) {
-      setBuildError('グリッドの行数・列数が不正です。')
+      setBuildError('Grid dimensions are invalid.')
       return
     }
     if (grid.some((row) => row.some((cell) => !cell))) {
-      setBuildError('グリッドに空セルがあります。')
+      setBuildError('Grid has empty cells.')
       return
     }
     let tolerance: number | undefined
     if (checkOverlap) {
       const parsed = Number(overlapTolerance)
-      if (Number.isNaN(parsed)) {
-        setBuildError('重複チェックの許容誤差が無効です。')
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        setBuildError('Overlap tolerance is invalid.')
         return
       }
       tolerance = parsed
@@ -251,7 +254,6 @@ export function SupercellTool({
           validateLattice,
         },
         output: {
-          register: true,
           includeStructure: false,
         },
       })
@@ -266,7 +268,7 @@ export function SupercellTool({
       const message =
         error instanceof Error && error.message
           ? error.message
-          : 'スーパーセルの生成に失敗しました。'
+          : 'Failed to build supercell.'
       setBuildError(message)
     } finally {
       setIsBuilding(false)
@@ -388,9 +390,9 @@ export function SupercellTool({
                   <option value="" disabled>
                     Select base structure
                   </option>
-                  {palette.map((entry) => (
+                  {palette.map((entry, index) => (
                     <option
-                      key={entry.id ?? entry.label}
+                      key={entry.id ?? `label-${entry.label}-${index}`}
                       value={entry.id ?? ''}
                       disabled={!entry.id}
                     >
@@ -403,7 +405,7 @@ export function SupercellTool({
               </div>
               {!baseId ? (
                 <p className="text-[11px] text-slate-400">
-                  ベース構造は格子情報を含む必要があります。
+                  Base structure must include lattice data.
                 </p>
               ) : null}
             </section>
@@ -426,7 +428,7 @@ export function SupercellTool({
                 disabled={!baseId}
               />
               <p className="text-[11px] text-slate-400">
-                タイル間の隙間をクリックして行・列を追加/削除します。
+                Click gaps between tiles to add or remove rows/columns.
               </p>
             </section>
 
@@ -546,7 +548,9 @@ export function SupercellTool({
                   <div className="flex items-center justify-between">
                     <span>tolerance</span>
                     <input
-                      type="text"
+                      type="number"
+                      min={0}
+                      step="0.01"
                       value={overlapTolerance}
                       onChange={(event) => setOverlapTolerance(event.target.value)}
                       disabled={!checkOverlap}

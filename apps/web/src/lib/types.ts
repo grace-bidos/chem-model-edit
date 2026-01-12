@@ -38,46 +38,12 @@ export type SupercellMeta = {
   overlapCount?: number
 }
 
-export type SupercellGridAxis =
-  | { row: 'a'; col: 'b' }
-  | { row: 'b'; col: 'a' }
-
-export type SupercellGrid = {
-  rows: number
-  cols: number
-  tiles: Array<Array<string>>
-  axis?: SupercellGridAxis
-}
-
-export type SupercellBuildOptions = {
-  checkOverlap?: boolean
-  overlapTolerance?: number
-  validateLattice?: 'none' | 'warn' | 'error'
-}
-
-export type SupercellBuildOutput = {
-  register?: boolean
-  includeStructure?: boolean
-}
-
-export type SupercellBuildRequest = {
-  baseStructureId: string
-  grid: SupercellGrid
-  options?: SupercellBuildOptions
-  output?: SupercellBuildOutput
-}
-
-export type SupercellBuildMeta = {
-  rows: number
-  cols: number
-  tileCount: number
-  overlapCount?: number
-  baseStructureId: string
-  structureIdsUsed: Array<string>
-}
-
-export type SupercellBuildResponse = {
-  structureId: string
-  structure?: Structure
-  meta: SupercellBuildMeta
-}
+export type {
+  SupercellGridAxis,
+  SupercellGrid,
+  SupercellBuildOptions,
+  SupercellBuildOutput,
+  SupercellBuildRequest,
+  SupercellBuildMeta,
+  SupercellBuildResponse,
+} from '@chem-model/shared/types'
