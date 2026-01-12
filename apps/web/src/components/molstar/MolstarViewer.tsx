@@ -405,6 +405,25 @@ export default function MolstarViewer({
   }, [normalizedStructures, signature, viewerReady])
 
   useEffect(() => {
+    if (lastSignatureRef.current !== signature) {
+      selectionSignatureRef.current = null
+      pendingSelectionRef.current = null
+    }
+  }, [signature])
+
+  useEffect(() => {
+    if (!viewerRef.current || !viewerReady) {
+      return
+    }
+    if (selectionEnabled) {
+      return
+    }
+    selectionSignatureRef.current = null
+    pendingSelectionRef.current = null
+    applySelection([])
+  }, [selectionEnabled, viewerReady])
+
+  useEffect(() => {
     if (!viewerRef.current || !viewerReady) {
       return
     }
@@ -430,6 +449,11 @@ export default function MolstarViewer({
 
   useEffect(() => {
     if (!viewerRef.current || !viewerReady) {
+      return
+    }
+    if (!selectionEnabled) {
+      clickSubRef.current?.unsubscribe?.()
+      clickSubRef.current = null
       return
     }
     let cancelled = false
@@ -500,7 +524,7 @@ export default function MolstarViewer({
       clickSubRef.current?.unsubscribe?.()
       clickSubRef.current = null
     }
-  }, [viewerReady])
+  }, [selectionEnabled, viewerReady])
 
   return (
     <div
