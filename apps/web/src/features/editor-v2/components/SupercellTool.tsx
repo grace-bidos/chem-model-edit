@@ -1,14 +1,13 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertTriangle,
   Check,
   ChevronDown,
-  Minus,
-  Plus,
+  MoveDiagonal2,
   Sparkles,
 } from 'lucide-react'
 
-import type { CSSProperties } from 'react'
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
 import type { SupercellBuildMeta, SupercellGridAxis } from '@/lib/types'
 import type { WorkspaceFile } from '../types'
 
@@ -29,6 +28,8 @@ interface SupercellToolProps {
 type AxisMode = 'row-b' | 'row-a'
 
 const DEFAULT_GRID_SIZE = 2
+const GRID_CELL_PX = 42
+const GRID_GAP_PX = 10
 
 const hashToHue = (value: string) => {
   let hash = 0
@@ -139,6 +140,23 @@ export function SupercellTool({
     setBuildError(null)
   }
 
+  const resizeGrid = (nextRows: number, nextCols: number) => {
+    if (!baseId) {
+      return
+    }
+    const rows = Math.max(1, nextRows)
+    const cols = Math.max(1, nextCols)
+    setGrid((prev) =>
+      Array.from({ length: rows }, (_row, rowIndex) => {
+        const prevRow = prev[rowIndex] ?? []
+        return Array.from(
+          { length: cols },
+          (_col, colIndex) => prevRow[colIndex] ?? baseId,
+        )
+      }),
+    )
+  }
+
   const handlePaintCell = (rowIndex: number, colIndex: number) => {
     if (!brushId) {
       return
@@ -153,54 +171,6 @@ export function SupercellTool({
         }),
       ),
     )
-  }
-
-  const addRowAt = (index: number) => {
-    if (!baseId) {
-      return
-    }
-    setGrid((prev) => {
-      const cols = prev[0]?.length ?? DEFAULT_GRID_SIZE
-      const newRow = Array.from({ length: cols }, () => baseId)
-      const next = [...prev.slice(0, index), newRow, ...prev.slice(index)]
-      return next
-    })
-  }
-
-  const removeRowAt = (boundaryIndex: number) => {
-    setGrid((prev) => {
-      if (prev.length <= 1) {
-        return prev
-      }
-      const index =
-        boundaryIndex >= prev.length ? prev.length - 1 : boundaryIndex
-      return prev.filter((_, rowIndex) => rowIndex !== index)
-    })
-  }
-
-  const addColAt = (index: number) => {
-    if (!baseId) {
-      return
-    }
-    setGrid((prev) => {
-      const next = prev.map((row) => [
-        ...row.slice(0, index),
-        baseId,
-        ...row.slice(index),
-      ])
-      return next
-    })
-  }
-
-  const removeColAt = (boundaryIndex: number) => {
-    setGrid((prev) => {
-      if (prev.length === 0 || prev[0].length <= 1) {
-        return prev
-      }
-      const cols = prev[0].length
-      const index = boundaryIndex >= cols ? cols - 1 : boundaryIndex
-      return prev.map((row) => row.filter((_, colIndex) => colIndex !== index))
-    })
   }
 
   const handleBuild = async () => {
@@ -421,14 +391,12 @@ export function SupercellTool({
                 grid={grid}
                 paletteById={paletteById}
                 onCellClick={handlePaintCell}
-                onAddRow={addRowAt}
-                onRemoveRow={removeRowAt}
-                onAddCol={addColAt}
-                onRemoveCol={removeColAt}
+                onResize={resizeGrid}
                 disabled={!baseId}
               />
               <p className="text-[11px] text-slate-400">
-                Click gaps between tiles to add or remove rows/columns.
+                Click or drag the dots between tiles to resize. Drag the
+                bottom-right handle to expand or shrink.
               </p>
             </section>
 
@@ -590,10 +558,7 @@ interface GridCanvasProps {
     { palette: ReturnType<typeof paletteFor>; short: string; label: string }
   >
   onCellClick: (rowIndex: number, colIndex: number) => void
-  onAddRow: (index: number) => void
-  onRemoveRow: (index: number) => void
-  onAddCol: (index: number) => void
-  onRemoveCol: (index: number) => void
+  onResize: (rows: number, cols: number) => void
   disabled?: boolean
 }
 
@@ -601,25 +566,122 @@ function GridCanvas({
   grid,
   paletteById,
   onCellClick,
-  onAddRow,
-  onRemoveRow,
-  onAddCol,
-  onRemoveCol,
+  onResize,
   disabled = false,
 }: GridCanvasProps) {
   const rows = grid.length
   const cols = rows > 0 ? grid[0].length : 0
+  const renderRows = rows > 0 ? rows + 1 : 0
+  const renderCols = cols > 0 ? cols + 1 : 0
   const cell = 'var(--cell-size)'
   const gap = 'var(--gap-size)'
-  const rowTracks = Array.from({ length: rows * 2 + 1 }, (_, index) =>
+  const rowTracks = Array.from({ length: renderRows * 2 + 1 }, (_, index) =>
     index % 2 === 0 ? gap : cell,
   )
-  const colTracks = Array.from({ length: cols * 2 + 1 }, (_, index) =>
+  const colTracks = Array.from({ length: renderCols * 2 + 1 }, (_, index) =>
     index % 2 === 0 ? gap : cell,
   )
 
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const dragRef = useRef<{
+    allowBeyond: boolean
+    maxRows: number
+    maxCols: number
+    lastRow: number
+    lastCol: number
+  } | null>(null)
+
+  const updateFromPointer = useCallback(
+    (clientX: number, clientY: number) => {
+      if (!containerRef.current) {
+        return
+      }
+      const config = dragRef.current
+      if (!config) {
+        return
+      }
+      const container = containerRef.current
+      const rect = container.getBoundingClientRect()
+      const style = getComputedStyle(container)
+      const paddingLeft = Number.parseFloat(style.paddingLeft) || 0
+      const paddingTop = Number.parseFloat(style.paddingTop) || 0
+      const x = clientX - rect.left - paddingLeft
+      const y = clientY - rect.top - paddingTop
+      const unit = GRID_CELL_PX + GRID_GAP_PX
+      const base = GRID_GAP_PX / 2
+      let nextRow = Math.round((y - base) / unit)
+      let nextCol = Math.round((x - base) / unit)
+      nextRow = Math.max(1, nextRow)
+      nextCol = Math.max(1, nextCol)
+      if (!config.allowBeyond) {
+        nextRow = Math.min(nextRow, config.maxRows)
+        nextCol = Math.min(nextCol, config.maxCols)
+      }
+      if (config.lastRow === nextRow && config.lastCol === nextCol) {
+        return
+      }
+      dragRef.current = {
+        ...config,
+        lastRow: nextRow,
+        lastCol: nextCol,
+      }
+      onResize(nextRow, nextCol)
+    },
+    [onResize],
+  )
+
+  useEffect(() => {
+    const handleMove = (event: PointerEvent) => {
+      if (!dragRef.current) {
+        return
+      }
+      updateFromPointer(event.clientX, event.clientY)
+    }
+    const handleUp = () => {
+      dragRef.current = null
+    }
+    window.addEventListener('pointermove', handleMove)
+    window.addEventListener('pointerup', handleUp)
+    window.addEventListener('pointercancel', handleUp)
+    return () => {
+      window.removeEventListener('pointermove', handleMove)
+      window.removeEventListener('pointerup', handleUp)
+      window.removeEventListener('pointercancel', handleUp)
+    }
+  }, [updateFromPointer])
+
+  const handleDotPointerDown = (
+    event: ReactPointerEvent<HTMLButtonElement>,
+    row: number,
+    col: number,
+    allowBeyond: boolean,
+  ) => {
+    if (disabled) {
+      return
+    }
+    event.preventDefault()
+    dragRef.current = {
+      allowBeyond,
+      maxRows: renderRows,
+      maxCols: renderCols,
+      lastRow: row,
+      lastCol: col,
+    }
+    onResize(row, col)
+    updateFromPointer(event.clientX, event.clientY)
+  }
+
+  if (!rows || !cols) {
+    return (
+      <div className="rounded-lg border border-slate-200 bg-slate-50 p-6 text-center text-[11px] text-slate-400">
+        Select a base structure to edit the grid.
+      </div>
+    )
+  }
+
   return (
     <div
+      ref={containerRef}
       className={cn(
         'relative grid rounded-lg border border-slate-200 bg-slate-50 p-2',
         disabled && 'opacity-60',
@@ -628,66 +690,69 @@ function GridCanvas({
         {
           gridTemplateRows: rowTracks.join(' '),
           gridTemplateColumns: colTracks.join(' '),
-          '--cell-size': '2.6rem',
-          '--gap-size': '0.55rem',
+          '--cell-size': `${GRID_CELL_PX}px`,
+          '--gap-size': `${GRID_GAP_PX}px`,
         } as CSSProperties
       }
     >
-      {Array.from({ length: rows + 1 }).map((_, boundaryIndex) => (
-        <GapControl
-          key={`row-gap-${boundaryIndex}`}
-          axis="row"
-          index={boundaryIndex}
-          onAdd={onAddRow}
-          onRemove={onRemoveRow}
-          disableAdd={disabled}
-          disableRemove={disabled || rows <= 1}
-          gridRow={boundaryIndex * 2 + 1}
-          gridColumn={`1 / -1`}
-        />
-      ))}
-      {Array.from({ length: cols + 1 }).map((_, boundaryIndex) => (
-        <GapControl
-          key={`col-gap-${boundaryIndex}`}
-          axis="col"
-          index={boundaryIndex}
-          onAdd={onAddCol}
-          onRemove={onRemoveCol}
-          disableAdd={disabled}
-          disableRemove={disabled || cols <= 1}
-          gridRow={`1 / -1`}
-          gridColumn={boundaryIndex * 2 + 1}
-        />
-      ))}
-
-      {grid.map((row, rowIndex) =>
-        row.map((cellId, colIndex) => {
-          const entry = paletteById.get(cellId)
-          const palette = entry?.palette ?? paletteFor(cellId)
+      {Array.from({ length: renderRows }).map((_, rowIndex) =>
+        Array.from({ length: renderCols }).map((__, colIndex) => {
+          const isGhost = rowIndex >= rows || colIndex >= cols
+          const cellId = !isGhost ? grid[rowIndex]?.[colIndex] : null
+          const entry = cellId ? paletteById.get(cellId) : null
+          const palette = cellId ? entry?.palette ?? paletteFor(cellId) : null
           return (
             <button
-              key={`${rowIndex}-${colIndex}`}
+              key={`cell-${rowIndex}-${colIndex}`}
               type="button"
-              disabled={disabled}
-              onClick={() => onCellClick(rowIndex, colIndex)}
+              disabled={disabled || isGhost}
+              onClick={() => {
+                if (!isGhost) {
+                  onCellClick(rowIndex, colIndex)
+                }
+              }}
               className={cn(
                 'relative flex items-center justify-center rounded-md border text-[11px] font-semibold uppercase transition',
-                disabled
-                  ? 'cursor-not-allowed border-slate-200 bg-white/70 text-slate-300'
-                  : 'border-slate-200 hover:shadow-sm',
+                isGhost
+                  ? 'cursor-default border-dashed border-slate-200 bg-white/60 text-slate-300'
+                  : disabled
+                    ? 'cursor-not-allowed border-slate-200 bg-white/70 text-slate-300'
+                    : 'border-slate-200 hover:shadow-sm',
               )}
               style={{
                 gridRow: rowIndex * 2 + 2,
                 gridColumn: colIndex * 2 + 2,
-                backgroundColor: palette.bg,
-                borderColor: palette.border,
-                color: palette.text,
-                boxShadow: `0 0 0 1px ${palette.glow}`,
+                backgroundColor: isGhost ? 'rgba(248,250,252,0.8)' : palette?.bg,
+                borderColor: isGhost ? '#e2e8f0' : palette?.border,
+                color: palette?.text,
+                boxShadow: isGhost ? 'none' : `0 0 0 1px ${palette?.glow}`,
               }}
-              title={entry?.label ?? cellId}
+              title={
+                isGhost ? 'Expansion preview' : entry?.label ?? cellId ?? ''
+              }
             >
-              {entry?.short ?? '•'}
+              {isGhost ? '' : entry?.short ?? '•'}
             </button>
+          )
+        }),
+      )}
+
+      {Array.from({ length: renderRows }).map((_, boundaryRow) =>
+        Array.from({ length: renderCols }).map((__, boundaryCol) => {
+          const row = boundaryRow + 1
+          const col = boundaryCol + 1
+          const isHandle = row === renderRows && col === renderCols
+          return (
+            <DotControl
+              key={`dot-${row}-${col}`}
+              row={row}
+              col={col}
+              gridRow={row * 2 + 1}
+              gridColumn={col * 2 + 1}
+              onPointerDown={handleDotPointerDown}
+              disabled={disabled}
+              isHandle={isHandle}
+            />
           )
         }),
       )}
@@ -695,57 +760,60 @@ function GridCanvas({
   )
 }
 
-interface GapControlProps {
-  axis: 'row' | 'col'
-  index: number
-  onAdd: (index: number) => void
-  onRemove: (index: number) => void
-  disableAdd: boolean
-  disableRemove: boolean
+interface DotControlProps {
+  row: number
+  col: number
   gridRow: number | string
   gridColumn: number | string
+  disabled: boolean
+  isHandle?: boolean
+  onPointerDown: (
+    event: ReactPointerEvent<HTMLButtonElement>,
+    row: number,
+    col: number,
+    allowBeyond: boolean,
+  ) => void
 }
 
-function GapControl({
-  axis,
-  index,
-  onAdd,
-  onRemove,
-  disableAdd,
-  disableRemove,
+function DotControl({
+  row,
+  col,
   gridRow,
   gridColumn,
-}: GapControlProps) {
+  disabled,
+  isHandle = false,
+  onPointerDown,
+}: DotControlProps) {
   return (
-    <div
+    <button
+      type="button"
+      disabled={disabled}
+      onPointerDown={(event) =>
+        onPointerDown(event, row, col, Boolean(isHandle))
+      }
       className={cn(
-        'group relative z-10 flex items-center justify-center',
-        axis === 'row' ? 'h-full w-full' : 'h-full w-full',
+        'group z-10 flex items-center justify-center rounded-full border transition',
+        disabled
+          ? 'cursor-not-allowed border-slate-200 bg-white/70'
+          : isHandle
+            ? 'border-indigo-300 bg-white text-indigo-500 shadow-sm hover:border-indigo-400 hover:text-indigo-600'
+            : 'border-slate-200 bg-white text-slate-400 hover:border-slate-300 hover:text-slate-500',
       )}
-      style={{ gridRow, gridColumn }}
+      style={{
+        gridRow,
+        gridColumn,
+        width: '0.9rem',
+        height: '0.9rem',
+        justifySelf: 'center',
+        alignSelf: 'center',
+      }}
+      title={`${row} x ${col}`}
     >
-      <div className="absolute inset-0 rounded-full bg-transparent transition-colors group-hover:bg-slate-200/50" />
-      <div className="relative flex items-center rounded-full border border-slate-200 bg-white/90 opacity-0 shadow-sm transition-opacity group-hover:opacity-100">
-        <button
-          type="button"
-          onClick={() => onAdd(index)}
-          className="flex h-5 w-5 items-center justify-center text-slate-500 hover:text-blue-600"
-          aria-label={`Add ${axis}`}
-          disabled={disableAdd}
-        >
-          <Plus className="h-3 w-3" />
-        </button>
-        <div className="h-4 w-px bg-slate-200" />
-        <button
-          type="button"
-          onClick={() => onRemove(index)}
-          className="flex h-5 w-5 items-center justify-center text-slate-500 hover:text-rose-500"
-          aria-label={`Remove ${axis}`}
-          disabled={disableRemove}
-        >
-          <Minus className="h-3 w-3" />
-        </button>
-      </div>
-    </div>
+      {isHandle ? (
+        <MoveDiagonal2 className="h-3 w-3" />
+      ) : (
+        <span className="h-1.5 w-1.5 rounded-full bg-current" />
+      )}
+    </button>
   )
 }
