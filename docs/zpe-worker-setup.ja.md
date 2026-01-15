@@ -20,7 +20,10 @@ control-plane（FastAPI）はジョブ投入のみを行い、QE 計算は compu
 
 ## リポジトリと Python 環境
 ```bash
+# SSH (事前にSSH鍵の設定が必要)
 git clone git@github.com:grace-bidos/chem-model-edit.git
+# or HTTPS
+# git clone https://github.com/grace-bidos/chem-model-edit.git
 cd chem-model-edit/apps/api
 uv sync
 ```

@@ -21,6 +21,8 @@ The control-plane (FastAPI) only enqueues jobs and never runs QE locally.
 ## Repo + Python env
 ```bash
 git clone git@github.com:grace-bidos/chem-model-edit.git
+# or HTTPS
+# git clone https://github.com/grace-bidos/chem-model-edit.git
 cd chem-model-edit/apps/api
 uv sync
 ```
