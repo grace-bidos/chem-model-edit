@@ -54,6 +54,7 @@ class ZPESettings(BaseSettings):
     calc_dir_name: str = "vib_ads_vac"
     job_timeout_seconds: int = 86400
     result_ttl_seconds: int = 604800
+    lease_ttl_seconds: int = 600
 
     environ_path: Optional[str] = None
 

@@ -36,6 +36,7 @@ from models import (
     ZPEComputeRegisterRequest,
     ZPEComputeRegisterResponse,
     ZPEComputeRevokeResponse,
+    ZPEComputeLeaseResponse,
     ZPEEnrollTokenRequest,
     ZPEEnrollTokenResponse,
     ZPEParseRequest,
@@ -65,6 +66,7 @@ from services.zpe import (
     get_zpe_settings,
 )
 from services.zpe.enroll import get_enroll_store
+from services.zpe.lease import lease_next_job
 from services.zpe.worker_auth import get_worker_token_store
 from services.zpe.parse import (
     extract_fixed_indices,
@@ -138,6 +140,27 @@ def require_admin(request: Request) -> None:
     token = _extract_admin_token(request)
     if not token or not secrets.compare_digest(token, settings.admin_token):
         raise HTTPException(status_code=401, detail="unauthorized")
+
+
+def _extract_worker_token(request: Request) -> str | None:
+    auth = request.headers.get("authorization")
+    if auth and auth.lower().startswith("bearer "):
+        token = auth.split(" ", 1)[1].strip()
+        return token or None
+    return None
+
+
+def require_worker(request: Request) -> str:
+    token = _extract_worker_token(request)
+    if not token:
+        raise HTTPException(status_code=401, detail="missing worker token")
+    store = get_worker_token_store()
+    try:
+        return store.validate(token)
+    except PermissionError as exc:
+        detail = str(exc) or "invalid token"
+        status = 403 if "revoked" in detail else 401
+        raise HTTPException(status_code=status, detail=detail) from exc
 
 
 def _ensure_job_finished(job_id: str) -> None:
@@ -455,6 +478,23 @@ def zpe_compute_revoke(
     token_store = get_worker_token_store()
     revoked = token_store.revoke_tokens_for_worker(server_id)
     return ZPEComputeRevokeResponse(revoked_count=revoked)
+
+
+@app.post(
+    "/calc/zpe/compute/jobs/lease",
+    response_model=ZPEComputeLeaseResponse,
+)
+def zpe_compute_lease(raw: Request) -> Response:
+    worker_id = require_worker(raw)
+    lease = lease_next_job(worker_id)
+    if lease is None:
+        return Response(status_code=204)
+    return ZPEComputeLeaseResponse(
+        job_id=lease.job_id,
+        payload=lease.payload,
+        lease_id=lease.lease_id,
+        lease_ttl_seconds=lease.lease_ttl_seconds,
+    )
 @app.get("/calc/zpe/jobs/{job_id}", response_model=ZPEJobStatusResponse)
 def zpe_job_status(job_id: str) -> ZPEJobStatusResponse:
     store = get_result_store()

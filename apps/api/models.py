@@ -293,3 +293,10 @@ class ZPEComputeRegisterResponse(BaseModel):
 
 class ZPEComputeRevokeResponse(BaseModel):
     revoked_count: int
+
+
+class ZPEComputeLeaseResponse(BaseModel):
+    job_id: str
+    payload: Dict[str, Any]
+    lease_id: str
+    lease_ttl_seconds: int
