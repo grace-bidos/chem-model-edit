@@ -56,7 +56,12 @@ def _run_mock_job(
     kpts = parse_kpoints_automatic(request.content)
     kpts_use = kpts[0] if kpts else _default_kpts()
 
-    nfreq = max(1, len(request.mobile_indices) * 3)
+    mobile_indices = ensure_mobile_indices(
+        request.mobile_indices,
+        natoms=len(parse_qe_atoms(request.content)),
+        fixed_indices=fixed_indices,
+    )
+    nfreq = max(1, len(mobile_indices) * 3)
     freqs_cm = [100.0 + 5.0 * i for i in range(nfreq)]
     zpe_ev, s_vib_jmol_k = calc_zpe_and_s_vib(
         freqs_cm,
@@ -69,7 +74,7 @@ def _run_mock_job(
         "freqs_cm": normalize_frequencies(freqs_cm),
         "zpe_ev": zpe_ev,
         "s_vib_jmol_k": s_vib_jmol_k,
-        "mobile_indices": request.mobile_indices,
+        "mobile_indices": mobile_indices,
         "fixed_indices": fixed_indices,
         "kpts": kpts_use,
         "delta": settings.delta,
@@ -109,14 +114,13 @@ def run_zpe_job(payload: Dict[str, Any]) -> Dict[str, Any]:
 
     request = ZPEJobRequest(**payload)
 
-    if settings.worker_mode == "mock":
-        return _run_mock_job(job_id, request, settings=settings, store=store)
-
     work_dir = resolve_work_dir(settings)
     job_dir = work_dir / job_id
     job_dir.mkdir(parents=True, exist_ok=True)
 
     try:
+        if settings.worker_mode == "mock":
+            return _run_mock_job(job_id, request, settings=settings, store=store)
         start_time = datetime.now(timezone.utc)
         with _chdir(job_dir):
             atoms = parse_qe_atoms(request.content)
