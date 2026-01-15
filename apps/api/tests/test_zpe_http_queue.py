@@ -18,6 +18,7 @@ def test_remote_http_enqueue(monkeypatch):
     monkeypatch.setattr(backends, "get_result_store", lambda: zpe_store.RedisResultStore(redis=fake))
     monkeypatch.setattr(zpe_queue, "get_redis_connection", lambda: fake)
     monkeypatch.setattr(zpe_http, "get_redis_connection", lambda: fake)
+    monkeypatch.setattr(zpe_http, "get_zpe_settings", lambda: settings)
     monkeypatch.setattr(zpe_store, "get_redis_connection", lambda: fake)
 
     qe_input = """
