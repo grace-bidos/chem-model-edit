@@ -45,6 +45,65 @@ def _default_kpts() -> tuple[int, int, int]:
     return (1, 1, 1)
 
 
+def _run_mock_job(
+    job_id: str,
+    request: ZPEJobRequest,
+    *,
+    settings: Any,
+    store: Any,
+) -> Dict[str, Any]:
+    fixed_indices = extract_fixed_indices(request.content)
+    kpts = parse_kpoints_automatic(request.content)
+    kpts_use = kpts[0] if kpts else _default_kpts()
+
+    mobile_indices = ensure_mobile_indices(
+        request.mobile_indices,
+        natoms=len(parse_qe_atoms(request.content)),
+        fixed_indices=fixed_indices,
+    )
+    nfreq = max(1, len(mobile_indices) * 3)
+    freqs_cm = [100.0 + 5.0 * i for i in range(nfreq)]
+    zpe_ev, s_vib_jmol_k = calc_zpe_and_s_vib(
+        freqs_cm,
+        low_cut_cm=settings.low_cut_cm,
+        temperature=settings.temperature,
+    )
+
+    now = datetime.now(timezone.utc).isoformat()
+    result: Dict[str, Any] = {
+        "freqs_cm": normalize_frequencies(freqs_cm),
+        "zpe_ev": zpe_ev,
+        "s_vib_jmol_k": s_vib_jmol_k,
+        "mobile_indices": mobile_indices,
+        "fixed_indices": fixed_indices,
+        "kpts": kpts_use,
+        "delta": settings.delta,
+        "low_cut_cm": settings.low_cut_cm,
+        "temperature": settings.temperature,
+        "use_environ": request.use_environ,
+        "qe_input": "mock",
+        "pseudo_dir": "mock",
+        "calc_start_time": now,
+        "calc_end_time": now,
+        "elapsed_seconds": 0.0,
+        "cache_checked": 0,
+        "cache_deleted": 0,
+        "ecutwfc": None,
+        "ecutrho": None,
+    }
+
+    summary_text = format_summary(
+        result,
+        pseudo_dir="mock",
+        qe_input="mock",
+        new_calc=request.calc_mode == "new",
+    )
+    freqs_csv = format_freqs_csv(freqs_cm)
+    store.set_result(job_id, result, summary_text=summary_text, freqs_csv=freqs_csv)
+    store.set_status(job_id, "finished")
+    return result
+
+
 def run_zpe_job(payload: Dict[str, Any]) -> Dict[str, Any]:
     settings = get_zpe_settings()
     store = get_result_store()
@@ -54,11 +113,14 @@ def run_zpe_job(payload: Dict[str, Any]) -> Dict[str, Any]:
     store.set_status(job_id, "started")
 
     request = ZPEJobRequest(**payload)
+
     work_dir = resolve_work_dir(settings)
     job_dir = work_dir / job_id
     job_dir.mkdir(parents=True, exist_ok=True)
 
     try:
+        if settings.worker_mode == "mock":
+            return _run_mock_job(job_id, request, settings=settings, store=store)
         start_time = datetime.now(timezone.utc)
         with _chdir(job_dir):
             atoms = parse_qe_atoms(request.content)

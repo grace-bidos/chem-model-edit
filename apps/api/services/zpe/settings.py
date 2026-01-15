@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import lru_cache
 import os
 from pathlib import Path
-from typing import Any, Optional, cast
+from typing import Any, Literal, Optional, cast
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -32,6 +32,7 @@ class ZPESettings(BaseSettings):
     queue_name: str = "zpe"
     compute_mode: str = "remote-queue"
     result_store: str = "redis"
+    worker_mode: Literal["qe", "mock"] = "qe"
     admin_token: Optional[str] = None
     enroll_token_ttl_seconds: int = 3600
 
