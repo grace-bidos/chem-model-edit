@@ -7,6 +7,7 @@ from uuid import uuid4
 from models import ZPEJobRequest
 from .io import format_freqs_csv, format_summary
 from .parse import extract_fixed_indices, parse_kpoints_automatic
+from .http_queue import enqueue_http_job
 from .queue import get_queue
 from .result_store import ResultStore, get_result_store
 from .settings import get_zpe_settings
@@ -23,8 +24,8 @@ def _default_kpts() -> tuple[int, int, int]:
 
 def enqueue_zpe_job(payload: Dict[str, Any]) -> str:
     settings = get_zpe_settings()
-    if settings.compute_mode not in {"remote-queue", "mock"}:
-        raise ValueError("compute_mode must be 'remote-queue' or 'mock'.")
+    if settings.compute_mode not in {"remote-queue", "remote-http", "mock"}:
+        raise ValueError("compute_mode must be 'remote-queue', 'remote-http', or 'mock'.")
     store = get_result_store()
     if settings.compute_mode == "remote-queue":
         job = get_queue().enqueue(
@@ -35,6 +36,8 @@ def enqueue_zpe_job(payload: Dict[str, Any]) -> str:
         )
         store.set_status(job.id, "queued")
         return job.id
+    if settings.compute_mode == "remote-http":
+        return enqueue_http_job(payload)
     return _run_mock_job(payload, store)
 
 
