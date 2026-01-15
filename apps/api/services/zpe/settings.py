@@ -32,6 +32,7 @@ class ZPESettings(BaseSettings):
     queue_name: str = "zpe"
     compute_mode: str = "remote-queue"
     result_store: str = "redis"
+    worker_mode: str = "qe"
     admin_token: Optional[str] = None
     enroll_token_ttl_seconds: int = 3600
 
