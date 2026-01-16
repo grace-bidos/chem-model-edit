@@ -48,11 +48,13 @@ apps/api/
    - 短期登録トークン方式（将来のユーザー単位登録へ拡張）を設計
    - 結果ストアとバックエンドのインターフェース定義
 2. **Core Implementation**
-   - `remote-http`（HTTP ポーリング）バックエンド
+   - Job enqueue API（`remote-http` backend）
    - ワーカー認証（worker_token）と登録/失効 API
-   - lease 取得/結果返却/失敗返却 API
-   - retry/backoff/DLQ の最小実装
-   - `remote-queue` / `mock` バックエンド（互換）
+   - Lease 取得 API と期限切れ処理
+   - 結果返却/失敗返却 API
+   - Retry/backoff/DLQ の最小実装
+   - HTTP ワーカーポーリング実装
+   - `remote-queue` / `mock` バックエンド（互換性維持）
    - 結果保存/取得の統一（Redis）
 3. **Verification**
    - HTTP 仲介経由の結果取得テスト
@@ -74,6 +76,7 @@ apps/api/
 - compute-plane ワーカーを停止する
 - `/calc/zpe/*` の挙動を従来のローカル方式に戻す
 - Redis 側のジョブ/結果はそのまま残す（必要に応じて手動削除）
+- **in-flight ジョブ**: 新規受付停止 → 実行中ジョブは完了待ち（または強制停止してDLQへ退避）
 - 段階的切替やデータクリーンアップの詳細手順は運用が固まってから追記する
 - **運用ガードレール（Planned）**
   - 新規 remote 受付を止めるフラグ/トグル（既存ジョブは継続 or 明示キャンセル）
