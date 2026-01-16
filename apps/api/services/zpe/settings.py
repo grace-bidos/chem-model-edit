@@ -60,6 +60,11 @@ class ZPESettings(BaseSettings):
     retry_max_delay_seconds: int = 300
 
     environ_path: Optional[str] = None
+    control_api_url: str = "http://localhost:8000"
+    worker_token: Optional[str] = None
+    worker_poll_interval_seconds: int = 10
+    worker_poll_max_interval_seconds: int = 60
+    worker_request_timeout_seconds: int = 60
 
 
 @lru_cache
