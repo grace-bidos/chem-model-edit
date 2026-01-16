@@ -69,12 +69,6 @@ def submit_result(
         pipe = redis.pipeline()
         try:
             pipe.watch(status_key, lease_key)
-            lease = _get_lease(pipe, job_id)
-            if not lease:
-                raise PermissionError("lease not found")
-            if lease.get("worker_id") != worker_id or lease.get("lease_id") != lease_id:
-                raise PermissionError("lease mismatch")
-
             status = _decode_map(pipe.hgetall(status_key))
             if status.get("status") == "finished":
                 existing_result = pipe.get(result_key)
@@ -88,6 +82,12 @@ def submit_result(
                 ):
                     return ResultSubmitOutcome(idempotent=True)
                 raise ValueError("result already submitted")
+
+            lease = _get_lease(pipe, job_id)
+            if not lease:
+                raise PermissionError("lease not found")
+            if lease.get("worker_id") != worker_id or lease.get("lease_id") != lease_id:
+                raise PermissionError("lease mismatch")
 
             pipe.multi()
             pipe.setex(result_key, ttl, payload_json)

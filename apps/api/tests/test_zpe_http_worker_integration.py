@@ -9,6 +9,25 @@ from services.zpe import http_worker
 from services.zpe import worker as zpe_worker
 from services.zpe.settings import ZPESettings
 
+QE_INPUT = """
+&CONTROL
+  calculation='scf'
+/
+&SYSTEM
+  ibrav=0, nat=1, ntyp=1
+/
+&ELECTRONS
+/
+ATOMIC_SPECIES
+ H 1.0079 H.pbe-rrkjus.UPF
+CELL_PARAMETERS angstrom
+  5.0 0.0 0.0
+  0.0 5.0 0.0
+  0.0 0.0 5.0
+ATOMIC_POSITIONS angstrom
+ H 0.0 0.0 0.0 1 1 1
+""".strip()
+
 
 def _make_handler() -> type[BaseHTTPRequestHandler]:
     class _LeaseHandler(BaseHTTPRequestHandler):
@@ -35,21 +54,22 @@ def _make_handler() -> type[BaseHTTPRequestHandler]:
             return auth == f"Bearer {self.token}"
 
         def do_POST(self) -> None:
+            handler_cls = type(self)
             if not self._auth_ok():
                 self._send_json(401, {"detail": "unauthorized"})
                 return
 
             if self.path == "/calc/zpe/compute/jobs/lease":
-                if self.leased:
+                if handler_cls.leased:
                     self._send_json(204)
                     return
-                self.leased = True
+                handler_cls.leased = True
                 payload = {
                     "job_id": self.job_id,
                     "lease_id": self.lease_id,
                     "lease_ttl_seconds": 30,
                     "payload": {
-                        "content": "&control\n/\nATOMIC_POSITIONS angstrom\nH 0 0 0 1 1 1",
+                        "content": QE_INPUT,
                         "mobile_indices": [0],
                         "use_environ": False,
                         "calc_mode": "continue",
@@ -61,14 +81,14 @@ def _make_handler() -> type[BaseHTTPRequestHandler]:
             if self.path == f"/calc/zpe/compute/jobs/{self.job_id}/result":
                 length = int(self.headers.get("Content-Length", "0"))
                 body = self.rfile.read(length).decode("utf-8") if length else "{}"
-                self.result_payload = json.loads(body)
+                handler_cls.result_payload = json.loads(body)
                 self._send_json(200, {"ok": True})
                 return
 
             if self.path == f"/calc/zpe/compute/jobs/{self.job_id}/failed":
                 length = int(self.headers.get("Content-Length", "0"))
                 body = self.rfile.read(length).decode("utf-8") if length else "{}"
-                self.failed_payload = json.loads(body)
+                handler_cls.failed_payload = json.loads(body)
                 self._send_json(200, {"ok": True})
                 return
 
