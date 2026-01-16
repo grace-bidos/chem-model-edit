@@ -7,6 +7,7 @@ from typing import Any, Dict, Optional
 from uuid import uuid4
 
 from redis import Redis
+from redis.exceptions import ResponseError
 
 from .queue import get_redis_connection
 from .result_store import get_result_store
@@ -59,22 +60,39 @@ def lease_next_job(worker_id: str) -> Optional[Lease]:
         "redis.call('ZADD', KEYS[2], ARGV[5], job_id)\n"
         "return job_id"
     )
-    job_id_raw = redis.eval(
-        script,
-        2,
-        _QUEUE_KEY,
-        _LEASE_INDEX,
-        worker_id,
-        lease_id,
-        expires_iso,
-        lease_ttl,
-        expires_ts,
-        _LEASE_PREFIX,
-    )
-    if not job_id_raw:
-        return None
-
-    job_id = job_id_raw.decode("utf-8") if isinstance(job_id_raw, bytes) else str(job_id_raw)
+    try:
+        job_id_raw = redis.eval(
+            script,
+            2,
+            _QUEUE_KEY,
+            _LEASE_INDEX,
+            worker_id,
+            lease_id,
+            expires_iso,
+            lease_ttl,
+            expires_ts,
+            _LEASE_PREFIX,
+        )
+        if not job_id_raw:
+            return None
+        job_id = job_id_raw.decode("utf-8") if isinstance(job_id_raw, bytes) else str(job_id_raw)
+    except ResponseError as exc:
+        message = str(exc).lower()
+        if "unknown command" not in message or "eval" not in message:
+            raise
+        job_id_raw = redis.rpop(_QUEUE_KEY)
+        if not job_id_raw:
+            return None
+        job_id = job_id_raw.decode("utf-8") if isinstance(job_id_raw, bytes) else str(job_id_raw)
+        lease_key = f"{_LEASE_PREFIX}{job_id}"
+        pipe = redis.pipeline(transaction=True)
+        pipe.hset(
+            lease_key,
+            mapping={"worker_id": worker_id, "lease_id": lease_id, "expires_at": expires_iso},
+        )
+        pipe.expire(lease_key, lease_ttl)
+        pipe.zadd(_LEASE_INDEX, {job_id: expires_ts})
+        pipe.execute()
     payload_raw = redis.get(f"{_PAYLOAD_PREFIX}{job_id}")
     if payload_raw is None:
         redis.delete(f"{_LEASE_PREFIX}{job_id}")
