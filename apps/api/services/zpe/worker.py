@@ -145,7 +145,7 @@ def compute_zpe_artifacts(payload: Dict[str, Any], *, job_id: str) -> ZPECompute
 
     work_dir = resolve_work_dir(settings)
     job_id_path = Path(job_id)
-    if job_id_path.is_absolute() or job_id_path.parent != Path(".") or job_id_path.name in {"", "."}:
+    if job_id_path.is_absolute() or job_id_path.parent != Path(".") or job_id_path.name in {"", ".", ".."}:
         raise ValueError(f"invalid job_id: {job_id}")
     job_dir = work_dir / job_id_path
     job_dir.mkdir(parents=True, exist_ok=True)
