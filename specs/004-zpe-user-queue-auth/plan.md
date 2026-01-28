@@ -13,6 +13,8 @@ Introduce lightweight user authentication (open signup + Redis-backed sessions),
 - **Frontend**: TanStack Start + existing ZPE UI
 - **Storage**: Redis for sessions, user profiles, queue targets, and job ownership
 - **Session TTL**: 7 days (sliding)
+- **Password Hashing**: Argon2id (m=19456 KiB, t=2, p=1). Bcrypt (cost >= 10) only for legacy migration.
+- **Auth Hardening**: rate-limit /auth/register and /auth/login; lock out after 5-10 consecutive failures and cap ~100 failed attempts per account per hour (with backoff).
 
 ## Project Structure
 
@@ -58,7 +60,7 @@ apps/web/
 ## Rollback Plan
 
 - Disable auth by bypassing auth dependency
+- Invalidate existing sessions (delete auth:session:* keys) or set a short global TTL before bypassing so revoked sessions cannot access the default queue
 - Fall back to single default queue in settings
 - Remove owner checks from job endpoints
 - Keep Redis data; no migration rollback needed
-

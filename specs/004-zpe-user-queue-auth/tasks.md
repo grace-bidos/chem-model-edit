@@ -14,7 +14,7 @@
 - [ ] T420 [P] Add queue target store and selection endpoints
 - [ ] T421 [P] Allow user-auth to issue enroll tokens
 - [ ] T422 [P] Store job owner mapping and enforce on ZPE endpoints
-- [ ] T423 [P] Enqueue ZPE jobs to user selected queue target
+- [ ] T423 [P] Enqueue ZPE jobs to user-selected queue target
 
 ## PR-4: Frontend + Docs + Tests
 - [ ] T430 [P] Add login/register UI + session storage
@@ -22,4 +22,3 @@
 - [ ] T432 [P] Attach auth token to ZPE API calls
 - [ ] T433 [P] Add docs for worker registration flow
 - [ ] T434 [P] Add tests for auth + queue target + owner checks
-

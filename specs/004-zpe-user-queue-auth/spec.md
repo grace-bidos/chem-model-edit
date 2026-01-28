@@ -10,6 +10,7 @@
 ### User Story 1 - Open signup and session-based auth (Priority: P1)
 
 Users can create accounts without admin approval and receive a session token used for all ZPE actions.
+Session tokens are transported via `Authorization: Bearer <token>` and stored client-side in memory or sessionStorage (not cookies), so CSRF is not applicable; XSS hardening is required (CSP + input/output encoding + avoid localStorage).
 
 **Independent Test**: A new user can register, log in, and call `/auth/me` with a bearer token.
 
@@ -63,14 +64,17 @@ Admin tokens are not required for standard users, and admin-only operations rema
 ### Functional Requirements
 
 - **FR-001**: Provide open user registration (no invite/approval)
-- **FR-002**: Authenticate via session tokens stored in Redis and sent as `Authorization: Bearer <token>`
-- **FR-003**: Sessions have a configurable TTL (default 7 days) and are refreshed on use (sliding TTL)
+- **FR-002**: Authenticate via session tokens stored in Redis and sent as `Authorization: Bearer <token>`; tokens have >=128 bits entropy and are stored client-side in memory or sessionStorage (not cookies or localStorage), with XSS hardening (CSP + input/output encoding)
+- **FR-003**: Sessions have a configurable TTL (default 7 days), are refreshed on use (sliding TTL), and are revoked by deleting the Redis session key on logout
 - **FR-004**: Allow authenticated users to create compute enroll tokens
 - **FR-005**: Register compute servers under a user and store a queue target (same Redis, queue name only)
 - **FR-006**: Users can list and select their active queue target
 - **FR-007**: ZPE job submission enqueues to the user’s selected queue target
 - **FR-008**: Job status/result access is limited to the job owner
 - **FR-009**: Admin token usage remains supported and is not required for end users
+- **FR-010**: Password hashing uses Argon2id (m=19456 KiB, t=2, p=1); bcrypt (cost >= 10) only for legacy migration
+- **FR-011**: Rate-limit /auth/register and /auth/login (per-account + per-IP), lock out after 5-10 consecutive failures, and cap ~100 failed attempts per account per hour with exponential backoff
+- **FR-012**: When enroll tokens are issued via admin token, emit an audit log (actor, timestamp, source IP, target)
 
 ### Non-Functional Requirements
 
@@ -97,4 +101,3 @@ Admin tokens are not required for standard users, and admin-only operations rema
 - OAuth / SSO / email verification
 - Cross-Redis queue targets
 - Multi-tenant RBAC beyond owner-based access
-
