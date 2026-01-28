@@ -76,7 +76,10 @@ def test_queue_target_list_and_select(monkeypatch):
     assert listing.status_code == 200
     payload = listing.json()
     assert len(payload["targets"]) == 2
-    second_id = payload["targets"][1]["target_id"]
+    second = next(
+        target for target in payload["targets"] if target["queue_name"] == "zpe-2"
+    )
+    second_id = second["target_id"]
 
     select = client.post(
         "/calc/zpe/compute/targets/select",
