@@ -35,6 +35,7 @@ class EnrollToken:
     expires_at: str
     ttl_seconds: int
     label: Optional[str] = None
+    owner_id: Optional[str] = None
 
 
 @dataclass
@@ -43,6 +44,7 @@ class ComputeServerRegistration:
     registered_at: str
     name: Optional[str] = None
     meta: Mapping[str, Any] = field(default_factory=dict)
+    owner_id: Optional[str] = None
 
 
 class ComputeEnrollStore:
@@ -54,6 +56,7 @@ class ComputeEnrollStore:
         *,
         ttl_seconds: Optional[int] = None,
         label: Optional[str] = None,
+        owner_id: Optional[str] = None,
     ) -> EnrollToken:
         settings = get_zpe_settings()
         ttl = ttl_seconds if ttl_seconds is not None else settings.enroll_token_ttl_seconds
@@ -63,6 +66,7 @@ class ComputeEnrollStore:
         payload = {
             "created_at": _now_iso(),
             "label": label or "",
+            "owner_id": owner_id or "",
         }
         key = f"{_ENROLL_PREFIX}{token}"
         pipe = self.redis.pipeline(transaction=True)
@@ -77,6 +81,7 @@ class ComputeEnrollStore:
             expires_at=_expires_iso(ttl),
             ttl_seconds=ttl,
             label=label,
+            owner_id=owner_id,
         )
 
     def consume_token(
@@ -89,6 +94,7 @@ class ComputeEnrollStore:
         key = f"{_ENROLL_PREFIX}{token}"
         server_id = f"compute-{uuid4().hex}"
         now = _now_iso()
+        owner_id = None
         payload = {
             "registered_at": now,
             "name": name or "",
@@ -103,6 +109,10 @@ class ComputeEnrollStore:
                 if not pipe.exists(key):
                     pipe.reset()
                     raise KeyError("token not found")
+                token_payload = pipe.hgetall(key)
+                if token_payload:
+                    raw_owner = token_payload.get(b"owner_id") or b""
+                    owner_id = raw_owner.decode("utf-8") or None
                 pipe.multi()
                 pipe.delete(key)
                 pipe.hset(server_key, mapping=payload)
@@ -118,6 +128,7 @@ class ComputeEnrollStore:
             registered_at=now,
             name=name,
             meta=meta or {},
+            owner_id=owner_id,
         )
 
 

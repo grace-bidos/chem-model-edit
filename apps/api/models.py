@@ -279,6 +279,7 @@ class ZPEEnrollTokenResponse(BaseModel):
 class ZPEComputeRegisterRequest(BaseModel):
     token: str
     name: Optional[str] = None
+    queue_name: Optional[str] = None
     meta: Dict[str, Any] = Field(default_factory=dict)
 
 
@@ -289,6 +290,27 @@ class ZPEComputeRegisterResponse(BaseModel):
     worker_token: str
     token_expires_at: str
     token_ttl_seconds: int
+
+
+class ZPEQueueTarget(BaseModel):
+    target_id: str
+    queue_name: str
+    server_id: str
+    registered_at: str
+    name: Optional[str] = None
+
+
+class ZPEQueueTargetListResponse(BaseModel):
+    targets: List[ZPEQueueTarget]
+    active_target_id: Optional[str] = None
+
+
+class ZPEQueueTargetSelectRequest(BaseModel):
+    target_id: str
+
+
+class ZPEQueueTargetSelectResponse(BaseModel):
+    active_target_id: str
 
 
 class ZPEComputeRevokeResponse(BaseModel):
