@@ -1,3 +1,4 @@
+import { getAuthToken } from './auth'
 import type {
   AuthMe,
   AuthSession,
@@ -14,7 +15,6 @@ import type {
   ZPEQueueTargetList,
   ZPEResult,
 } from './types'
-import { getAuthToken } from './auth'
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8000'
 

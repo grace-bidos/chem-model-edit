@@ -48,11 +48,11 @@ import {
   fetchZpeStatus,
   getStructure,
   loginAccount,
+  logoutAccount,
   parseZpeInput,
   registerAccount,
   selectQueueTarget,
   structureViewUrl,
-  logoutAccount,
 } from '@/lib/api'
 import { clearSession, getStoredSession, storeSession } from '@/lib/auth'
 import { atomsToPdb } from '@/lib/pdb'
@@ -199,7 +199,7 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
       if (sessionTokenRef.current !== tokenSnapshot) {
         return
       }
-      setQueueTargets(payload.targets ?? [])
+      setQueueTargets(payload.targets)
       setActiveTargetId(payload.active_target_id ?? null)
     } catch (err) {
       if (sessionTokenRef.current !== tokenSnapshot) {
