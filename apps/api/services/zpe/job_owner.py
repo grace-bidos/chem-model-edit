@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, cast
 
 from redis import Redis
 
@@ -24,7 +24,7 @@ class JobOwnerStore:
             raise RuntimeError("failed to set job owner")
 
     def get_owner(self, job_id: str) -> Optional[str]:
-        raw = self.redis.get(f"{_OWNER_PREFIX}{job_id}")
+        raw = cast(Optional[bytes], self.redis.get(f"{_OWNER_PREFIX}{job_id}"))
         if not raw:
             return None
         return raw.decode("utf-8")
@@ -32,4 +32,3 @@ class JobOwnerStore:
 
 def get_job_owner_store() -> JobOwnerStore:
     return JobOwnerStore()
-

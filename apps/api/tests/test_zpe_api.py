@@ -46,7 +46,9 @@ def _patch_redis(monkeypatch):
     return fake
 
 
-def _setup_user_and_target(client: TestClient, monkeypatch, fake) -> tuple[dict[str, str], str]:
+def _setup_user_and_target(
+    client: TestClient, monkeypatch, fake
+) -> tuple[dict[str, str], str]:
     store = AuthStore(fake)
     monkeypatch.setattr(main, "get_auth_store", lambda: store)
 

@@ -37,4 +37,3 @@ def verify_password(password: str, stored: str, *, pepper: str | None = None) ->
     password_value = f"{password}{pepper or ''}"
     candidate = _hash_pbkdf2(password_value, salt=salt, iterations=iterations)
     return secrets.compare_digest(candidate, digest)
-

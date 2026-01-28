@@ -25,7 +25,9 @@ def _default_kpts() -> tuple[int, int, int]:
 def enqueue_zpe_job(payload: Dict[str, Any], *, queue_name: str | None = None) -> str:
     settings = get_zpe_settings()
     if settings.compute_mode not in {"remote-queue", "remote-http", "mock"}:
-        raise ValueError("compute_mode must be 'remote-queue', 'remote-http', or 'mock'.")
+        raise ValueError(
+            "compute_mode must be 'remote-queue', 'remote-http', or 'mock'."
+        )
     store = get_result_store()
     if settings.compute_mode == "remote-queue":
         job = get_queue(queue_name).enqueue(

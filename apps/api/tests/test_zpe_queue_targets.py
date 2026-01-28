@@ -35,7 +35,9 @@ def _auth_headers(client: TestClient, monkeypatch, fake) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-def _register_target(client: TestClient, headers: dict[str, str], queue_name: str) -> str:
+def _register_target(
+    client: TestClient, headers: dict[str, str], queue_name: str
+) -> str:
     enroll = client.post(
         "/calc/zpe/compute/enroll-tokens",
         json={"ttl_seconds": 60},
@@ -86,4 +88,3 @@ def test_queue_target_list_and_select(monkeypatch):
 
     listing = client.get("/calc/zpe/compute/targets", headers=headers)
     assert listing.json()["active_target_id"] == second_id
-

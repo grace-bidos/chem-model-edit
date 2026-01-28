@@ -47,6 +47,7 @@ from models import (
     ZPEComputeResultResponse,
     ZPEComputeFailedRequest,
     ZPEComputeFailedResponse,
+    ZPEQueueTarget,
     ZPEQueueTargetListResponse,
     ZPEQueueTargetSelectRequest,
     ZPEQueueTargetSelectResponse,
@@ -490,9 +491,7 @@ def zpe_parse(request: ZPEParseRequest) -> ZPEParseResponse:
         try:
             structure = get_structure(request.structure_id)
         except KeyError as exc:
-            raise HTTPException(
-                status_code=404, detail="Structure not found"
-            ) from exc
+            raise HTTPException(status_code=404, detail="Structure not found") from exc
         fixed_indices = extract_fixed_indices(request.content)
         atoms = parse_qe_atoms(request.content)
         if len(atoms) != len(structure.atoms):
@@ -522,9 +521,7 @@ def zpe_jobs(request: ZPEJobRequest, raw: Request) -> ZPEJobResponse:
         try:
             structure = get_structure(request.structure_id)
         except KeyError as exc:
-            raise HTTPException(
-                status_code=404, detail="Structure not found"
-            ) from exc
+            raise HTTPException(status_code=404, detail="Structure not found") from exc
         fixed_indices = extract_fixed_indices(request.content)
         atoms = parse_qe_atoms(request.content)
         if len(atoms) != len(structure.atoms):
@@ -543,6 +540,7 @@ def zpe_jobs(request: ZPEJobRequest, raw: Request) -> ZPEJobResponse:
     owner_store = get_job_owner_store()
     owner_store.set_owner(job_id, user.user_id)
     return ZPEJobResponse(job_id=job_id)
+
 
 @app.post("/calc/zpe/compute/enroll-tokens", response_model=ZPEEnrollTokenResponse)
 def zpe_compute_enroll_token(
@@ -569,7 +567,9 @@ def zpe_compute_enroll_token(
     )
 
 
-@app.post("/calc/zpe/compute/servers/register", response_model=ZPEComputeRegisterResponse)
+@app.post(
+    "/calc/zpe/compute/servers/register", response_model=ZPEComputeRegisterResponse
+)
 def zpe_compute_register(
     request: ZPEComputeRegisterRequest,
 ) -> ZPEComputeRegisterResponse:
@@ -610,13 +610,13 @@ def zpe_compute_targets(raw: Request) -> ZPEQueueTargetListResponse:
     user, _session = _require_user_session(raw)
     target_store = get_queue_target_store()
     targets = [
-        {
-            "target_id": target.target_id,
-            "queue_name": target.queue_name,
-            "server_id": target.server_id,
-            "registered_at": target.registered_at,
-            "name": target.name,
-        }
+        ZPEQueueTarget(
+            target_id=target.target_id,
+            queue_name=target.queue_name,
+            server_id=target.server_id,
+            registered_at=target.registered_at,
+            name=target.name,
+        )
         for target in target_store.list_targets(user.user_id)
     ]
     active = target_store.get_active_target(user.user_id)
@@ -662,7 +662,7 @@ def zpe_compute_revoke(
     "/calc/zpe/compute/jobs/lease",
     response_model=ZPEComputeLeaseResponse,
 )
-def zpe_compute_lease(raw: Request) -> Response:
+def zpe_compute_lease(raw: Request) -> Response | ZPEComputeLeaseResponse:
     worker_id = require_worker(raw)
     lease = lease_next_job(worker_id)
     if lease is None:
@@ -726,6 +726,8 @@ def zpe_compute_failed(
         requeued=outcome.requeued,
         retry_count=outcome.retry_count,
     )
+
+
 @app.get("/calc/zpe/jobs/{job_id}", response_model=ZPEJobStatusResponse)
 def zpe_job_status(job_id: str, raw: Request) -> ZPEJobStatusResponse:
     _require_job_owner(raw, job_id)
@@ -749,7 +751,9 @@ def zpe_job_result(job_id: str, raw: Request) -> ZPEJobResultResponse:
     try:
         result_dict = store.get_result(job_id)
     except KeyError as exc:
-        raise HTTPException(status_code=500, detail="result missing after completion") from exc
+        raise HTTPException(
+            status_code=500, detail="result missing after completion"
+        ) from exc
     try:
         result = ZPEResult(**result_dict)
     except ValidationError as exc:
@@ -771,11 +775,13 @@ def zpe_job_files(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except KeyError as exc:
-        raise HTTPException(status_code=500, detail="file missing after completion") from exc
+        raise HTTPException(
+            status_code=500, detail="file missing after completion"
+        ) from exc
     filename = "summary.txt" if kind == "summary" else "freqs.csv"
     media_type = "text/plain" if kind == "summary" else "text/csv"
     return Response(
         content=payload,
         media_type=media_type,
-        headers={"Content-Disposition": f'attachment; filename=\"{filename}\"'},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
