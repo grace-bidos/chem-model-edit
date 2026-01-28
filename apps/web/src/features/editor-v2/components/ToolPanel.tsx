@@ -177,27 +177,41 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
   const [enrollBusy, setEnrollBusy] = useState(false)
   const [tokenCopied, setTokenCopied] = useState(false)
   const parseTokenRef = useRef(0)
+  const sessionTokenRef = useRef<string | null>(null)
 
   useEffect(() => {
     setSession(getStoredSession())
   }, [])
 
+  useEffect(() => {
+    sessionTokenRef.current = session?.token ?? null
+  }, [session])
+
   const refreshTargets = useCallback(async () => {
     if (!session) {
       return
     }
+    const tokenSnapshot = session.token
     setTargetsBusy(true)
     setTargetsError(null)
     try {
       const payload = await fetchQueueTargets()
+      if (sessionTokenRef.current !== tokenSnapshot) {
+        return
+      }
       setQueueTargets(payload.targets ?? [])
       setActiveTargetId(payload.active_target_id ?? null)
     } catch (err) {
+      if (sessionTokenRef.current !== tokenSnapshot) {
+        return
+      }
       setTargetsError(
         err instanceof Error ? err.message : 'Failed to load compute targets.',
       )
     } finally {
-      setTargetsBusy(false)
+      if (sessionTokenRef.current === tokenSnapshot) {
+        setTargetsBusy(false)
+      }
     }
   }, [session])
 
