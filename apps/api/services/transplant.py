@@ -127,19 +127,7 @@ def _last_positions_from_output(
         raise ValueError("出力に ATOMIC_POSITIONS が見つかりません。")
 
     for start in reversed(idxs):
-        coords: List[Tuple[float, float, float]] = []
-        for ln in lines[start + 1 :]:
-            s = ln.strip()
-            if not s:
-                break
-            parts = s.split()
-            if len(parts) < 4 or not _is_float(parts[1]):
-                break
-            coords.append(
-                (_parse_float(parts[1]), _parse_float(parts[2]), _parse_float(parts[3]))
-            )
-            if len(coords) == nat_expected:
-                break
+        coords = _positions_from_block(lines, start, nat_expected)
         if len(coords) == nat_expected:
             return coords
 
@@ -147,6 +135,57 @@ def _last_positions_from_output(
         "出力の ATOMIC_POSITIONS から最終座標を取得できませんでした。"
         " tprnfor=.true. の出力を確認してください。"
     )
+
+
+def _positions_from_block(
+    lines: List[str], start: int, nat_expected: int
+) -> List[Tuple[float, float, float]]:
+    coords: List[Tuple[float, float, float]] = []
+    for ln in lines[start + 1 :]:
+        s = ln.strip()
+        if not s:
+            break
+        parts = s.split()
+        if len(parts) < 4 or not _is_float(parts[1]):
+            break
+        coords.append(
+            (_parse_float(parts[1]), _parse_float(parts[2]), _parse_float(parts[3]))
+        )
+        if len(coords) == nat_expected:
+            break
+    return coords
+
+
+def _first_positions_from_output(
+    content: str, nat_expected: int
+) -> List[Tuple[float, float, float]]:
+    if ase_read is not None:
+        try:
+            ase_atoms = ase_read(StringIO(content), format="espresso-out", index=0)
+            if isinstance(ase_atoms, list):
+                if not ase_atoms:
+                    raise ValueError("ASEが構造を返しませんでした。")
+                ase_atoms = ase_atoms[0]
+            positions = ase_atoms.get_positions()
+            if len(positions) == nat_expected:
+                return [(float(x), float(y), float(z)) for x, y, z in positions]
+        except Exception:
+            pass
+
+    lines = content.splitlines()
+    idxs = [
+        i
+        for i, ln in enumerate(lines)
+        if ln.strip().lower().startswith("atomic_positions")
+    ]
+    if not idxs:
+        raise ValueError("出力に ATOMIC_POSITIONS が見つかりません。")
+
+    start = idxs[0]
+    coords = _positions_from_block(lines, start, nat_expected)
+    if len(coords) == nat_expected:
+        return coords
+    raise ValueError("出力の ATOMIC_POSITIONS から初期座標を取得できませんでした。")
 
 
 def _wrap_delta(dx: float, length: float) -> float:
@@ -209,36 +248,60 @@ def transplant_delta(small_in: str, small_out: str, large_in: str) -> str:
     if Lx <= 0 or Ly <= 0:
         raise ValueError("セル長が不正です。")
 
-    small_rel_xyz = _last_positions_from_output(
-        small_out, nat_expected=len(small0.atoms)
+    nat_expected = len(small0.atoms)
+    small_initial_xyz = _first_positions_from_output(
+        small_out, nat_expected=nat_expected
+    )
+    small_final_xyz = _last_positions_from_output(
+        small_out, nat_expected=nat_expected
     )
 
     small_mov = [i for i, atom in enumerate(small0.atoms) if atom.flags != (0, 0, 0)]
-    large_mov = [i for i, atom in enumerate(large0.atoms) if atom.flags != (0, 0, 0)]
 
-    if len(small_mov) == 0 or len(large_mov) == 0:
+    if len(small_mov) == 0:
         raise ValueError("可動原子が見つかりません。")
-    if len(small_mov) != len(large_mov):
-        raise ValueError(
-            f"可動原子数が一致しません: small={len(small_mov)} large={len(large_mov)}"
-        )
 
-    deltas: List[Tuple[float, float, float]] = []
-    for idx in small_mov:
-        base = small0.atoms[idx]
-        xr, yr, zr = small_rel_xyz[idx]
-        dx = _wrap_delta(xr - base.x, Lx)
-        dy = _wrap_delta(yr - base.y, Ly)
-        dz = zr - base.z
-        deltas.append((dx, dy, dz))
+    target_key_list = [
+        (
+            small0.atoms[idx].elem,
+            small_initial_xyz[idx][0],
+            small_initial_xyz[idx][1],
+            small_initial_xyz[idx][2],
+        )
+        for idx in small_mov
+    ]
+    target_keys = set(target_key_list)
+    if len(target_keys) != len(target_key_list):
+        raise ValueError("初期座標が重複しています。")
+    target_lookup: dict[Tuple[str, float, float, float], int] = {}
+    for i, atom in enumerate(large0.atoms):
+        key = (atom.elem, atom.x, atom.y, atom.z)
+        if key not in target_keys:
+            continue
+        if key in target_lookup:
+            raise ValueError("初期座標に一致する原子が複数見つかりました。")
+        target_lookup[key] = i
 
     new_atoms = [Atom(a.elem, a.x, a.y, a.z, a.flags) for a in large0.atoms]
-    for j, idx in enumerate(large_mov):
-        dx, dy, dz = deltas[j]
-        atom = new_atoms[idx]
+    for idx in small_mov:
+        key = (
+            small0.atoms[idx].elem,
+            small_initial_xyz[idx][0],
+            small_initial_xyz[idx][1],
+            small_initial_xyz[idx][2],
+        )
+        target_idx = target_lookup.get(key)
+        if target_idx is None:
+            raise ValueError("初期座標に一致する原子が見つかりません。")
+        xr, yr, zr = small_final_xyz[idx]
+        x0, y0, z0 = small_initial_xyz[idx]
+        dx = _wrap_delta(xr - x0, Lx)
+        dy = _wrap_delta(yr - y0, Ly)
+        dz = zr - z0
+        atom = new_atoms[target_idx]
         x = (atom.x + dx) % Lx
         y = (atom.y + dy) % Ly
         z = atom.z + dz
-        new_atoms[idx] = Atom(atom.elem, x, y, z, atom.flags)
+        new_atoms[target_idx] = Atom(atom.elem, x, y, z, atom.flags)
 
     return _replace_atomic_positions(large_in, new_atoms)

@@ -8,20 +8,26 @@ import {
   MousePointerClick,
   Play,
   RefreshCw,
+  Upload,
   X,
 } from 'lucide-react'
 import {
-  type ColumnDef,
   flexRender,
   getCoreRowModel,
   useReactTable,
 } from '@tanstack/react-table'
-
 import { CollapsibleSection } from './CollapsibleSection'
 import { SupercellTool } from './SupercellTool'
 
+import type { ColumnDef } from '@tanstack/react-table'
 import type { ToolMode, WorkspaceFile } from '../types'
-import type { Structure, SupercellBuildMeta } from '@/lib/types'
+import type {
+  Structure,
+  SupercellBuildMeta,
+  ZPEJobStatus,
+  ZPEParseResponse,
+  ZPEResult,
+} from '@/lib/types'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -44,15 +50,16 @@ import {
 } from '@/components/ui/table'
 import {
   createZpeJob,
+  deltaTransplant,
   downloadZpeFile,
   exportQeInput,
   fetchZpeResult,
   fetchZpeStatus,
   getStructure,
+  parseQeInput,
   parseZpeInput,
   structureViewUrl,
 } from '@/lib/api'
-import type { ZPEJobStatus, ZPEParseResponse, ZPEResult } from '@/lib/types'
 import { atomsToPdb } from '@/lib/pdb'
 import { cn } from '@/lib/utils'
 import MolstarViewer from '@/components/molstar/MolstarViewer'
@@ -90,9 +97,9 @@ type ZpeAtomRow = {
 type TransferSummary = {
   structure: Structure
   pdbText: string
-  sourceAtoms: number
-  targetAtoms: number
-  transferredAtoms: number
+  sourceAtoms: number | null
+  targetAtoms: number | null
+  transferredAtoms: number | null
 }
 
 const formatNumber = (value: number | null | undefined, digits = 3) => {
@@ -141,8 +148,7 @@ const createTransferFilename = (targetName: string) => {
   }
   const match = trimmed.match(/\.[^/.]+$/)
   const base = match ? trimmed.slice(0, -match[0].length) : trimmed
-  const extension =
-    match && match[0].toLowerCase() === '.in' ? match[0] : '.in'
+  const extension = match && match[0].toLowerCase() === '.in' ? match[0] : '.in'
   return `${base}Transferred${extension}`
 }
 
@@ -185,7 +191,7 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
   const selectedFile = useMemo(
     () =>
       selectedFileId
-        ? availableFiles.find((file) => file.id === selectedFileId) ?? null
+        ? (availableFiles.find((file) => file.id === selectedFileId) ?? null)
         : null,
     [availableFiles, selectedFileId],
   )
@@ -241,6 +247,7 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
         setJobStatus(status)
         if (status.status === 'finished') {
           const result = await fetchZpeResult(jobId)
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
           if (!active) {
             return
           }
@@ -538,7 +545,7 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
   const hasParseMeta = Boolean(parseResult)
   const selectionEnabled = hasStructure && hasParseMeta
 
-  const columns = useMemo<ColumnDef<ZpeAtomRow>[]>(
+  const columns = useMemo<Array<ColumnDef<ZpeAtomRow>>>(
     () => [
       {
         accessorKey: 'index',
@@ -619,9 +626,7 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
         header: 'Mobile',
         cell: ({ row }) => {
           if (!hasParseMeta) {
-            return (
-              <span className="text-xs text-slate-400">—</span>
-            )
+            return <span className="text-xs text-slate-400">—</span>
           }
           const active = mobileIndices.has(row.original.index)
           const disabled = row.original.fixed
@@ -697,7 +702,9 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
                 onError={setViewerError}
                 onLoad={() => setViewerError(null)}
                 selectedAtomIndices={hasParseMeta ? mobileIndexList : undefined}
-                disabledAtomIndices={hasParseMeta ? disabledAtomIndices : undefined}
+                disabledAtomIndices={
+                  hasParseMeta ? disabledAtomIndices : undefined
+                }
                 onAtomToggle={hasParseMeta ? handleMolstarToggle : undefined}
                 className="h-full w-full rounded-none border-0"
               />
@@ -1004,10 +1011,7 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
           <div className="mt-3 space-y-3 text-xs text-slate-600">
             <div className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
               <span>Use environ.in</span>
-              <Switch
-                checked={useEnviron}
-                onCheckedChange={setUseEnviron}
-              />
+              <Switch checked={useEnviron} onCheckedChange={setUseEnviron} />
             </div>
             <div>
               <label className="text-xs font-medium text-slate-500">
@@ -1096,9 +1100,7 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
               <p className="text-[10px] uppercase tracking-[0.3em] text-slate-400">
                 Updated
               </p>
-              <p className="mt-1 text-[11px]">
-                {jobStatus?.updated_at ?? '—'}
-              </p>
+              <p className="mt-1 text-[11px]">{jobStatus?.updated_at ?? '—'}</p>
             </div>
             {jobStatus?.detail ? (
               <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
@@ -1235,15 +1237,19 @@ function TransferToolPanel({
   const [transferError, setTransferError] = useState<string | null>(null)
   const [viewerError, setViewerError] = useState<string | null>(null)
   const [isApplying, setIsApplying] = useState(false)
-  const structureCacheRef = useRef<Record<string, Structure>>({})
+  const [useDeltaTransplant, setUseDeltaTransplant] = useState(false)
+  const [smallOutText, setSmallOutText] = useState('')
+  const [smallOutName, setSmallOutName] = useState('')
+  const structureCacheRef = useRef<Partial<Record<string, Structure>>>({})
   const applyTokenRef = useRef(0)
+  const smallOutInputRef = useRef<HTMLInputElement | null>(null)
 
   const fileById = useMemo(
     () => new Map(availableStructures.map((file) => [file.id, file])),
     [availableStructures],
   )
-  const sourceFile = sourceId ? fileById.get(sourceId) ?? null : null
-  const targetFile = targetId ? fileById.get(targetId) ?? null : null
+  const sourceFile = sourceId ? (fileById.get(sourceId) ?? null) : null
+  const targetFile = targetId ? (fileById.get(targetId) ?? null) : null
 
   useEffect(() => {
     if (availableStructures.length === 0) {
@@ -1277,6 +1283,11 @@ function TransferToolPanel({
   }, [sourceId, targetId])
 
   useEffect(() => {
+    setSmallOutText('')
+    setSmallOutName('')
+  }, [sourceId])
+
+  useEffect(() => {
     setViewerError(null)
   }, [transferSummary?.pdbText])
 
@@ -1296,6 +1307,34 @@ function TransferToolPanel({
     return nextStructure
   }, [])
 
+  const handleSmallOutFile = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.currentTarget.files?.[0]
+      if (!file) {
+        return
+      }
+      try {
+        const text = await file.text()
+        setSmallOutText(text)
+        setSmallOutName(file.name)
+        setUseDeltaTransplant(true)
+        setTransferError(null)
+      } catch (err) {
+        setTransferError(
+          err instanceof Error ? err.message : 'Failed to read the .out file.',
+        )
+      } finally {
+        event.currentTarget.value = ''
+      }
+    },
+    [],
+  )
+
+  const handleClearSmallOut = useCallback(() => {
+    setSmallOutText('')
+    setSmallOutName('')
+  }, [])
+
   const handleApply = useCallback(async () => {
     if (!sourceId || !targetId) {
       setTransferError('Select both source and target structures.')
@@ -1307,6 +1346,14 @@ function TransferToolPanel({
     }
     if (!sourceFile || !targetFile) {
       setTransferError('Selected structures are unavailable.')
+      return
+    }
+    if (useDeltaTransplant && !smallOutText.trim()) {
+      setTransferError('Small .out is required for Δ transplant.')
+      return
+    }
+    if (useDeltaTransplant && (!sourceFile.qeInput || !targetFile.qeInput)) {
+      setTransferError('QE input is missing. Re-import the .in file.')
       return
     }
     setTransferError(null)
@@ -1333,6 +1380,33 @@ function TransferToolPanel({
         setTransferError('Source and target must contain atoms.')
         return
       }
+
+      if (useDeltaTransplant) {
+        const content = await deltaTransplant({
+          smallIn: sourceFile.qeInput ?? '',
+          smallOut: smallOutText,
+          largeIn: targetFile.qeInput ?? '',
+        })
+        if (applyTokenRef.current !== token) {
+          return
+        }
+        const nextStructure = await parseQeInput(content)
+        if (applyTokenRef.current !== token) {
+          return
+        }
+        const pdbText = atomsToPdb(nextStructure.atoms)
+        setTransferSummary({
+          structure: nextStructure,
+          pdbText,
+          sourceAtoms,
+          targetAtoms,
+          transferredAtoms: null,
+        })
+        setExportContent(content)
+        setExportFilename(createTransferFilename(targetFile.name))
+        return
+      }
+
       const transferredAtoms = Math.min(sourceAtoms, targetAtoms)
       const nextAtoms = targetStructure.atoms.map((atom, index) => {
         if (index >= transferredAtoms) {
@@ -1376,7 +1450,15 @@ function TransferToolPanel({
         setIsApplying(false)
       }
     }
-  }, [resolveStructure, sourceFile, sourceId, targetFile, targetId])
+  }, [
+    resolveStructure,
+    smallOutText,
+    sourceFile,
+    sourceId,
+    targetFile,
+    targetId,
+    useDeltaTransplant,
+  ])
 
   const handleDownload = () => {
     if (!exportContent) {
@@ -1388,10 +1470,14 @@ function TransferToolPanel({
   }
 
   const previewReady = Boolean(transferSummary?.pdbText)
+  const deltaReady = useDeltaTransplant
+    ? Boolean(smallOutText.trim() && sourceFile?.qeInput && targetFile?.qeInput)
+    : true
   const canApply =
     Boolean(sourceId && targetId && sourceId !== targetId) &&
     !isApplying &&
-    availableStructures.length > 1
+    availableStructures.length > 1 &&
+    deltaReady
   const canDownload = Boolean(exportContent)
   const summarySource =
     transferSummary?.sourceAtoms ?? sourceFile?.structure?.atoms.length ?? null
@@ -1471,21 +1557,15 @@ function TransferToolPanel({
           <div className="mt-3 space-y-2 text-xs text-slate-600">
             <div className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
               <span>Source atoms</span>
-              <span className="font-mono">
-                {summarySource ?? '—'}
-              </span>
+              <span className="font-mono">{summarySource ?? '—'}</span>
             </div>
             <div className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
               <span>Target atoms</span>
-              <span className="font-mono">
-                {summaryTarget ?? '—'}
-              </span>
+              <span className="font-mono">{summaryTarget ?? '—'}</span>
             </div>
             <div className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
               <span>Transferred</span>
-              <span className="font-mono">
-                {summaryTransferred ?? '—'}
-              </span>
+              <span className="font-mono">{summaryTransferred ?? '—'}</span>
             </div>
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -1586,6 +1666,55 @@ function TransferToolPanel({
               </div>
 
               <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-medium text-slate-600">
+                      Δ Transplant (.out)
+                    </p>
+                    <p className="text-[11px] text-slate-400">
+                      Use small .out initial/final positions to apply relaxation
+                      deltas.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={useDeltaTransplant}
+                    onCheckedChange={setUseDeltaTransplant}
+                  />
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={() => smallOutInputRef.current?.click()}
+                  >
+                    <Upload className="h-3 w-3" />
+                    Import .out
+                  </Button>
+                  {smallOutText ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={handleClearSmallOut}
+                    >
+                      Clear
+                    </Button>
+                  ) : null}
+                </div>
+                <p className="mt-1 text-[11px] text-slate-500">
+                  {smallOutName || 'No .out file selected.'}
+                </p>
+                <input
+                  ref={smallOutInputRef}
+                  type="file"
+                  accept=".out,.txt"
+                  className="hidden"
+                  onChange={handleSmallOutFile}
+                />
+              </div>
+
+              <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-600">
                 <div className="flex items-center justify-between">
                   <span>Source atoms</span>
                   <span className="font-mono">{summarySource ?? '—'}</span>
@@ -1623,7 +1752,11 @@ function TransferToolPanel({
                   onClick={handleApply}
                   disabled={!canApply}
                 >
-                  {isApplying ? 'Applying…' : 'Apply Transfer'}
+                  {isApplying
+                    ? 'Applying…'
+                    : useDeltaTransplant
+                      ? 'Run Δ Transplant'
+                      : 'Apply Transfer'}
                 </Button>
                 <Button
                   variant="outline"
@@ -1689,9 +1822,9 @@ export function ToolPanel({
           structures={structures ?? []}
           onSupercellCreated={onSupercellCreated}
         />
-      ) : mode === 'transfer' ? (
+      ) : (
         <TransferToolPanel structures={structures ?? files ?? []} />
-      ) : null}
+      )}
     </div>
   )
 }

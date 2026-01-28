@@ -92,14 +92,17 @@ packages/
 - API追加: `POST /transplant/delta`
   - 入力: `small_in`, `small_out`, `large_in`（全て文字列）
   - 出力: `content`（移植済み .in）
-  - 仕様: 小スラブ可動フラグで変位算出、同数の大スラブ可動原子に順番適用
-  - エラー: 可動フラグ欠落/可動原子数不一致/ATOMIC_POSITIONS欠落
+  - 仕様: 小スラブ出力の初期/最終座標で変位を算出し、初期座標が一致する大スラブ原子（元素一致）へ適用
+  - エラー: 可動フラグ欠落/初期座標の一致失敗（未発見・重複）/ATOMIC_POSITIONS欠落
   - 制約: 非直交セル未対応（wrap は Lx/Ly のみ）
 - UI追加: 専用ページ（例: `/transplant`）
   - 3入力（Small .in / Small .out / Large .in）
   - 実行ボタン、結果プレビュー、コピー/ダウンロード
   - エラー表示（APIエラーの内容を明示）
 - テスト: APIユニット + APIルートテスト（正常/異常系）
+ - Editor v2: 移植ツールで .out を入力し Δ移植を実行
+   - Source/Target の .in（qeInput）と .out を組み合わせて API を呼び出す
+   - 結果プレビューと .in ダウンロードを接続
 
 ### Phase 4: 複合スーパーセル/格子変換 (P3)
 - タイルパターン入力（StructureId の 2D グリッド or GUI）
