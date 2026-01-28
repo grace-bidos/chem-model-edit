@@ -126,20 +126,27 @@ class AuthStore:
             raise RuntimeError("failed to create session")
         return AuthSession(token=token, user_id=user_id, expires_at=_expires_iso(ttl))
 
-    def get_user_by_session(self, token: str, *, refresh: bool = True) -> Optional[AuthSession]:
+    def get_user_by_session(
+        self, token: str, *, refresh: bool = True
+    ) -> Optional[AuthSession]:
         if not token:
             return None
         settings = get_auth_settings()
         key = f"{_SESSION_PREFIX}{token}"
-        user_id = self.redis.get(key)
+        if refresh:
+            user_id = self.redis.getex(key, ex=settings.session_ttl_seconds)
+            ttl = settings.session_ttl_seconds
+        else:
+            user_id = self.redis.get(key)
+            ttl = self.redis.ttl(key)
         if not user_id:
             return None
-        if refresh:
-            self.redis.expire(key, settings.session_ttl_seconds)
+        if ttl is None or ttl < 0:
+            ttl = 0
         return AuthSession(
             token=token,
             user_id=user_id.decode("utf-8"),
-            expires_at=_expires_iso(settings.session_ttl_seconds),
+            expires_at=_expires_iso(ttl),
         )
 
     def delete_session(self, token: str) -> None:
@@ -150,4 +157,3 @@ class AuthStore:
 
 def get_auth_store() -> AuthStore:
     return AuthStore()
-
