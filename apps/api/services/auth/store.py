@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import json
 import secrets
-from typing import Optional
+from typing import Optional, cast
 from uuid import uuid4
 
 from redis import Redis, WatchError
@@ -47,7 +47,13 @@ class AuthSession:
 
 class AuthStore:
     def __init__(self, redis: Optional[Redis] = None) -> None:
-        self.redis = redis or Redis.from_url(get_auth_settings().redis_url)
+        if redis is not None:
+            self.redis = redis
+            return
+        settings = get_auth_settings()
+        if settings.redis_url is None:
+            raise RuntimeError("AUTH_REDIS_URL must be set")
+        self.redis = Redis.from_url(settings.redis_url)
 
     def create_user(self, email: str, password: str) -> AuthUser:
         normalized = email.strip().lower()
@@ -95,14 +101,14 @@ class AuthStore:
         return user
 
     def get_user_by_id(self, user_id: str) -> Optional[AuthUser]:
-        raw = self.redis.get(f"{_USER_PREFIX}{user_id}")
+        raw = cast(Optional[bytes], self.redis.get(f"{_USER_PREFIX}{user_id}"))
         if not raw:
             return None
         return AuthUser(**json.loads(raw))
 
     def get_user_by_email(self, email: str) -> Optional[AuthUser]:
         normalized = email.strip().lower()
-        user_id = self.redis.get(f"{_EMAIL_PREFIX}{normalized}")
+        user_id = cast(Optional[bytes], self.redis.get(f"{_EMAIL_PREFIX}{normalized}"))
         if not user_id:
             return None
         return self.get_user_by_id(user_id.decode("utf-8"))
@@ -112,7 +118,9 @@ class AuthStore:
         if not user:
             return None
         settings = get_auth_settings()
-        if not verify_password(password, user.password_hash, pepper=settings.password_pepper):
+        if not verify_password(
+            password, user.password_hash, pepper=settings.password_pepper
+        ):
             return None
         return user
 
@@ -134,10 +142,13 @@ class AuthStore:
         settings = get_auth_settings()
         key = f"{_SESSION_PREFIX}{token}"
         if refresh:
-            user_id = self.redis.getex(key, ex=settings.session_ttl_seconds)
+            user_id = cast(
+                Optional[bytes],
+                self.redis.getex(key, ex=settings.session_ttl_seconds),
+            )
             ttl = settings.session_ttl_seconds
         else:
-            user_id = self.redis.get(key)
+            user_id = cast(Optional[bytes], self.redis.get(key))
             ttl = self.redis.ttl(key)
         if not user_id:
             return None

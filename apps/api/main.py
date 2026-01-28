@@ -47,6 +47,10 @@ from models import (
     ZPEComputeResultResponse,
     ZPEComputeFailedRequest,
     ZPEComputeFailedResponse,
+    ZPEQueueTarget,
+    ZPEQueueTargetListResponse,
+    ZPEQueueTargetSelectRequest,
+    ZPEQueueTargetSelectResponse,
     ZPEEnrollTokenRequest,
     ZPEEnrollTokenResponse,
     ZPEParseRequest,
@@ -77,8 +81,10 @@ from services.zpe import (
     get_zpe_settings,
 )
 from services.zpe.enroll import get_enroll_store
+from services.zpe.job_owner import get_job_owner_store
 from services.zpe.lease import lease_next_job
 from services.zpe.compute_results import submit_failure, submit_result
+from services.zpe.queue_targets import get_queue_target_store
 from services.zpe.worker_auth import get_worker_token_store
 from services.zpe.parse import (
     extract_fixed_indices,
@@ -154,6 +160,14 @@ def require_admin(request: Request) -> None:
         raise HTTPException(status_code=401, detail="unauthorized")
 
 
+def _has_admin_access(request: Request) -> bool:
+    settings = get_zpe_settings()
+    if not settings.admin_token:
+        return False
+    token = _extract_admin_token(request)
+    return bool(token and secrets.compare_digest(token, settings.admin_token))
+
+
 def _extract_bearer_token(request: Request) -> str | None:
     auth = request.headers.get("authorization")
     if auth and auth.lower().startswith("bearer "):
@@ -211,6 +225,17 @@ def _ensure_job_finished(job_id: str) -> None:
             status_code=409,
             detail=f"job not finished (status={status.status})",
         )
+
+
+def _require_job_owner(request: Request, job_id: str):
+    user, _session = _require_user_session(request)
+    owner_store = get_job_owner_store()
+    owner_id = owner_store.get_owner(job_id)
+    if not owner_id:
+        raise HTTPException(status_code=404, detail="job not found")
+    if owner_id != user.user_id:
+        raise HTTPException(status_code=403, detail="forbidden")
+    return user
 
 
 @app.get("/health")
@@ -466,9 +491,7 @@ def zpe_parse(request: ZPEParseRequest) -> ZPEParseResponse:
         try:
             structure = get_structure(request.structure_id)
         except KeyError as exc:
-            raise HTTPException(
-                status_code=404, detail="Structure not found"
-            ) from exc
+            raise HTTPException(status_code=404, detail="Structure not found") from exc
         fixed_indices = extract_fixed_indices(request.content)
         atoms = parse_qe_atoms(request.content)
         if len(atoms) != len(structure.atoms):
@@ -488,14 +511,17 @@ def zpe_parse(request: ZPEParseRequest) -> ZPEParseResponse:
 
 
 @app.post("/calc/zpe/jobs", response_model=ZPEJobResponse)
-def zpe_jobs(request: ZPEJobRequest) -> ZPEJobResponse:
+def zpe_jobs(request: ZPEJobRequest, raw: Request) -> ZPEJobResponse:
+    user, _session = _require_user_session(raw)
+    target_store = get_queue_target_store()
+    target = target_store.get_active_target(user.user_id)
+    if not target:
+        raise HTTPException(status_code=400, detail="no active queue target")
     if request.structure_id:
         try:
             structure = get_structure(request.structure_id)
         except KeyError as exc:
-            raise HTTPException(
-                status_code=404, detail="Structure not found"
-            ) from exc
+            raise HTTPException(status_code=404, detail="Structure not found") from exc
         fixed_indices = extract_fixed_indices(request.content)
         atoms = parse_qe_atoms(request.content)
         if len(atoms) != len(structure.atoms):
@@ -510,19 +536,29 @@ def zpe_jobs(request: ZPEJobRequest) -> ZPEJobResponse:
     )
     payload = request.model_dump()
     payload["mobile_indices"] = mobile_indices
-    job_id = enqueue_zpe_job(payload)
+    job_id = enqueue_zpe_job(payload, queue_name=target.queue_name)
+    owner_store = get_job_owner_store()
+    owner_store.set_owner(job_id, user.user_id)
     return ZPEJobResponse(job_id=job_id)
+
 
 @app.post("/calc/zpe/compute/enroll-tokens", response_model=ZPEEnrollTokenResponse)
 def zpe_compute_enroll_token(
     request: ZPEEnrollTokenRequest,
     raw: Request,
 ) -> ZPEEnrollTokenResponse:
-    require_admin(raw)
+    owner_id = None
+    if not _has_admin_access(raw):
+        user, _session = _require_user_session(raw)
+        owner_id = user.user_id
     if request.ttl_seconds is not None and request.ttl_seconds <= 0:
         raise HTTPException(status_code=400, detail="ttl_seconds must be >= 1")
     store = get_enroll_store()
-    token = store.create_token(ttl_seconds=request.ttl_seconds, label=request.label)
+    token = store.create_token(
+        ttl_seconds=request.ttl_seconds,
+        label=request.label,
+        owner_id=owner_id,
+    )
     return ZPEEnrollTokenResponse(
         token=token.token,
         expires_at=token.expires_at,
@@ -531,7 +567,9 @@ def zpe_compute_enroll_token(
     )
 
 
-@app.post("/calc/zpe/compute/servers/register", response_model=ZPEComputeRegisterResponse)
+@app.post(
+    "/calc/zpe/compute/servers/register", response_model=ZPEComputeRegisterResponse
+)
 def zpe_compute_register(
     request: ZPEComputeRegisterRequest,
 ) -> ZPEComputeRegisterResponse:
@@ -544,6 +582,17 @@ def zpe_compute_register(
         )
     except KeyError as exc:
         raise HTTPException(status_code=400, detail="invalid enroll token") from exc
+    queue_name = request.queue_name or get_zpe_settings().queue_name
+    if registration.owner_id:
+        target_store = get_queue_target_store()
+        target = target_store.add_target(
+            user_id=registration.owner_id,
+            queue_name=queue_name,
+            server_id=registration.server_id,
+            name=request.name,
+        )
+        if not target_store.get_active_target(registration.owner_id):
+            target_store.set_active_target(registration.owner_id, target.target_id)
     token_store = get_worker_token_store()
     worker_token = token_store.create_token(registration.server_id, label=request.name)
     return ZPEComputeRegisterResponse(
@@ -554,6 +603,45 @@ def zpe_compute_register(
         token_expires_at=worker_token.expires_at,
         token_ttl_seconds=worker_token.ttl_seconds,
     )
+
+
+@app.get("/calc/zpe/compute/targets", response_model=ZPEQueueTargetListResponse)
+def zpe_compute_targets(raw: Request) -> ZPEQueueTargetListResponse:
+    user, _session = _require_user_session(raw)
+    target_store = get_queue_target_store()
+    targets = [
+        ZPEQueueTarget(
+            target_id=target.target_id,
+            queue_name=target.queue_name,
+            server_id=target.server_id,
+            registered_at=target.registered_at,
+            name=target.name,
+        )
+        for target in target_store.list_targets(user.user_id)
+    ]
+    active = target_store.get_active_target(user.user_id)
+    return ZPEQueueTargetListResponse(
+        targets=targets,
+        active_target_id=active.target_id if active else None,
+    )
+
+
+@app.post(
+    "/calc/zpe/compute/targets/select",
+    response_model=ZPEQueueTargetSelectResponse,
+)
+def zpe_compute_target_select(
+    request: ZPEQueueTargetSelectRequest,
+    raw: Request,
+) -> ZPEQueueTargetSelectResponse:
+    user, _session = _require_user_session(raw)
+    target_store = get_queue_target_store()
+    try:
+        target_store.ensure_target_owner(user.user_id, request.target_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="target not found") from exc
+    target_store.set_active_target(user.user_id, request.target_id)
+    return ZPEQueueTargetSelectResponse(active_target_id=request.target_id)
 
 
 @app.delete(
@@ -574,7 +662,7 @@ def zpe_compute_revoke(
     "/calc/zpe/compute/jobs/lease",
     response_model=ZPEComputeLeaseResponse,
 )
-def zpe_compute_lease(raw: Request) -> Response:
+def zpe_compute_lease(raw: Request) -> Response | ZPEComputeLeaseResponse:
     worker_id = require_worker(raw)
     lease = lease_next_job(worker_id)
     if lease is None:
@@ -638,8 +726,11 @@ def zpe_compute_failed(
         requeued=outcome.requeued,
         retry_count=outcome.retry_count,
     )
+
+
 @app.get("/calc/zpe/jobs/{job_id}", response_model=ZPEJobStatusResponse)
-def zpe_job_status(job_id: str) -> ZPEJobStatusResponse:
+def zpe_job_status(job_id: str, raw: Request) -> ZPEJobStatusResponse:
+    _require_job_owner(raw, job_id)
     store = get_result_store()
     try:
         status = store.get_status(job_id)
@@ -653,13 +744,16 @@ def zpe_job_status(job_id: str) -> ZPEJobStatusResponse:
 
 
 @app.get("/calc/zpe/jobs/{job_id}/result", response_model=ZPEJobResultResponse)
-def zpe_job_result(job_id: str) -> ZPEJobResultResponse:
+def zpe_job_result(job_id: str, raw: Request) -> ZPEJobResultResponse:
+    _require_job_owner(raw, job_id)
     store = get_result_store()
     _ensure_job_finished(job_id)
     try:
         result_dict = store.get_result(job_id)
     except KeyError as exc:
-        raise HTTPException(status_code=500, detail="result missing after completion") from exc
+        raise HTTPException(
+            status_code=500, detail="result missing after completion"
+        ) from exc
     try:
         result = ZPEResult(**result_dict)
     except ValidationError as exc:
@@ -669,8 +763,11 @@ def zpe_job_result(job_id: str) -> ZPEJobResultResponse:
 
 @app.get("/calc/zpe/jobs/{job_id}/files")
 def zpe_job_files(
-    job_id: str, kind: Literal["summary", "freqs"] = Query(...)
+    job_id: str,
+    raw: Request,
+    kind: Literal["summary", "freqs"] = Query(...),
 ) -> Response:
+    _require_job_owner(raw, job_id)
     store = get_result_store()
     _ensure_job_finished(job_id)
     try:
@@ -678,11 +775,13 @@ def zpe_job_files(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except KeyError as exc:
-        raise HTTPException(status_code=500, detail="file missing after completion") from exc
+        raise HTTPException(
+            status_code=500, detail="file missing after completion"
+        ) from exc
     filename = "summary.txt" if kind == "summary" else "freqs.csv"
     media_type = "text/plain" if kind == "summary" else "text/csv"
     return Response(
         content=payload,
         media_type=media_type,
-        headers={"Content-Disposition": f'attachment; filename=\"{filename}\"'},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

@@ -29,9 +29,7 @@ def test_auth_register_login_logout(monkeypatch):
     assert me.status_code == 200
     assert me.json()["user"]["email"] == "user@example.com"
 
-    logout = client.post(
-        "/auth/logout", headers={"Authorization": f"Bearer {token}"}
-    )
+    logout = client.post("/auth/logout", headers={"Authorization": f"Bearer {token}"})
     assert logout.status_code == 200
 
     after = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
@@ -70,4 +68,3 @@ def test_auth_register_duplicate(monkeypatch):
         json={"email": "user@example.com", "password": "password123"},
     )
     assert duplicate.status_code == 400
-

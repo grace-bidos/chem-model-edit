@@ -38,7 +38,9 @@ def _make_handler() -> type[BaseHTTPRequestHandler]:
         result_payload: Dict[str, Any] | None = None
         failed_payload: Dict[str, Any] | None = None
 
-        def _send_json(self, status: int, payload: Dict[str, Any] | None = None) -> None:
+        def _send_json(
+            self, status: int, payload: Dict[str, Any] | None = None
+        ) -> None:
             self.send_response(status)
             if payload is not None:
                 body = json.dumps(payload).encode("utf-8")
@@ -102,7 +104,9 @@ def _start_server() -> tuple[HTTPServer, str, type[BaseHTTPRequestHandler]]:
     server = HTTPServer(("127.0.0.1", 0), handler_cls)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
-    host, port = server.server_address
+    host_raw = server.server_address[0]
+    port = server.server_address[1]
+    host = host_raw.decode("utf-8") if isinstance(host_raw, bytes) else str(host_raw)
     return server, f"http://{host}:{port}", handler_cls
 
 
@@ -119,7 +123,9 @@ def test_http_worker_success(monkeypatch, tmp_path):
     try:
         lease = http_worker._lease_job(base_url, handler_cls.token, timeout=5)
         assert lease is not None
-        artifacts = zpe_worker.compute_zpe_artifacts(lease["payload"], job_id=lease["job_id"])
+        artifacts = zpe_worker.compute_zpe_artifacts(
+            lease["payload"], job_id=lease["job_id"]
+        )
         http_worker._submit_result(
             base_url,
             handler_cls.token,

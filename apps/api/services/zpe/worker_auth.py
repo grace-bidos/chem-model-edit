@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import hashlib
 import secrets
-from typing import Optional
+from typing import Optional, cast
 
 from redis import Redis
 
@@ -28,6 +28,7 @@ def _now_iso() -> str:
 def _now_ts() -> int:
     return int(_now().timestamp())
 
+
 def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
@@ -45,7 +46,9 @@ class WorkerTokenStore:
     def __init__(self, redis: Optional[Redis] = None) -> None:
         self.redis = redis or get_redis_connection()
 
-    def create_token(self, worker_id: str, *, label: Optional[str] = None) -> WorkerToken:
+    def create_token(
+        self, worker_id: str, *, label: Optional[str] = None
+    ) -> WorkerToken:
         settings = get_zpe_settings()
         ttl = int(settings.worker_token_ttl_seconds)
         if ttl <= 0:
@@ -81,7 +84,7 @@ class WorkerTokenStore:
         if self.redis.zscore(_REVOKED_SET, token_hash) is not None:
             raise PermissionError("token revoked")
         key = f"{_TOKEN_PREFIX}{token_hash}"
-        data = self.redis.hgetall(key)
+        data = cast(dict[bytes, bytes], self.redis.hgetall(key))
         if not data:
             raise PermissionError("token invalid or expired")
         worker_id = data.get(b"worker_id", b"").decode("utf-8")
@@ -92,7 +95,7 @@ class WorkerTokenStore:
     def revoke_tokens_for_worker(self, worker_id: str) -> int:
         settings = get_zpe_settings()
         index_key = f"{_WORKER_INDEX_PREFIX}{worker_id}"
-        token_hashes = self.redis.smembers(index_key)
+        token_hashes = cast(set[bytes], self.redis.smembers(index_key))
         if not token_hashes:
             return 0
         pipe = self.redis.pipeline(transaction=True)
@@ -100,7 +103,9 @@ class WorkerTokenStore:
         for token_hash_raw in token_hashes:
             token_hash = token_hash_raw.decode("utf-8")
             pipe.zadd(_REVOKED_SET, {token_hash: revoked_at})
-            pipe.hset(f"{_TOKEN_PREFIX}{token_hash}", mapping={"revoked_at": _now_iso()})
+            pipe.hset(
+                f"{_TOKEN_PREFIX}{token_hash}", mapping={"revoked_at": _now_iso()}
+            )
         pipe.expire(_REVOKED_SET, int(settings.worker_token_ttl_seconds * 2))
         pipe.execute()
         return len(token_hashes)

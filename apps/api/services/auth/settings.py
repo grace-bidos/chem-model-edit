@@ -27,4 +27,3 @@ def get_auth_settings() -> AuthSettings:
     if not settings.redis_url:
         settings.redis_url = get_zpe_settings().redis_url
     return settings
-

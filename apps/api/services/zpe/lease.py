@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import json
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, cast
 from uuid import uuid4
 
 from redis import Redis
@@ -61,39 +61,54 @@ def lease_next_job(worker_id: str) -> Optional[Lease]:
         "return job_id"
     )
     try:
-        job_id_raw = redis.eval(
-            script,
-            2,
-            _QUEUE_KEY,
-            _LEASE_INDEX,
-            worker_id,
-            lease_id,
-            expires_iso,
-            lease_ttl,
-            expires_ts,
-            _LEASE_PREFIX,
+        job_id_raw = cast(
+            Any,
+            redis.eval(
+                script,
+                2,
+                _QUEUE_KEY,
+                _LEASE_INDEX,
+                worker_id,
+                lease_id,
+                expires_iso,
+                lease_ttl,
+                expires_ts,
+                _LEASE_PREFIX,
+            ),
         )
         if not job_id_raw:
             return None
-        job_id = job_id_raw.decode("utf-8") if isinstance(job_id_raw, bytes) else str(job_id_raw)
+        job_id = (
+            job_id_raw.decode("utf-8")
+            if isinstance(job_id_raw, bytes)
+            else str(job_id_raw)
+        )
     except ResponseError as exc:
         message = str(exc).lower()
         if "unknown command" not in message or "eval" not in message:
             raise
-        job_id_raw = redis.rpop(_QUEUE_KEY)
+        job_id_raw = cast(Optional[bytes], redis.rpop(_QUEUE_KEY))
         if not job_id_raw:
             return None
-        job_id = job_id_raw.decode("utf-8") if isinstance(job_id_raw, bytes) else str(job_id_raw)
+        job_id = (
+            job_id_raw.decode("utf-8")
+            if isinstance(job_id_raw, bytes)
+            else str(job_id_raw)
+        )
         lease_key = f"{_LEASE_PREFIX}{job_id}"
         pipe = redis.pipeline(transaction=True)
         pipe.hset(
             lease_key,
-            mapping={"worker_id": worker_id, "lease_id": lease_id, "expires_at": expires_iso},
+            mapping={
+                "worker_id": worker_id,
+                "lease_id": lease_id,
+                "expires_at": expires_iso,
+            },
         )
         pipe.expire(lease_key, lease_ttl)
         pipe.zadd(_LEASE_INDEX, {job_id: expires_ts})
         pipe.execute()
-    payload_raw = redis.get(f"{_PAYLOAD_PREFIX}{job_id}")
+    payload_raw = cast(Optional[bytes], redis.get(f"{_PAYLOAD_PREFIX}{job_id}"))
     if payload_raw is None:
         redis.delete(f"{_LEASE_PREFIX}{job_id}")
         redis.zrem(_LEASE_INDEX, job_id)
@@ -117,13 +132,17 @@ def lease_next_job(worker_id: str) -> Optional[Lease]:
 
 def _reap_expired_leases(redis: Redis, store: Any) -> None:
     now_ts = int(_now().timestamp())
-    expired = redis.zrangebyscore(_LEASE_INDEX, 0, now_ts)
+    expired = cast(list[bytes], redis.zrangebyscore(_LEASE_INDEX, 0, now_ts))
     if not expired:
         return
     for job_id_raw in expired:
-        job_id = job_id_raw.decode("utf-8") if isinstance(job_id_raw, bytes) else str(job_id_raw)
+        job_id = (
+            job_id_raw.decode("utf-8")
+            if isinstance(job_id_raw, bytes)
+            else str(job_id_raw)
+        )
         lease_key = f"{_LEASE_PREFIX}{job_id}"
-        lease = redis.hgetall(lease_key)
+        lease = cast(dict[bytes, bytes], redis.hgetall(lease_key))
         if not lease:
             redis.zrem(_LEASE_INDEX, job_id)
             continue
@@ -135,7 +154,7 @@ def _reap_expired_leases(redis: Redis, store: Any) -> None:
 
 def _promote_due_jobs(redis: Redis) -> None:
     now_ts = int(_now().timestamp())
-    due = redis.zrangebyscore(_DELAY_ZSET, 0, now_ts)
+    due = cast(list[bytes], redis.zrangebyscore(_DELAY_ZSET, 0, now_ts))
     if not due:
         return
     pipe = redis.pipeline(transaction=True)

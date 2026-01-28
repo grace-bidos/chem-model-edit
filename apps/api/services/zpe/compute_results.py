@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, cast
 
 from redis import Redis, WatchError
 
@@ -31,7 +31,7 @@ def _decode_map(data: Dict[bytes, bytes]) -> Dict[str, str]:
 
 
 def _get_lease(redis: Redis, job_id: str) -> Dict[str, str]:
-    raw = redis.hgetall(f"{_LEASE_PREFIX}{job_id}")
+    raw = cast(dict[bytes, bytes], redis.hgetall(f"{_LEASE_PREFIX}{job_id}"))
     return _decode_map(raw) if raw else {}
 
 
@@ -69,7 +69,7 @@ def submit_result(
         pipe = redis.pipeline()
         try:
             pipe.watch(status_key, lease_key)
-            status = _decode_map(pipe.hgetall(status_key))
+            status = _decode_map(cast(dict[bytes, bytes], pipe.hgetall(status_key)))
             if status.get("status") == "finished":
                 existing_result = pipe.get(result_key)
                 existing_summary = pipe.get(summary_key)
@@ -135,7 +135,7 @@ def submit_failure(
             if lease.get("worker_id") != worker_id or lease.get("lease_id") != lease_id:
                 raise PermissionError("lease mismatch")
 
-            current_retry = pipe.get(retry_key)
+            current_retry = cast(Optional[bytes], pipe.get(retry_key))
             retry_count = int(current_retry or 0) + 1
             detail = f"{error_code}: {error_message}"
 
