@@ -105,6 +105,41 @@ HTTP ワーカーの場合:
 ZPE_ENV_FILE=apps/api/.env.compute ./scripts/run-zpe-worker.sh
 ```
 
+## 運用ガードレール（ロールバック）
+
+**新規受付の停止** と **worker dequeue の停止** を admin API で切り替えできます。
+停止しても **進行中ジョブは継続** し、キューからの新規取得だけが抑制されます。
+
+状態確認:
+```bash
+curl -H "Authorization: Bearer $ZPE_ADMIN_TOKEN" \
+  http://localhost:8000/calc/zpe/admin/ops
+```
+
+新規受付を停止:
+```bash
+curl -X POST http://localhost:8000/calc/zpe/admin/ops \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ZPE_ADMIN_TOKEN" \
+  -d '{"submission_enabled": false}'
+```
+
+worker dequeue を停止:
+```bash
+curl -X POST http://localhost:8000/calc/zpe/admin/ops \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ZPE_ADMIN_TOKEN" \
+  -d '{"dequeue_enabled": false}'
+```
+
+再開:
+```bash
+curl -X POST http://localhost:8000/calc/zpe/admin/ops \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ZPE_ADMIN_TOKEN" \
+  -d '{"submission_enabled": true, "dequeue_enabled": true}'
+```
+
 `just` を使う場合:
 ```bash
 just zpe-worker

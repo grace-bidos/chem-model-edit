@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import socket
 import time
 import traceback
@@ -10,7 +11,10 @@ from urllib import request as urlrequest
 from urllib import error as urlerror
 
 from .settings import get_zpe_settings
+from .structured_log import log_event
 from .worker import compute_zpe_artifacts
+
+logger = logging.getLogger("zpe.http_worker")
 
 
 def _now_iso() -> str:
@@ -133,12 +137,32 @@ def run_http_worker() -> None:
 
     backoff = poll_interval
     hostname = socket.gethostname()
+    log_event(
+        logger,
+        event="zpe_worker_start",
+        service="compute-plane",
+        stage="worker",
+        status="started",
+        worker_hostname=hostname,
+        backend="remote-http",
+        result_store=settings.result_store,
+    )
 
     while True:
         try:
             lease = _lease_job(base_url, token, timeout)
         except Exception as exc:
-            print(f"[zpe-http-worker] lease error: {exc}")
+            log_event(
+                logger,
+                event="zpe_lease_error",
+                service="compute-plane",
+                stage="lease",
+                status="error",
+                worker_hostname=hostname,
+                backend="remote-http",
+                result_store=settings.result_store,
+                error_message=str(exc),
+            )
             time.sleep(backoff)
             backoff = min(max_interval, backoff * 2)
             continue
@@ -152,19 +176,45 @@ def run_http_worker() -> None:
         job_id = lease.get("job_id")
         payload = lease.get("payload")
         lease_id = lease.get("lease_id")
+        meta = lease.get("meta") or {}
+        request_id = meta.get("request_id")
+        user_id = meta.get("user_id")
         if not job_id or not payload or not lease_id:
-            print("[zpe-http-worker] invalid lease payload")
+            log_event(
+                logger,
+                event="zpe_lease_invalid",
+                service="compute-plane",
+                stage="lease",
+                status="invalid",
+                worker_hostname=hostname,
+                backend="remote-http",
+                result_store=settings.result_store,
+            )
             time.sleep(poll_interval)
             continue
 
         start = time.monotonic()
         try:
+            log_event(
+                logger,
+                event="zpe_compute_start",
+                service="compute-plane",
+                stage="compute",
+                status="started",
+                request_id=request_id,
+                job_id=job_id,
+                user_id=user_id,
+                worker_hostname=hostname,
+                backend="remote-http",
+                result_store=settings.result_store,
+            )
             artifacts = compute_zpe_artifacts(payload, job_id=job_id)
             elapsed = time.monotonic() - start
             meta = {
                 "worker_hostname": hostname,
                 "computation_time_seconds": elapsed,
                 "timestamp": _now_iso(),
+                "request_id": request_id,
             }
             _submit_result(
                 base_url,
@@ -177,9 +227,42 @@ def run_http_worker() -> None:
                 meta,
                 timeout,
             )
+            log_event(
+                logger,
+                event="zpe_compute_success",
+                service="compute-plane",
+                stage="compute",
+                status="success",
+                request_id=request_id,
+                job_id=job_id,
+                user_id=user_id,
+                worker_hostname=hostname,
+                backend="remote-http",
+                result_store=settings.result_store,
+                duration_ms=int(elapsed * 1000),
+                exit_code=0,
+                qe_version=None,
+            )
         except Exception as exc:
             tb = traceback.format_exc()
-            print(f"[zpe-http-worker] job failed: {exc}")
+            elapsed = time.monotonic() - start
+            log_event(
+                logger,
+                event="zpe_compute_failed",
+                service="compute-plane",
+                stage="compute",
+                status="failed",
+                request_id=request_id,
+                job_id=job_id,
+                user_id=user_id,
+                worker_hostname=hostname,
+                backend="remote-http",
+                result_store=settings.result_store,
+                duration_ms=int(elapsed * 1000),
+                exit_code=1,
+                qe_version=None,
+                error_message=str(exc),
+            )
             _submit_failed(
                 base_url,
                 token,

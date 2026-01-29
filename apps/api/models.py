@@ -337,6 +337,7 @@ class ZPEComputeLeaseResponse(BaseModel):
     payload: Dict[str, Any]
     lease_id: str
     lease_ttl_seconds: int
+    meta: Dict[str, Any] = Field(default_factory=dict)
 
 
 class ZPEComputeResultRequest(BaseModel):
@@ -363,6 +364,16 @@ class ZPEComputeFailedResponse(BaseModel):
     ok: bool = True
     requeued: bool
     retry_count: int
+
+
+class ZPEOpsFlagsRequest(BaseModel):
+    submission_enabled: Optional[bool] = None
+    dequeue_enabled: Optional[bool] = None
+
+
+class ZPEOpsFlagsResponse(BaseModel):
+    submission_enabled: bool
+    dequeue_enabled: bool
 
 
 class AuthRegisterRequest(BaseModel):
