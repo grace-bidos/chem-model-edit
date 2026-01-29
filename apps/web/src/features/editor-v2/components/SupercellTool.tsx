@@ -273,7 +273,9 @@ export function SupercellTool({
       const cols = previewMeta?.cols ?? gridCols
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
       const filename = `supercell-${rows}x${cols}-${timestamp}.xyz`
-      downloadTextFile(xyz, filename, 'chemical/x-xyz')
+      const atomCount = structure.atoms.length
+      const header = `${atomCount}\n${filename}\n`
+      downloadTextFile(`${header}${xyz}`, filename, 'chemical/x-xyz')
     } catch (error) {
       const message =
         error instanceof Error && error.message
