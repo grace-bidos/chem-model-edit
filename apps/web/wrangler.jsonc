@@ -3,7 +3,7 @@
   "name": "chem-model-edit-web",
   "compatibility_date": "2026-01-29",
   "assets": {
-    "directory": "./dist"
+    "directory": "./dist/client"
   },
   "observability": {
     "enabled": true
