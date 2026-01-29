@@ -1,9 +1,10 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  "name": "chem-model-edit-web",
+  "name": "chem-model-edit",
   "compatibility_date": "2026-01-29",
   "assets": {
-    "directory": "./dist/client"
+    "directory": "./dist/client",
+    "not_found_handling": "single-page-application"
   },
   "observability": {
     "enabled": true
