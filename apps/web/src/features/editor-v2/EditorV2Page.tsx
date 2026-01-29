@@ -607,73 +607,75 @@ export default function EditorV2Page() {
               </h2>
             </div>
 
-            <div className="flex-1 space-y-1 overflow-y-auto p-3">
-              {files.map((file) => {
-                const status = fileStatuses.get(file.id) ?? 'closed'
-                const isVisible = status === 'visible'
-                const isOpen = status === 'open'
-                const statusLabel =
-                  status === 'visible'
-                    ? 'Visible'
-                    : status === 'open'
-                      ? 'Open'
-                      : 'Closed'
-                return (
-                  <button
-                    type="button"
-                    key={file.id}
-                    onClick={() => openFile(file.id)}
-                    className={`flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-all ${
-                      isVisible
-                        ? 'border-blue-200 bg-blue-50 shadow-sm'
-                        : isOpen
-                          ? 'border-slate-300 bg-white opacity-90 hover:border-blue-200 hover:opacity-100 hover:shadow-sm'
-                          : 'border-slate-200 bg-white opacity-60 hover:border-slate-300 hover:opacity-80 hover:shadow-sm'
-                    }`}
-                  >
-                    <FileText
-                      className={`h-4 w-4 ${
+            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
+              <div className="flex flex-col gap-1">
+                {files.map((file) => {
+                  const status = fileStatuses.get(file.id) ?? 'closed'
+                  const isVisible = status === 'visible'
+                  const isOpen = status === 'open'
+                  const statusLabel =
+                    status === 'visible'
+                      ? 'Visible'
+                      : status === 'open'
+                        ? 'Open'
+                        : 'Closed'
+                  return (
+                    <button
+                      type="button"
+                      key={file.id}
+                      onClick={() => openFile(file.id)}
+                      className={`flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-all ${
                         isVisible
-                          ? 'text-blue-600'
+                          ? 'border-blue-200 bg-blue-50 shadow-sm'
                           : isOpen
-                            ? 'text-slate-500'
-                            : 'text-slate-400'
-                      }`}
-                    />
-                    <span
-                      className={`truncate font-medium ${
-                        isVisible
-                          ? 'text-blue-900'
-                          : isOpen
-                            ? 'text-slate-700'
-                            : 'text-slate-500'
+                            ? 'border-slate-300 bg-white opacity-90 hover:border-blue-200 hover:opacity-100 hover:shadow-sm'
+                            : 'border-slate-200 bg-white opacity-60 hover:border-slate-300 hover:opacity-80 hover:shadow-sm'
                       }`}
                     >
-                      {file.name}
-                    </span>
-                    <span
-                      className={`ml-auto text-[10px] ${
-                        isVisible
-                          ? 'text-blue-500'
-                          : isOpen
-                            ? 'text-slate-500'
-                            : 'text-slate-400'
-                      }`}
-                    >
-                      {statusLabel}
-                    </span>
-                  </button>
-                )
-              })}
+                      <FileText
+                        className={`h-4 w-4 ${
+                          isVisible
+                            ? 'text-blue-600'
+                            : isOpen
+                              ? 'text-slate-500'
+                              : 'text-slate-400'
+                        }`}
+                      />
+                      <span
+                        className={`truncate font-medium ${
+                          isVisible
+                            ? 'text-blue-900'
+                            : isOpen
+                              ? 'text-slate-700'
+                              : 'text-slate-500'
+                        }`}
+                      >
+                        {file.name}
+                      </span>
+                      <span
+                        className={`ml-auto text-[10px] ${
+                          isVisible
+                            ? 'text-blue-500'
+                            : isOpen
+                              ? 'text-slate-500'
+                              : 'text-slate-400'
+                        }`}
+                      >
+                        {statusLabel}
+                      </span>
+                    </button>
+                  )
+                })}
 
-              {files.length === 0 ? (
-                <div className="rounded-md border border-dashed border-slate-200 bg-white px-3 py-4 text-xs text-slate-500">
-                  No files imported yet.
-                </div>
-              ) : null}
+                {files.length === 0 ? (
+                  <div className="rounded-md border border-dashed border-slate-200 bg-white px-3 py-4 text-xs text-slate-500">
+                    No files imported yet.
+                  </div>
+                ) : null}
+              </div>
 
               <div
-                className={`m-2 rounded-lg border-2 border-dashed px-4 py-8 text-center transition-colors ${
+                className={`flex min-h-[140px] flex-1 items-center justify-center rounded-lg border-2 border-dashed px-4 py-6 text-center transition-colors ${
                   isDragOver
                     ? 'border-blue-400 bg-blue-50'
                     : 'border-slate-200 bg-slate-50/50'
