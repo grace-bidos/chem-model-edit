@@ -27,6 +27,9 @@ const config = defineConfig(({ mode }) => {
 
   return {
     plugins,
+    build: {
+      outDir: 'dist/client',
+    },
     optimizeDeps: {
       include: ['dockview', 'dockview-react', 'dockview-core'],
     },
