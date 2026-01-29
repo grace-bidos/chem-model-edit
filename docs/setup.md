@@ -52,11 +52,8 @@ uv run uvicorn main:app --reload --port 8000
 
 Run both together (requires `just`):
 ```bash
+just deps
 just dev
-```
-If `just` complains about `XDG_RUNTIME_DIR`, use the wrapper:
-```bash
-./scripts/just dev
 ```
 
 ## Quality checks
@@ -70,15 +67,13 @@ uv run pytest
 uv run mypy .
 ```
 
-## Troubleshooting
-- In some sandboxed environments, `uv sync` can fail with `EXDEV` (cross-device rename).
-  Use a non-sandboxed environment or set `UV_CACHE_DIR`/`TMPDIR` to a path on the same
-  filesystem.
-- If you use git worktrees or multiple machines, you can set per-environment defaults
-  in `.just.env` (repo root) or `~/.config/chem-model-edit/just.env`. The `Justfile`
-  will load them automatically. Example:
-
+Just recipes:
 ```bash
-UV_CACHE_DIR=/path/on/same/fs
-TMPDIR=/path/on/same/fs/tmp
+just style      # web: prettier + eslint, api: ruff
+just test       # web: vitest, api: pytest
+just typecheck  # web: tsc, api: mypy
 ```
+
+## Troubleshooting
+- In sandboxed environments (for example, Codex CLI), run `uv sync` with elevation.
+  Without elevation, `uv` can fail with `EXDEV` (cross-device rename).

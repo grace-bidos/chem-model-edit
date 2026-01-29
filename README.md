@@ -49,6 +49,7 @@ pnpm approve-builds
 
 ## Development
 All commands below run from the repo root unless noted.
+Note: in sandboxed environments (e.g., Codex CLI), run `uv sync` and `just` with elevation.
 
 ### Web
 ```bash
@@ -68,6 +69,7 @@ uv run uvicorn main:app --reload --port 8000
 ### Web + API together
 If you have `just` installed, it starts both and auto-selects free ports:
 ```bash
+just deps
 just dev
 ```
 You can override ports:
@@ -88,6 +90,13 @@ pnpm test
 cd apps/api
 uv run pytest
 uv run mypy .
+```
+
+### Just recipes
+```bash
+just style      # web: prettier + eslint, api: ruff
+just test       # web: vitest, api: pytest
+just typecheck  # web: tsc, api: mypy
 ```
 
 ## Specs and samples
