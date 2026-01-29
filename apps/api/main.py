@@ -167,21 +167,31 @@ def parse_qe(request: ParseRequest) -> ParseResponse:
 
 @app.post("/structures", response_model=StructureCreateResponse)
 def create_structure(request: StructureCreateRequest) -> StructureCreateResponse:
-    structure_id, structure, source = create_structure_from_qe(request.content)
+    structure_id, structure, source, params = create_structure_from_qe(
+        request.content
+    )
     return StructureCreateResponse(
         structure_id=structure_id,
         structure=structure,
         source=source,
+        params=params,
+        raw_input=request.content,
     )
 
 
 @app.get("/structures/{structure_id}", response_model=StructureGetResponse)
 def get_structure_route(structure_id: str) -> StructureGetResponse:
     try:
-        structure = get_structure(structure_id)
+        entry = get_structure_entry(structure_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="Structure not found") from exc
-    return StructureGetResponse(structure=structure)
+    structure = structure_from_ase(entry.atoms)
+    return StructureGetResponse(
+        structure=structure,
+        params=entry.params,
+        raw_input=entry.raw_input,
+        source=entry.source,
+    )
 
 
 @app.get("/structures/{structure_id}/view")

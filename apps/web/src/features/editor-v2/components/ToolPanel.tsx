@@ -1291,9 +1291,9 @@ function TransferToolPanel({
     if (!file.structureId) {
       return null
     }
-    const nextStructure = await getStructure(file.structureId)
-    structureCacheRef.current[file.id] = nextStructure
-    return nextStructure
+    const result = await getStructure(file.structureId)
+    structureCacheRef.current[file.id] = result.structure
+    return result.structure
   }, [])
 
   const handleApply = useCallback(async () => {

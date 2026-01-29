@@ -1,4 +1,4 @@
-import type { Structure } from '@/lib/types'
+import type { QeParameters, Structure } from '@/lib/types'
 
 export type WorkspaceFile = {
   id: string
@@ -9,6 +9,7 @@ export type WorkspaceFile = {
   bcifUrl?: string
   structureId?: string
   structure?: Structure
+  qeParams?: QeParameters | null
   parseSource?: string
   qeInput?: string
   initialOpenSections: {
