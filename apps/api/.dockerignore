@@ -1,0 +1,10 @@
+.env
+.env.*
+.mypy_cache
+.pytest_cache
+.ruff_cache
+.uv-cache
+.uv-tmp
+.venv
+__pycache__
+*.log
