@@ -31,6 +31,16 @@ export type LatticeParams = {
   gamma: number
 }
 
+export type QeParameters = {
+  control: Record<string, unknown>
+  system: Record<string, unknown>
+  electrons: Record<string, unknown>
+  ions: Record<string, unknown>
+  cell: Record<string, unknown>
+  pseudopotentials: Record<string, string>
+  kpoints?: Record<string, unknown> | null
+}
+
 export type SupercellMeta = {
   na: number
   nb: number

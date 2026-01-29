@@ -217,6 +217,17 @@ export default function EditorV2Page() {
     [],
   )
 
+  const handleParamsLoaded = useCallback(
+    (fileId: string, qeParams: WorkspaceFile['qeParams']) => {
+      setFiles((prev) =>
+        prev.map((file) =>
+          file.id === fileId ? { ...file, qeParams } : file,
+        ),
+      )
+    },
+    [],
+  )
+
   const handleReady = useCallback(
     (event: DockviewReadyEvent) => {
       disposablesRef.current.forEach((disposable) => disposable.dispose())
@@ -292,6 +303,7 @@ export default function EditorV2Page() {
             fileId={file.id}
             showHeader={false}
             onStructureLoaded={handleStructureLoaded}
+            onParamsLoaded={handleParamsLoaded}
             className="h-full w-full border-none p-3"
           />
         )
@@ -336,7 +348,13 @@ export default function EditorV2Page() {
       },
       history: () => <HistoryPanel />,
     }),
-    [files, filesById, handleStructureLoaded, handleSupercellCreated],
+    [
+      files,
+      filesById,
+      handleStructureLoaded,
+      handleParamsLoaded,
+      handleSupercellCreated,
+    ],
   )
 
   const importFiles = useCallback(
@@ -365,7 +383,7 @@ export default function EditorV2Page() {
           }
           try {
             const content = await file.text()
-            const { structure, structure_id, source } =
+            const { structure, structure_id, source, params, raw_input } =
               await createStructureFromQe(content)
             const baseName = file.name.replace(/\.[^/.]+$/, '') || file.name
             const id = createImportId()
@@ -377,9 +395,10 @@ export default function EditorV2Page() {
               label: baseName,
               structureId: structure_id,
               structure,
+              qeParams: params ?? null,
               cifUrl,
               parseSource: source,
-              qeInput: content,
+              qeInput: raw_input ?? content,
               initialOpenSections: { table: false, parameter: true },
             }
             nextFiles.push(nextFile)

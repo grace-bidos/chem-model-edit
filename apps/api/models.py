@@ -26,6 +26,16 @@ class LatticeParams(BaseModel):
     gamma: float
 
 
+class QeParameters(BaseModel):
+    control: Dict[str, Any] = Field(default_factory=dict)
+    system: Dict[str, Any] = Field(default_factory=dict)
+    electrons: Dict[str, Any] = Field(default_factory=dict)
+    ions: Dict[str, Any] = Field(default_factory=dict)
+    cell: Dict[str, Any] = Field(default_factory=dict)
+    pseudopotentials: Dict[str, str] = Field(default_factory=dict)
+    kpoints: Optional[Dict[str, Any]] = None
+
+
 class LatticeConvertFromVectorsRequest(BaseModel):
     lattice: Lattice
     unit: str = "angstrom"
@@ -60,10 +70,15 @@ class StructureCreateResponse(BaseModel):
     structure_id: str
     structure: Structure
     source: str
+    params: Optional[QeParameters] = None
+    raw_input: Optional[str] = None
 
 
 class StructureGetResponse(BaseModel):
     structure: Structure
+    params: Optional[QeParameters] = None
+    raw_input: Optional[str] = None
+    source: Optional[str] = None
 
 
 class StructureRegisterRequest(BaseModel):

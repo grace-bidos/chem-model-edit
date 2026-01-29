@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Cuboid, Minus, X } from 'lucide-react'
 
 import { CollapsibleSection } from './CollapsibleSection'
 import { AtomTable } from './AtomTable'
 
 import type { WorkspaceFile } from '../types'
-import type { Structure } from '@/lib/types'
+import type { QeParameters, Structure } from '@/lib/types'
 
 import MolstarViewer from '@/components/molstar/MolstarViewer'
 import { getStructure } from '@/lib/api'
@@ -15,6 +15,7 @@ interface FilePanelProps {
   data: WorkspaceFile
   fileId: string
   onStructureLoaded?: (fileId: string, structure: Structure) => void
+  onParamsLoaded?: (fileId: string, params: QeParameters | null) => void
   onClose?: () => void
   onMinimize?: () => void
   showHeader?: boolean
@@ -25,6 +26,7 @@ export function FilePanel({
   data,
   fileId,
   onStructureLoaded,
+  onParamsLoaded,
   onClose,
   onMinimize,
   showHeader = true,
@@ -34,10 +36,19 @@ export function FilePanel({
   const [structure, setStructure] = useState<Structure | null>(
     data.structure ?? null,
   )
+  const [qeParams, setQeParams] = useState<QeParameters | null>(
+    data.qeParams ?? null,
+  )
   const [tableError, setTableError] = useState<string | null>(null)
   const [isTableLoading, setIsTableLoading] = useState(false)
-  const onStructureLoadedRef =
-    useRef<FilePanelProps['onStructureLoaded']>(onStructureLoaded)
+  const [paramsError, setParamsError] = useState<string | null>(null)
+  const [isParamsLoading, setIsParamsLoading] = useState(false)
+  const onStructureLoadedRef = useRef<FilePanelProps['onStructureLoaded']>(
+    onStructureLoaded,
+  )
+  const onParamsLoadedRef = useRef<FilePanelProps['onParamsLoaded']>(
+    onParamsLoaded,
+  )
 
   useEffect(() => {
     setViewerError(null)
@@ -48,39 +59,86 @@ export function FilePanel({
   }, [onStructureLoaded])
 
   useEffect(() => {
-    setStructure(data.structure ?? null)
-  }, [data.structure, data.structureId])
+    onParamsLoadedRef.current = onParamsLoaded
+  }, [onParamsLoaded])
 
   useEffect(() => {
-    if (data.structure) {
-      setIsTableLoading(false)
-      setTableError(null)
-      return
-    }
+    setStructure(data.structure ?? null)
+    setQeParams(data.qeParams ?? null)
+  }, [data.structure, data.structureId, data.qeParams])
+
+  useEffect(() => {
+    const hasStructure = Boolean(data.structure)
+    const hasParams = Boolean(data.qeParams)
+
     if (!data.structureId) {
       setIsTableLoading(false)
       setTableError(null)
+      setIsParamsLoading(false)
+      setParamsError(null)
       return
     }
+
+    if (hasStructure) {
+      setIsTableLoading(false)
+      setTableError(null)
+    }
+    if (hasParams) {
+      setIsParamsLoading(false)
+      setParamsError(null)
+    }
+
+    const needsStructure = !hasStructure
+    const needsParams = !hasParams
+    if (!needsStructure && !needsParams) {
+      return
+    }
+
     let cancelled = false
-    setIsTableLoading(true)
-    setTableError(null)
+    if (needsStructure) {
+      setIsTableLoading(true)
+      setTableError(null)
+    }
+    if (needsParams) {
+      setIsParamsLoading(true)
+      setParamsError(null)
+    }
+
     getStructure(data.structureId)
-      .then((nextStructure) => {
+      .then((result) => {
         if (cancelled) return
-        setStructure(nextStructure)
-        setIsTableLoading(false)
-        onStructureLoadedRef.current?.(fileId, nextStructure)
+        if (needsStructure) {
+          setStructure(result.structure)
+          onStructureLoadedRef.current?.(fileId, result.structure)
+        }
+        if (needsParams) {
+          setQeParams(result.params ?? null)
+          onParamsLoadedRef.current?.(fileId, result.params ?? null)
+        }
+        if (needsStructure) {
+          setIsTableLoading(false)
+        }
+        if (needsParams) {
+          setIsParamsLoading(false)
+        }
       })
       .catch((err) => {
         if (cancelled) return
-        setTableError(err instanceof Error ? err.message : String(err))
-        setIsTableLoading(false)
+        const message = err instanceof Error ? err.message : String(err)
+        if (needsStructure) {
+          setTableError(message)
+          setIsTableLoading(false)
+        }
+        if (needsParams) {
+          setParamsError(message)
+          setIsParamsLoading(false)
+        }
       })
+
     return () => {
       cancelled = true
     }
-  }, [data.structure, data.structureId])
+  }, [data.structure, data.structureId, data.qeParams, fileId])
 
   const atoms = structure?.atoms ?? []
   const atomRows = atoms.map((atom, index) => ({
@@ -95,6 +153,55 @@ export function FilePanel({
     : tableError
       ? 'Failed to load structure.'
       : 'No atoms.'
+  const paramsEmptyText = isParamsLoading
+    ? 'Loading...'
+    : paramsError
+      ? 'Failed to load parameters.'
+      : 'No parameters.'
+
+  const formatParamValue = (value: unknown) => {
+    if (value === null || value === undefined) {
+      return ''
+    }
+    if (typeof value === 'number' || typeof value === 'boolean') {
+      return String(value)
+    }
+    if (Array.isArray(value)) {
+      return value.map((entry) => String(entry)).join(', ')
+    }
+    if (typeof value === 'object') {
+      try {
+        return JSON.stringify(value)
+      } catch (_error) {
+        return String(value)
+      }
+    }
+    return String(value)
+  }
+
+  const paramGroups = useMemo(() => {
+    if (!qeParams) {
+      return []
+    }
+    const rawGroups: Array<{
+      label: string
+      values: Record<string, unknown> | null | undefined
+    }> = [
+      { label: 'Control', values: qeParams.control },
+      { label: 'System', values: qeParams.system },
+      { label: 'Electrons', values: qeParams.electrons },
+      { label: 'Ions', values: qeParams.ions },
+      { label: 'Cell', values: qeParams.cell },
+      { label: 'Pseudopotentials', values: qeParams.pseudopotentials },
+      { label: 'K-points', values: qeParams.kpoints ?? {} },
+    ]
+    const groups: Array<{ label: string; entries: Array<[string, unknown]> }> =
+      rawGroups.map(({ label, values }) => ({
+        label,
+        entries: Object.entries(values ?? {}),
+      }))
+    return groups.filter((group) => group.entries.length > 0)
+  }, [qeParams])
 
   return (
     <div
@@ -208,47 +315,34 @@ export function FilePanel({
                 <p className="mb-1 text-xs text-muted-foreground">
                   QE Option Params
                 </p>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="flex flex-col gap-1">
-                    <label htmlFor="param-ecutwfc" className="text-slate-500">
-                      ecutwfc
-                    </label>
-                    <input
-                      id="param-ecutwfc"
-                      type="text"
-                      value="30.0"
-                      className="rounded border border-slate-200 bg-slate-50 px-2 py-1"
-                      readOnly
-                    />
+                {paramGroups.length === 0 ? (
+                  <div className="rounded border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                    {paramsEmptyText}
                   </div>
-                  <div className="flex flex-col gap-1">
-                    <label
-                      htmlFor="param-mixing-beta"
-                      className="text-slate-500"
-                    >
-                      mixing_beta
-                    </label>
-                    <input
-                      id="param-mixing-beta"
-                      type="text"
-                      value="0.7"
-                      className="rounded border border-slate-200 bg-slate-50 px-2 py-1"
-                      readOnly
-                    />
+                ) : (
+                  <div className="space-y-3">
+                    {paramGroups.map((group) => (
+                      <div key={group.label} className="space-y-2">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                          {group.label}
+                        </p>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          {group.entries.map(([key, value]) => (
+                            <div
+                              key={`${group.label}-${key}`}
+                              className="flex flex-col gap-1"
+                            >
+                              <span className="text-slate-500">{key}</span>
+                              <div className="rounded border border-slate-200 bg-slate-50 px-2 py-1">
+                                {formatParamValue(value) || '-'}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div className="flex flex-col gap-1">
-                    <label htmlFor="param-conv-thr" className="text-slate-500">
-                      conv_thr
-                    </label>
-                    <input
-                      id="param-conv-thr"
-                      type="text"
-                      value="1.0d-8"
-                      className="rounded border border-slate-200 bg-slate-50 px-2 py-1"
-                      readOnly
-                    />
-                  </div>
-                </div>
+                )}
               </div>
             </CollapsibleSection>
           </div>

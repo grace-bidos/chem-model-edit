@@ -4,6 +4,7 @@ import type {
   AuthSession,
   Lattice,
   LatticeParams,
+  QeParameters,
   Structure,
   SupercellBuildRequest,
   SupercellBuildResponse,
@@ -76,6 +77,8 @@ export async function createStructureFromQe(content: string): Promise<{
   structure_id: string
   structure: Structure
   source: string
+  params?: QeParameters | null
+  raw_input?: string | null
 }> {
   const response = await fetch(`${API_BASE}/structures`, {
     method: 'POST',
@@ -86,14 +89,25 @@ export async function createStructureFromQe(content: string): Promise<{
     structure_id: string
     structure: Structure
     source: string
+    params?: QeParameters | null
+    raw_input?: string | null
   }>(response)
 }
 
-export async function getStructure(structureId: string): Promise<Structure> {
+export async function getStructure(structureId: string): Promise<{
+  structure: Structure
+  params?: QeParameters | null
+  raw_input?: string | null
+  source?: string | null
+}> {
   const safeId = encodeURIComponent(structureId)
   const response = await fetch(`${API_BASE}/structures/${safeId}`)
-  const data = await handleResponse<{ structure: Structure }>(response)
-  return data.structure
+  return handleResponse<{
+    structure: Structure
+    params?: QeParameters | null
+    raw_input?: string | null
+    source?: string | null
+  }>(response)
 }
 
 export function structureViewUrl(
