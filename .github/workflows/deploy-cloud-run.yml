@@ -10,10 +10,10 @@ on:
   workflow_dispatch:
 
 env:
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  REGION: ${{ secrets.GCP_REGION }}
-  SERVICE: ${{ secrets.CLOUD_RUN_SERVICE }}
-  REPOSITORY: ${{ secrets.GCP_ARTIFACT_REPOSITORY }}
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  REGION: ${{ vars.GCP_REGION }}
+  SERVICE: ${{ vars.CLOUD_RUN_SERVICE }}
+  REPOSITORY: ${{ vars.GCP_ARTIFACT_REPOSITORY }}
   IMAGE_NAME: chem-model-api
 
 jobs:
