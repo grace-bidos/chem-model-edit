@@ -19,6 +19,9 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-cloud-run-${{ github.ref }}
+      cancel-in-progress: false
     permissions:
       contents: read
       id-token: write
