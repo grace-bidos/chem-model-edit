@@ -2,6 +2,8 @@ node_modules
 .env
 .env.*
 .just.env
+!.env.control.example
+!.env.compute.example
 .DS_Store
 
 # Frontend build outputs
@@ -22,6 +24,7 @@ __pycache__
 # Logs
 pnpm-debug.log*
 .pnpm-store
+.wrangler-logs
 
 # Local runtime dirs
 .worktrees
@@ -33,3 +36,6 @@ pnpm-debug.log*
 
 # Non-Public Documents
 /docs/reports
+
+# Local doc build scripts
+/scripts/docs/

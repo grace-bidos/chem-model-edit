@@ -7,10 +7,10 @@ from typing import Dict, Optional
 from uuid import uuid4
 
 from ase import Atoms as ASEAtoms
-
 from models import QeParameters, Structure
-from services.cif import atoms_to_cif, cif_to_bcif
+from services.cif import atoms_to_cif
 from services.parse import extract_qe_params, parse_qe_atoms, structure_from_ase
+
 
 @dataclass
 class StoredStructure:
@@ -77,16 +77,11 @@ def create_structure_from_qe(
     return structure_id, structure, source, params
 
 
-def get_structure_bcif(
-    structure_id: str,
-    *,
-    lossy: bool,
-    precision: Optional[int],
-) -> bytes:
+def get_structure_cif(structure_id: str) -> str:
     entry = _STORE.get(structure_id)
     if not entry:
         raise KeyError(structure_id)
-    return cif_to_bcif(entry.cif, lossy=lossy, precision=precision)
+    return entry.cif
 
 
 def get_structure_entry(structure_id: str) -> StoredStructure:

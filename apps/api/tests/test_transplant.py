@@ -31,6 +31,11 @@ ATOMIC_POSITIONS angstrom
 SMALL_OUT = """
 ...
 ATOMIC_POSITIONS angstrom
+ H 0.0 0.0 0.0
+ H 1.0 0.0 0.0
+ O 2.0 0.0 0.0
+...
+ATOMIC_POSITIONS angstrom
  H 0.1 0.0 0.0
  H 1.0 0.0 0.0
  O 2.0 -0.2 0.0
@@ -52,10 +57,10 @@ CELL_PARAMETERS angstrom
   0.0 5.0 0.0
   0.0 0.0 10.0
 ATOMIC_POSITIONS angstrom
- H 0.0 1.0 0.0 1 1 1
- H 1.0 1.0 0.0 0 0 0
- O 2.0 1.0 0.0 1 1 1
- C 3.0 1.0 0.0 0 0 0
+ H 0.0 0.0 0.0 1 1 1
+ H 1.0 0.0 0.0 0 0 0
+ O 2.0 0.0 0.0 1 1 1
+ C 3.0 0.0 0.0 0 0 0
 """.strip()
 
 
@@ -68,8 +73,8 @@ def test_transplant_delta_ok():
     content = response.json()["content"]
     structure = read_qe_input(content)
     assert structure.atoms[0].x == pytest.approx(0.1)
-    assert structure.atoms[0].y == pytest.approx(1.0)
-    assert structure.atoms[2].y == pytest.approx(0.8)
+    assert structure.atoms[0].y == pytest.approx(0.0)
+    assert structure.atoms[2].y == pytest.approx(4.8)
 
 
 def test_transplant_delta_missing_flags():
@@ -83,12 +88,26 @@ def test_transplant_delta_missing_flags():
     assert "フラグ" in detail
 
 
-def test_transplant_delta_mismatch_movable_count():
-    large_in = LARGE_IN.replace("1 1 1", "0 0 0", 1)
+def test_transplant_delta_missing_match():
+    large_in = LARGE_IN.replace("2.0 0.0 0.0", "2.1 0.0 0.0", 1)
     response = CLIENT.post(
         "/transplant/delta",
         json={"small_in": SMALL_IN, "small_out": SMALL_OUT, "large_in": large_in},
     )
     assert response.status_code == 400
     detail = response.json().get("detail", "")
-    assert "可動原子数" in detail
+    assert "一致する原子" in detail
+
+
+def test_transplant_delta_duplicate_match():
+    large_in = LARGE_IN.replace(
+        "C 3.0 0.0 0.0 0 0 0",
+        "O 2.0 0.0 0.0 0 0 0",
+    )
+    response = CLIENT.post(
+        "/transplant/delta",
+        json={"small_in": SMALL_IN, "small_out": SMALL_OUT, "large_in": large_in},
+    )
+    assert response.status_code == 400
+    detail = response.json().get("detail", "")
+    assert "複数" in detail
