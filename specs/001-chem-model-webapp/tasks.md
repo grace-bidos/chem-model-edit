@@ -133,7 +133,7 @@
 
 ## Phase 9: Editor UI Refresh (/editor)
 
-**Goal**: 新UIモックを別ルートで提供し、段階的に機能接続を進める
+**Goal**: 新UIモックを `/editor` に統合し、段階的に機能接続を進める
 
 - [x] T080 [P] [US1] 新UIを `/editor` に統合し、旧 `/editor` を廃止
 - [x] T081 [P] [US1] Tools/パネルの命名整理と ZPE(振動)のプレビュー表示
