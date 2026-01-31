@@ -20,6 +20,7 @@
         "@tanstack/react-router-ssr-query",
         "@tanstack/react-start",
         "@tanstack/react-table",
+        "axe-core",
         "class-variance-authority",
         "clsx",
         "dockview",
@@ -29,9 +30,9 @@
         "nitro",
         "tailwind-merge",
         "tailwindcss",
-        "tw-animate-css"
+        "tw-animate-css",
+        "web-vitals"
       ],
-      "ignoreDevDependencies": ["axe-core", "web-vitals"],
       "ignoreBinaries": ["test:a11y", "test:fastcheck", "build-storybook"]
     },
     "packages/shared": {
