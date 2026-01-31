@@ -31,8 +31,16 @@ def _cors_allow_origins() -> list[str]:
     return [
         "http://localhost:3000",
         "http://localhost:3001",
-        "https://chem-model-api-668647845784.asia-northeast1.run.app",
+        "https://chem-model-edit.tadashi240312.workers.dev",
     ]
+
+
+def _cors_allow_origin_regex() -> str | None:
+    raw = os.getenv("CORS_ALLOW_ORIGIN_REGEX")
+    if raw is not None:
+        raw = raw.strip()
+        return raw or None
+    return r"^https://[a-z0-9-]+-chem-model-edit\.tadashi240312\.workers\.dev$"
 
 
 def create_app() -> FastAPI:
@@ -46,6 +54,7 @@ def create_app() -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=_cors_allow_origins(),
+        allow_origin_regex=_cors_allow_origin_regex(),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
