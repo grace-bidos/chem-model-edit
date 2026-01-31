@@ -1,0 +1,38 @@
+{
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "extends": "nx/presets/core.json",
+  "npmScope": "chem-model",
+  "targetDefaults": {
+    "build": {
+      "dependsOn": ["^build"],
+      "cache": true
+    },
+    "lint": {
+      "cache": true
+    },
+    "test": {
+      "cache": true
+    },
+    "typecheck": {
+      "cache": true
+    },
+    "format": {
+      "cache": true
+    },
+    "storybook": {
+      "cache": true
+    },
+    "chromatic": {
+      "cache": true
+    },
+    "knip": {
+      "cache": true
+    },
+    "a11y": {
+      "cache": true
+    },
+    "schemathesis": {
+      "cache": true
+    }
+  }
+}
