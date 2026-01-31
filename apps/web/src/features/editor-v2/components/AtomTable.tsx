@@ -1,11 +1,11 @@
 import { useMemo } from 'react'
-import type { ColumnDef } from '@tanstack/react-table'
 import {
   createColumnHelper,
   flexRender,
   getCoreRowModel,
   useReactTable,
 } from '@tanstack/react-table'
+import type { ColumnDef } from '@tanstack/react-table'
 
 import { cn } from '@/lib/utils'
 import {
