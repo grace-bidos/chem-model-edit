@@ -77,6 +77,13 @@
         "command": "pnpm -C apps/web build-storybook"
       }
     },
+    "chromatic": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm -C apps/web chromatic",
+        "forwardAllArgs": true
+      }
+    },
     "knip": {
       "executor": "nx:run-commands",
       "options": {

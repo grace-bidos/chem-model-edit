@@ -3,7 +3,8 @@
   "workspaces": {
     "apps/web": {
       "entry": [
-        "src/main.tsx",
+        "src/start.tsx",
+        "src/router.tsx",
         "src/routes/**/*.tsx",
         "src/features/editor-v2/EditorV2Page.tsx"
       ],
