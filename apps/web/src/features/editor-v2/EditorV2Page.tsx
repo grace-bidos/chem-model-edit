@@ -381,22 +381,27 @@ export default function EditorV2Page() {
           }
           try {
             const content = await file.text()
-            const { structure, structure_id, source, params, raw_input } =
-              await createStructureFromQe(content)
+            const {
+              structure,
+              id: structureId,
+              source,
+              params,
+              rawInput,
+            } = await createStructureFromQe(content)
             const baseName = file.name.replace(/\.[^/.]+$/, '') || file.name
             const id = createImportId()
-            const cifUrl = structureViewUrl(structure_id, { format: 'cif' })
+            const cifUrl = structureViewUrl(structureId, { format: 'cif' })
             const nextFile: WorkspaceFile = {
               id,
               name: file.name,
               kind: 'in',
               label: baseName,
-              structureId: structure_id,
+              structureId,
               structure,
               qeParams: params ?? null,
               cifUrl,
               parseSource: source,
-              qeInput: raw_input ?? content,
+              qeInput: rawInput ?? content,
               initialOpenSections: { table: false, parameter: true },
             }
             nextFiles.push(nextFile)

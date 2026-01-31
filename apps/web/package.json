@@ -21,6 +21,7 @@
     "cf-typegen": "wrangler types"
   },
   "dependencies": {
+    "@chem-model/api-client": "workspace:*",
     "@chem-model/shared": "workspace:*",
     "@faker-js/faker": "^10.0.0",
     "@radix-ui/react-checkbox": "^1.3.2",

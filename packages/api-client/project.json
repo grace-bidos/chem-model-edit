@@ -1,0 +1,15 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "api-client",
+  "projectType": "library",
+  "root": "packages/api-client",
+  "sourceRoot": "packages/api-client/src",
+  "targets": {
+    "knip": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm exec knip --workspace packages/api-client"
+      }
+    }
+  }
+}

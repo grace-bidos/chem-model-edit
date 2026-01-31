@@ -30,6 +30,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
+      "@chem-model/api-client/*": ["../../packages/api-client/src/*"],
       "@chem-model/shared/*": ["../../packages/shared/src/*"]
     }
   }

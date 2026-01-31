@@ -1,5 +1,10 @@
 import { Suspense, lazy } from 'react'
-import { HeadContent, Outlet, Scripts, createRootRoute } from '@tanstack/react-router'
+import {
+  HeadContent,
+  Outlet,
+  Scripts,
+  createRootRoute,
+} from '@tanstack/react-router'
 
 import Header from '../components/Header'
 import '../styles.css'
@@ -7,10 +12,10 @@ import '../styles.css'
 import type { ReactNode } from 'react'
 
 const runtimeApiBase = import.meta.env.SSR
-  ? process.env.API_BASE_PUBLIC ??
+  ? (process.env.API_BASE_PUBLIC ??
     process.env.API_BASE ??
     import.meta.env.VITE_API_BASE ??
-    'http://localhost:8000'
+    'http://localhost:8000')
   : null
 
 const RouterDevtoolsPanel = import.meta.env.DEV

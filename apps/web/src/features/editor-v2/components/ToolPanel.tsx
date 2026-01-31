@@ -172,8 +172,8 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
   const [targetsBusy, setTargetsBusy] = useState(false)
   const [enrollToken, setEnrollToken] = useState<{
     token: string
-    expires_at: string
-    ttl_seconds: number
+    expiresAt: string
+    ttlSeconds: number
     label?: string | null
   } | null>(null)
   const [enrollError, setEnrollError] = useState<string | null>(null)
@@ -203,7 +203,7 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
         return
       }
       setQueueTargets(payload.targets)
-      setActiveTargetId(payload.active_target_id ?? null)
+      setActiveTargetId(payload.activeTargetId ?? null)
     } catch (err) {
       if (sessionTokenRef.current !== tokenSnapshot) {
         return
@@ -228,7 +228,7 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
   }, [refreshTargets, session])
 
   const activeTarget = useMemo(
-    () => queueTargets.find((target) => target.target_id === activeTargetId),
+    () => queueTargets.find((target) => target.id === activeTargetId),
     [queueTargets, activeTargetId],
   )
 
@@ -341,7 +341,7 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
   }, [jobId])
 
   const fixedIndexSet = useMemo(
-    () => new Set(parseResult?.fixed_indices ?? []),
+    () => new Set(parseResult?.fixedIndices ?? []),
     [parseResult],
   )
 
@@ -383,15 +383,15 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
   }, [atomFilter, atomRows])
 
   const speciesEntries = useMemo(
-    () => Object.entries(parseResult?.atomic_species ?? {}),
+    () => Object.entries(parseResult?.atomicSpecies ?? {}),
     [parseResult],
   )
 
   const freqSummary = useMemo(() => {
-    if (!jobResult || jobResult.freqs_cm.length === 0) {
+    if (!jobResult || jobResult.freqsCm.length === 0) {
       return null
     }
-    const values = jobResult.freqs_cm
+    const values = jobResult.freqsCm
     const min = Math.min(...values)
     const max = Math.max(...values)
     const imagCount = values.filter((value) => value < 0).length
@@ -415,7 +415,7 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
           return
         }
         setParseResult(result)
-        const fixedSet = new Set(result.fixed_indices)
+        const fixedSet = new Set(result.fixedIndices)
         const nextMobile = new Set<number>()
         result.structure.atoms.forEach((_atom, index) => {
           if (!fixedSet.has(index)) {
@@ -503,7 +503,7 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
     setTargetsError(null)
     try {
       const response = await selectQueueTarget(targetId)
-      setActiveTargetId(response.active_target_id)
+      setActiveTargetId(response.activeTargetId)
     } catch (err) {
       setTargetsError(
         err instanceof Error ? err.message : 'Failed to select target.',
@@ -578,13 +578,13 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
     try {
       const response = await createZpeJob({
         content: selectedFile.qeInput,
-        mobile_indices: Array.from(mobileIndices).sort((a, b) => a - b),
-        use_environ: useEnviron,
-        input_dir: inputDir.trim() ? inputDir.trim() : null,
-        calc_mode: calcMode,
-        structure_id: selectedFile.structureId ?? null,
+        mobileIndices: Array.from(mobileIndices).sort((a, b) => a - b),
+        useEnviron: useEnviron,
+        inputDir: inputDir.trim() ? inputDir.trim() : null,
+        calcMode: calcMode,
+        structureId: selectedFile.structureId ?? null,
       })
-      setJobId(response.job_id)
+      setJobId(response.id)
     } catch (err) {
       setRunError(
         err instanceof Error ? err.message : 'ZPE job submission failed.',
@@ -685,7 +685,7 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
     if (!parseResult) {
       return
     }
-    const fixedSet = new Set(parseResult.fixed_indices)
+    const fixedSet = new Set(parseResult.fixedIndices)
     const next = new Set<number>()
     parseResult.structure.atoms.forEach((_atom, index) => {
       if (!fixedSet.has(index)) {
@@ -944,7 +944,7 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
                     {session.user.email}
                   </p>
                   <p className="mt-1 text-[10px] text-slate-400">
-                    expires {session.expires_at}
+                    expires {session.expiresAt}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -1002,12 +1002,9 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
                       </SelectTrigger>
                       <SelectContent>
                         {queueTargets.map((target) => (
-                          <SelectItem
-                            key={target.target_id}
-                            value={target.target_id}
-                          >
-                            {target.name ?? target.queue_name} ·{' '}
-                            {target.queue_name}
+                          <SelectItem key={target.id} value={target.id}>
+                            {target.name ?? target.queueName} ·{' '}
+                            {target.queueName}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -1018,7 +1015,7 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
                     <div className="text-[11px] text-slate-500">
                       Queue:{' '}
                       <span className="font-mono">
-                        {activeTarget.queue_name}
+                        {activeTarget.queueName}
                       </span>
                     </div>
                   ) : (
@@ -1060,7 +1057,7 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
                         {enrollToken.token}
                       </p>
                       <p className="mt-1 text-[10px] text-slate-400">
-                        expires {enrollToken.expires_at}
+                        expires {enrollToken.expiresAt}
                       </p>
                     </div>
                   ) : null}
@@ -1347,7 +1344,7 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
               <p className="text-[10px] uppercase tracking-[0.3em] text-slate-400">
                 Updated
               </p>
-              <p className="mt-1 text-[11px]">{jobStatus?.updated_at ?? '—'}</p>
+              <p className="mt-1 text-[11px]">{jobStatus?.updatedAt ?? '—'}</p>
             </div>
             {jobStatus?.detail ? (
               <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
@@ -1382,7 +1379,7 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
                       ZPE (eV)
                     </p>
                     <p className="mt-1 text-sm font-semibold text-slate-700">
-                      {formatNumber(jobResult.zpe_ev, 6)}
+                      {formatNumber(jobResult.zpeEv, 6)}
                     </p>
                   </div>
                   <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
@@ -1390,7 +1387,7 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
                       S_vib
                     </p>
                     <p className="mt-1 text-sm font-semibold text-slate-700">
-                      {formatNumber(jobResult.s_vib_jmol_k, 3)}
+                      {formatNumber(jobResult.sVibJmolK, 3)}
                     </p>
                   </div>
                 </div>
@@ -1401,7 +1398,7 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
                       Elapsed
                     </p>
                     <p className="mt-1 text-sm font-semibold text-slate-700">
-                      {formatNumber(jobResult.elapsed_seconds, 2)}s
+                      {formatNumber(jobResult.elapsedSeconds, 2)}s
                     </p>
                   </div>
                   <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
@@ -1409,7 +1406,7 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
                       Modes
                     </p>
                     <p className="mt-1 text-sm font-semibold text-slate-700">
-                      {jobResult.freqs_cm.length}
+                      {jobResult.freqsCm.length}
                     </p>
                   </div>
                 </div>

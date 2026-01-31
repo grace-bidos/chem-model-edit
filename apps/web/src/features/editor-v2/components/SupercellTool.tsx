@@ -239,11 +239,11 @@ export function SupercellTool({
           includeStructure: false,
         },
       })
-      setPreviewStructureId(result.structureId)
+      setPreviewStructureId(result.id)
       setPreviewMeta(result.meta)
       setPreviewError(null)
       onSupercellCreated?.({
-        structureId: result.structureId,
+        structureId: result.id,
         meta: result.meta,
       })
     } catch (error) {

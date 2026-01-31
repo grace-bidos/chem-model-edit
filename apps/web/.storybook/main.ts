@@ -17,8 +17,8 @@ const config: StorybookConfig = {
   docs: {
     autodocs: 'tag',
   },
-  viteFinal: async (config) =>
-    mergeConfig(config, {
+  viteFinal: (viteConfig) =>
+    mergeConfig(viteConfig, {
       plugins: [
         viteTsConfigPaths({
           projects: ['../tsconfig.json'],
