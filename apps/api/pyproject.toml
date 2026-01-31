@@ -21,6 +21,7 @@ dev = [
     "mypy>=1.19.1",
     "pytest>=9.0.2",
     "ruff>=0.14.10",
+    "schemathesis>=3.30.0",
 ]
 
 [tool.pytest.ini_options]
