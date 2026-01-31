@@ -9,15 +9,17 @@ from pathlib import Path
 
 def main() -> None:
     base_url = os.getenv("ZPE_API_URL", "http://localhost:8000").rstrip("/")
+    if not base_url.endswith("/api"):
+        base_url = f"{base_url}/api"
     content = Path("samples/qe-in/h2_zpe.in").read_text()
     payload = {
         "content": content,
-        "mobile_indices": [0, 1],
-        "calc_mode": "new",
-        "use_environ": False,
+        "mobileIndices": [0, 1],
+        "calcMode": "new",
+        "useEnviron": False,
     }
     req = urllib.request.Request(
-        f"{base_url}/calc/zpe/jobs",
+        f"{base_url}/zpe/jobs",
         data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json"},
     )
