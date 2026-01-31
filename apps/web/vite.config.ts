@@ -1,5 +1,6 @@
+import { cloudflare } from '@cloudflare/vite-plugin'
 import { devtools } from '@tanstack/devtools-vite'
-import { tanstackRouter } from '@tanstack/router-plugin/vite'
+import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import viteReact from '@vitejs/plugin-react'
 import viteTsConfigPaths from 'vite-tsconfig-paths'
 import tailwindcss from '@tailwindcss/vite'
@@ -16,20 +17,18 @@ const config = defineConfig(({ mode }) => {
           port: Number(process.env.TANSTACK_DEVTOOLS_PORT ?? 42069),
         },
       }),
-    !isTest && tanstackRouter({ target: 'react' }),
     // this is the plugin that enables path aliases
     viteTsConfigPaths({
       projects: ['./tsconfig.json'],
     }),
     tailwindcss(),
+    !isTest && cloudflare({ viteEnvironment: { name: 'ssr' } }),
+    !isTest && tanstackStart({ spa: { enabled: true } }),
     viteReact(),
   ].filter(Boolean) as Array<PluginOption>
 
   return {
     plugins,
-    build: {
-      outDir: 'dist/client',
-    },
     optimizeDeps: {
       include: ['dockview', 'dockview-react', 'dockview-core'],
     },
