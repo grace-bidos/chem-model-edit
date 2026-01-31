@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, cast
 
 from redis import Redis
 
@@ -37,10 +37,12 @@ def get_ops_flags(*, redis: Optional[Redis] = None) -> OpsFlags:
     settings = get_zpe_settings()
     redis = redis or get_redis_connection()
     submission_enabled = _parse_bool(
-        redis.get(_SUBMISSION_KEY), settings.submission_enabled
+        cast(bytes | str | None, redis.get(_SUBMISSION_KEY)),
+        settings.submission_enabled,
     )
     dequeue_enabled = _parse_bool(
-        redis.get(_DEQUEUE_KEY), settings.dequeue_enabled
+        cast(bytes | str | None, redis.get(_DEQUEUE_KEY)),
+        settings.dequeue_enabled,
     )
     return OpsFlags(
         submission_enabled=submission_enabled,
