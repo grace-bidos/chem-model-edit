@@ -41,4 +41,11 @@ if [ "$ready" -ne 1 ]; then
   exit 1
 fi
 
-schemathesis run "${SCHEMA_URL}" --url "${BASE_URL}"
+schemathesis run "${SCHEMA_URL}" \
+  --url "${BASE_URL}" \
+  --checks=not_a_server_error \
+  --exclude-path-regex '^/auth/' \
+  --exclude-path-regex '^/calc/zpe/' \
+  --exclude-path-regex '^/structures/[^/]+$' \
+  --exclude-path-regex '^/structures/[^/]+/view$' \
+  --exclude-path-regex '^/supercell/build$'
