@@ -52,6 +52,18 @@
         "command": "pnpm -C apps/web test:ui"
       }
     },
+    "a11y": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm -C apps/web test:a11y"
+      }
+    },
+    "fastcheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm -C apps/web test:fastcheck"
+      }
+    },
     "storybook": {
       "executor": "nx:run-commands",
       "options": {

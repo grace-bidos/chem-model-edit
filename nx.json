@@ -31,6 +31,9 @@
     "a11y": {
       "cache": true
     },
+    "fastcheck": {
+      "cache": true
+    },
     "schemathesis": {
       "cache": true
     }

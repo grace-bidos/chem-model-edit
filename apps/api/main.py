@@ -166,6 +166,11 @@ def handle_value_error(_: Request, exc: ValueError) -> JSONResponse:
     return JSONResponse(status_code=400, content={"detail": str(exc)})
 
 
+@app.exception_handler(OverflowError)
+def handle_overflow_error(_: Request, exc: OverflowError) -> JSONResponse:
+    return JSONResponse(status_code=400, content={"detail": str(exc)})
+
+
 @app.exception_handler(RedisError)
 def handle_redis_error(request: Request, exc: RedisError) -> JSONResponse:
     logger.error("Redis error", exc_info=exc)

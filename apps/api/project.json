@@ -30,6 +30,13 @@
         "command": "uv run mypy .",
         "cwd": "apps/api"
       }
+    },
+    "schemathesis": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "uv run bash scripts/schemathesis.sh",
+        "cwd": "apps/api"
+      }
     }
   }
 }
