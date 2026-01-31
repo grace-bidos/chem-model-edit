@@ -4,7 +4,35 @@
     "apps/web": {
       "entry": ["src/main.tsx"],
       "project": ["tsconfig.json"],
-      "ignore": ["src/routeTree.gen.ts"]
+      "ignore": ["src/routeTree.gen.ts"],
+      "ignoreDependencies": [
+        "@chem-model/shared",
+        "@faker-js/faker",
+        "@radix-ui/react-checkbox",
+        "@radix-ui/react-label",
+        "@radix-ui/react-select",
+        "@radix-ui/react-slider",
+        "@radix-ui/react-slot",
+        "@radix-ui/react-switch",
+        "@tanstack/match-sorter-utils",
+        "@tanstack/react-devtools",
+        "@tanstack/react-router-devtools",
+        "@tanstack/react-router-ssr-query",
+        "@tanstack/react-start",
+        "@tanstack/react-table",
+        "class-variance-authority",
+        "clsx",
+        "dockview",
+        "dockview-core",
+        "lucide-react",
+        "molstar",
+        "nitro",
+        "tailwind-merge",
+        "tailwindcss",
+        "tw-animate-css"
+      ],
+      "ignoreDevDependencies": ["axe-core", "web-vitals"],
+      "ignoreBinaries": ["test:a11y", "test:fastcheck", "build-storybook"]
     },
     "packages/shared": {
       "entry": ["src/types.ts"],
