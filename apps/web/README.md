@@ -6,8 +6,11 @@ To run this application:
 
 ```bash
 pnpm install
-pnpm start
+pnpm dev
 ```
+
+This app currently runs as a Vite SPA powered by TanStack Router. TanStack Start
+features (SSR and server functions) are not enabled yet.
 
 # Building For Production
 

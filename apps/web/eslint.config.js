@@ -4,7 +4,7 @@ import { tanstackConfig } from '@tanstack/eslint-config'
 
 export default [
   {
-    ignores: ['.output/**', 'dist/**', '.tanstack/**', '.vinxi/**'],
+    ignores: ['.output/**', 'dist/**', '.tanstack/**'],
   },
   ...tanstackConfig,
   {
