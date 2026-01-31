@@ -34,7 +34,7 @@
     "schemathesis": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "uv run schemathesis run --app main:app",
+        "command": "uv run bash scripts/schemathesis.sh",
         "cwd": "apps/api"
       }
     }

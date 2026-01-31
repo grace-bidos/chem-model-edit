@@ -63,5 +63,5 @@ jobs:
         run: uv run pytest
         working-directory: apps/api
       - name: Schemathesis
-        run: uv run schemathesis run --app main:app
+        run: uv run bash scripts/schemathesis.sh
         working-directory: apps/api
