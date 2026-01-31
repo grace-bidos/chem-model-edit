@@ -10,10 +10,15 @@
 - 3D表示は Mol* を使い、**デフォルトはボール＆スティック**
 
 ## 技術スタック
-- Frontend: TanStack Start + shadcn/ui + Mol*
+- Frontend: TanStack Start (SPA) + shadcn/ui + Mol*
 - Backend: FastAPI + ASE / pymatgen
 - JS/TS: pnpm
 - Python: uv (+ ruff, mypy, pytest)
+- Tooling: Nx, Storybook, Chromatic
+
+## デプロイ
+- Web: Cloudflare Workers
+- API: Cloud Run
 
 ## リポジトリ構成
 - `apps/web`: Webアプリ (TanStack Start)
@@ -45,15 +50,22 @@
   - `pnpm -C apps/web dev --port 3001`
   - `just web`（Codexサンドボックスでは昇格実行が必要）
   - `pnpm -C apps/web typecheck`
+  - `pnpm -C apps/web storybook`
+  - `pnpm -C apps/web chromatic`
 - API:
   - `just deps`（初回/依存更新時）
   - `uv run uvicorn apps.api.main:app --reload --port 8000`
   - `uv run pytest`
   - `uv run mypy .`
- - Just:
-   - `just style`（web: prettier+eslint / api: ruff）
-   - `just test`（web: vitest / api: pytest）
-   - `just typecheck`（web: tsc / api: mypy）
+- Nx:
+  - `pnpm exec nx graph`
+  - `pnpm exec nx run-many -t lint,typecheck,test,knip`
+- Just:
+  - `just style`（web: prettier+eslint / api: ruff）
+  - `just test`（web: vitest / api: pytest）
+  - `just typecheck`（web: tsc / api: mypy）
+  - `just storybook`
+  - `just chromatic`
 
 ## 既知の注意点
 - Mol*は`Viewer.create`を使い、PDB読み込み後に`ball-and-stick`表現を追加

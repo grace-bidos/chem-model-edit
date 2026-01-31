@@ -135,6 +135,11 @@ storybook-build:
   set -euo pipefail
   pnpm -C apps/web build-storybook
 
+chromatic:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pnpm -C apps/web chromatic
+
 nx:
   #!/usr/bin/env bash
   set -euo pipefail
@@ -144,6 +149,16 @@ nx-graph:
   #!/usr/bin/env bash
   set -euo pipefail
   pnpm exec nx graph
+
+nx-storybook:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pnpm exec nx run web:storybook
+
+nx-chromatic:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pnpm exec nx run web:chromatic
 
 nx-lint:
   #!/usr/bin/env bash
