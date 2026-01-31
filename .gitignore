@@ -39,3 +39,5 @@ pnpm-debug.log*
 
 # Local doc build scripts
 /scripts/docs/
+# Local-only thesis repo (nested git repo)
+docs/reports/thesis/
