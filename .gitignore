@@ -24,7 +24,7 @@ __pycache__
 # Logs
 pnpm-debug.log*
 .pnpm-store
-.wrangler-logs
+.wrangler-logs/
 
 # Local runtime dirs
 .worktrees
