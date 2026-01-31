@@ -74,7 +74,7 @@
 - `POST /api/zpe/compute/jobs/lease`
 - `POST /api/zpe/compute/jobs/{id}/result`
 - `POST /api/zpe/compute/jobs/{id}/failed`
-- `GET /api/zpe/targets`
+- `GET /api/zpe/targets?limit=50&offset=0`
 - `PUT /api/zpe/targets/{id}/active`
 - `GET /api/zpe/admin/ops`
 - `PATCH /api/zpe/admin/ops`
@@ -88,6 +88,7 @@
 - `LatticeParams`: `{ a, b, c, alpha, beta, gamma }`
 - `Structure`: `{ atoms, lattice? }`
 - `QeParameters`: `{ control, system, electrons, ions, cell, pseudopotentials, kpoints? }`
+- `Pagination`: `{ total, limit, offset }`
 
 ### Auth
 - `AuthRegisterRequest`: `{ email, password }`
@@ -139,7 +140,8 @@
 - `ComputeRegisterResponse`: `{ id, registeredAt, name?, workerToken, tokenExpiresAt, tokenTtlSeconds }` (id は serverId)
 - `ComputeRevokeResponse`: `{ revokedCount }`
 - `QueueTarget`: `{ id, queueName, serverId, registeredAt, name? }`
-- `QueueTargetListResponse`: `{ targets, activeTargetId? }`
+- `QueueTargetListResponse`: `{ targets, activeTargetId?, pagination }`
+  - `pagination`: `{ total, limit, offset }`（既定: `limit=50`, `offset=0`）
 - `QueueTargetSelectResponse`: `{ activeTargetId }`
 - `ComputeLeaseResponse`: `{ jobId, payload, leaseId, leaseTtlSeconds, meta? }`
 - `ComputeResultRequest`: `{ leaseId, result, summaryText, freqsCsv, meta? }`
@@ -148,6 +150,7 @@
 - `ComputeFailedResponse`: `{ ok, requeued, retryCount }`
 - `OpsFlagsRequest`: `{ submissionEnabled?, dequeueEnabled? }`
 - `OpsFlagsResponse`: `{ submissionEnabled, dequeueEnabled }`
+  - `GET /api/zpe/admin/ops` は単一のフラグオブジェクトを返す（リストではない）。
 
 ### エラー
 - `ErrorResponse`: `{ error: { code, message, details? } }`
@@ -178,7 +181,7 @@
 
 ## 移行方針
 - 旧APIは即時廃止（互換維持は行わない）。
-- フロント/バックは同時更新を前提とする。
+- フロント/バックは同時更新を前提とする（外部クライアントが無い前提）。
 - 必要なら旧URLの簡易リダイレクトは検討（最小限）。
 
 ## リスク / 未確定事項
