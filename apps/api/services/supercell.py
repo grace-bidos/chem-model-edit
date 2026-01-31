@@ -152,7 +152,7 @@ def generate_tiled_supercell(
         na=width,
         nb=len(pattern),
         layers=len(pattern) * width,
-        overlapCount=overlap_count,
+        overlap_count=overlap_count,
     )
     return Structure(atoms=atoms_out, lattice=out_lattice), meta
 

@@ -1,0 +1,60 @@
+from __future__ import annotations
+
+from fastapi import FastAPI, HTTPException
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from redis.exceptions import RedisError
+
+from app.errors import (
+    http_exception_handler,
+    overflow_error_handler,
+    redis_error_handler,
+    validation_exception_handler,
+    value_error_handler,
+)
+from app.middleware import add_request_context
+import app.routers.auth as auth_router
+import app.routers.health as health_router
+import app.routers.lattices as lattices_router
+import app.routers.structures as structures_router
+import app.routers.supercells as supercells_router
+import app.routers.transforms as transforms_router
+import app.routers.zpe as zpe_router
+
+
+def create_app() -> FastAPI:
+    app = FastAPI(
+        title="Chem Model API",
+        version="0.2.0",
+        docs_url="/api/docs",
+        openapi_url="/api/openapi.json",
+    )
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    app.middleware("http")(add_request_context)
+
+    app.add_exception_handler(HTTPException, http_exception_handler)
+    app.add_exception_handler(RequestValidationError, validation_exception_handler)
+    app.add_exception_handler(ValueError, value_error_handler)
+    app.add_exception_handler(OverflowError, overflow_error_handler)
+    app.add_exception_handler(RedisError, redis_error_handler)
+
+    app.include_router(health_router.router)
+    app.include_router(auth_router.router)
+    app.include_router(structures_router.router)
+    app.include_router(transforms_router.router)
+    app.include_router(lattices_router.router)
+    app.include_router(supercells_router.router)
+    app.include_router(zpe_router.router)
+
+    return app
+
+
+app = create_app()
