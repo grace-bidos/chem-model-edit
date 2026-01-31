@@ -64,6 +64,12 @@
       "options": {
         "command": "pnpm -C apps/web build-storybook"
       }
+    },
+    "knip": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm exec knip --workspace apps/web"
+      }
     }
   }
 }
