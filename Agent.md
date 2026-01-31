@@ -73,6 +73,13 @@
 - 命名規約: `feat/`, `fix/`, `refactor/`, `chore/`, `docs/`, `spike/`, `codex/`, `ui/`, `stack/`
 - マージ後はブランチを削除（GitHubの自動削除を有効）
 
+## worktree運用
+- worktreeの置き場は `chem-model-edit/.worktrees/<name>` に固定する（並列ディレクトリを作らない）
+- `main` の作業ツリーはレビュー/確認専用に保ち、実作業は worktree で行う
+- 原則「ブランチ名 = worktree名」。同一ブランチで複数必要なら `<branch>@<purpose>` を使う
+- PRがマージされたら対応worktreeは削除する（`git worktree remove` → `git worktree prune`）
+- ルートの `.gitignore` に `.worktrees/` を含める
+
 ## 進め方のベストプラクティス
 - 変更前に影響範囲と対象ファイルを明確化
 - 破壊的変更は避け、既存実装との互換性を維持
