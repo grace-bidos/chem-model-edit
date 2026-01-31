@@ -36,6 +36,8 @@ class ZPESettings(BaseSettings):
     admin_token: Optional[str] = None
     enroll_token_ttl_seconds: int = 3600
     worker_token_ttl_seconds: int = 604800
+    submission_enabled: bool = True
+    dequeue_enabled: bool = True
 
     pw_command: str = "pw.x"
     pw_path: Optional[str] = None

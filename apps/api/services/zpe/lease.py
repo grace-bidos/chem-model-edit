@@ -10,6 +10,7 @@ from redis import Redis
 from redis.exceptions import ResponseError
 
 from .queue import get_redis_connection
+from .job_meta import get_job_meta_store
 from .result_store import get_result_store
 from .settings import get_zpe_settings
 
@@ -35,6 +36,7 @@ class Lease:
     payload: Dict[str, Any]
     lease_id: str
     lease_ttl_seconds: int
+    meta: Dict[str, Any]
 
 
 def lease_next_job(worker_id: str) -> Optional[Lease]:
@@ -122,11 +124,13 @@ def lease_next_job(worker_id: str) -> Optional[Lease]:
         redis.zrem(_LEASE_INDEX, job_id)
         store.set_status(job_id, "failed", detail="payload corrupted")
         return None
+    meta_store = get_job_meta_store()
     return Lease(
         job_id=job_id,
         payload=payload,
         lease_id=lease_id,
         lease_ttl_seconds=settings.lease_ttl_seconds,
+        meta=meta_store.get_meta(job_id),
     )
 
 

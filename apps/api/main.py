@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import secrets
+import time
 from typing import Any, Literal
 
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -51,6 +52,8 @@ from models import (
     ZPEQueueTargetListResponse,
     ZPEQueueTargetSelectRequest,
     ZPEQueueTargetSelectResponse,
+    ZPEOpsFlagsRequest,
+    ZPEOpsFlagsResponse,
     ZPEEnrollTokenRequest,
     ZPEEnrollTokenResponse,
     ZPEParseRequest,
@@ -81,11 +84,14 @@ from services.zpe import (
     get_zpe_settings,
 )
 from services.zpe.enroll import get_enroll_store
+from services.zpe.job_meta import get_job_meta_store
 from services.zpe.job_owner import get_job_owner_store
 from services.zpe.lease import lease_next_job
 from services.zpe.compute_results import submit_failure, submit_result
+from services.zpe.ops_flags import get_ops_flags, set_ops_flags
 from services.zpe.queue_targets import get_queue_target_store
 from services.zpe.worker_auth import get_worker_token_store
+from services.zpe.structured_log import log_event, new_request_id
 from services.zpe.parse import (
     extract_fixed_indices,
     parse_atomic_species,
@@ -104,6 +110,34 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def add_request_context(request: Request, call_next):
+    request_id = request.headers.get("x-request-id") or new_request_id()
+    request.state.request_id = request_id
+    start = time.monotonic()
+    response = await call_next(request)
+    response.headers["x-request-id"] = request_id
+    path = request.url.path
+    if path.startswith("/calc/zpe/"):
+        duration_ms = int((time.monotonic() - start) * 1000)
+        log_event(
+            logger,
+            event="zpe_http_request",
+            service="control-plane",
+            request_id=request_id,
+            method=request.method,
+            path=path,
+            status=response.status_code,
+            duration_ms=duration_ms,
+        )
+    return response
+
+
+def _get_request_id(request: Request) -> str:
+    request_id = getattr(request.state, "request_id", None)
+    return request_id or new_request_id()
 
 
 def _cell_has_lattice(cell: Any) -> bool:
@@ -133,8 +167,17 @@ def handle_value_error(_: Request, exc: ValueError) -> JSONResponse:
 
 
 @app.exception_handler(RedisError)
-def handle_redis_error(_: Request, exc: RedisError) -> JSONResponse:
+def handle_redis_error(request: Request, exc: RedisError) -> JSONResponse:
     logger.error("Redis error", exc_info=exc)
+    log_event(
+        logger,
+        event="zpe_redis_error",
+        service="control-plane",
+        stage="redis",
+        status="error",
+        request_id=_get_request_id(request),
+        error_message=str(exc),
+    )
     return JSONResponse(
         status_code=503,
         content={"detail": "redis unavailable"},
@@ -517,6 +560,22 @@ def zpe_parse(request: ZPEParseRequest) -> ZPEParseResponse:
 @app.post("/calc/zpe/jobs", response_model=ZPEJobResponse)
 def zpe_jobs(request: ZPEJobRequest, raw: Request) -> ZPEJobResponse:
     user, _session = _require_user_session(raw)
+    request_id = _get_request_id(raw)
+    flags = get_ops_flags()
+    if not flags.submission_enabled:
+        settings = get_zpe_settings()
+        log_event(
+            logger,
+            event="zpe_submission_blocked",
+            service="control-plane",
+            stage="enqueue",
+            status="blocked",
+            request_id=request_id,
+            user_id=user.user_id,
+            backend=settings.compute_mode,
+            result_store=settings.result_store,
+        )
+        raise HTTPException(status_code=503, detail="zpe submissions disabled")
     target_store = get_queue_target_store()
     target = target_store.get_active_target(user.user_id)
     if not target:
@@ -543,6 +602,32 @@ def zpe_jobs(request: ZPEJobRequest, raw: Request) -> ZPEJobResponse:
     job_id = enqueue_zpe_job(payload, queue_name=target.queue_name)
     owner_store = get_job_owner_store()
     owner_store.set_owner(job_id, user.user_id)
+    meta_store = get_job_meta_store()
+    meta_store.set_meta(
+        job_id,
+        {
+            "request_id": request_id,
+            "user_id": user.user_id,
+            "structure_id": request.structure_id,
+            "queue_name": target.queue_name,
+            "calc_mode": request.calc_mode,
+        },
+    )
+    settings = get_zpe_settings()
+    log_event(
+        logger,
+        event="zpe_job_enqueued",
+        service="control-plane",
+        stage="enqueue",
+        status="queued",
+        request_id=request_id,
+        job_id=job_id,
+        user_id=user.user_id,
+        structure_id=request.structure_id,
+        queue_name=target.queue_name,
+        backend=settings.compute_mode,
+        result_store=settings.result_store,
+    )
     return ZPEJobResponse(job_id=job_id)
 
 
@@ -607,6 +692,8 @@ def zpe_compute_register(
         token_expires_at=worker_token.expires_at,
         token_ttl_seconds=worker_token.ttl_seconds,
     )
+
+
 @app.get("/calc/zpe/compute/targets", response_model=ZPEQueueTargetListResponse)
 def zpe_compute_targets(raw: Request) -> ZPEQueueTargetListResponse:
     user, _session = _require_user_session(raw)
@@ -660,20 +747,91 @@ def zpe_compute_revoke(
     return ZPEComputeRevokeResponse(revoked_count=revoked)
 
 
+@app.get("/calc/zpe/admin/ops", response_model=ZPEOpsFlagsResponse)
+def zpe_ops_flags(raw: Request) -> ZPEOpsFlagsResponse:
+    require_admin(raw)
+    flags = get_ops_flags()
+    return ZPEOpsFlagsResponse(
+        submission_enabled=flags.submission_enabled,
+        dequeue_enabled=flags.dequeue_enabled,
+    )
+
+
+@app.post("/calc/zpe/admin/ops", response_model=ZPEOpsFlagsResponse)
+def zpe_ops_flags_update(
+    request: ZPEOpsFlagsRequest,
+    raw: Request,
+) -> ZPEOpsFlagsResponse:
+    require_admin(raw)
+    flags = set_ops_flags(
+        submission_enabled=request.submission_enabled,
+        dequeue_enabled=request.dequeue_enabled,
+    )
+    settings = get_zpe_settings()
+    log_event(
+        logger,
+        event="zpe_ops_flags_updated",
+        service="control-plane",
+        stage="ops",
+        status="updated",
+        request_id=_get_request_id(raw),
+        submission_enabled=flags.submission_enabled,
+        dequeue_enabled=flags.dequeue_enabled,
+        backend=settings.compute_mode,
+        result_store=settings.result_store,
+    )
+    return ZPEOpsFlagsResponse(
+        submission_enabled=flags.submission_enabled,
+        dequeue_enabled=flags.dequeue_enabled,
+    )
+
+
 @app.post(
     "/calc/zpe/compute/jobs/lease",
     response_model=ZPEComputeLeaseResponse,
 )
 def zpe_compute_lease(raw: Request) -> Response | ZPEComputeLeaseResponse:
     worker_id = require_worker(raw)
+    request_id = _get_request_id(raw)
+    flags = get_ops_flags()
+    if not flags.dequeue_enabled:
+        settings = get_zpe_settings()
+        log_event(
+            logger,
+            event="zpe_dequeue_paused",
+            service="control-plane",
+            stage="lease",
+            status="paused",
+            request_id=request_id,
+            worker_id=worker_id,
+            backend=settings.compute_mode,
+            result_store=settings.result_store,
+        )
+        return Response(status_code=204)
     lease = lease_next_job(worker_id)
     if lease is None:
         return Response(status_code=204)
+    meta = lease.meta
+    settings = get_zpe_settings()
+    log_event(
+        logger,
+        event="zpe_lease_granted",
+        service="control-plane",
+        stage="lease",
+        status="granted",
+        request_id=meta.get("request_id", request_id),
+        job_id=lease.job_id,
+        worker_id=worker_id,
+        user_id=meta.get("user_id"),
+        backend=settings.compute_mode,
+        result_store=settings.result_store,
+    )
     return ZPEComputeLeaseResponse(
         job_id=lease.job_id,
         payload=lease.payload,
         lease_id=lease.lease_id,
         lease_ttl_seconds=lease.lease_ttl_seconds,
+        meta=meta,
     )
 
 
@@ -687,6 +845,8 @@ def zpe_compute_result(
     raw: Request,
 ) -> ZPEComputeResultResponse:
     worker_id = require_worker(raw)
+    meta_store = get_job_meta_store()
+    job_meta = meta_store.get_meta(job_id)
     try:
         outcome = submit_result(
             job_id=job_id,
@@ -700,6 +860,30 @@ def zpe_compute_result(
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    settings = get_zpe_settings()
+    duration_ms = None
+    qe_version = request.meta.get("qe_version")
+    if "computation_time_seconds" in request.meta:
+        try:
+            duration_ms = int(float(request.meta["computation_time_seconds"]) * 1000)
+        except (TypeError, ValueError):
+            duration_ms = None
+    log_event(
+        logger,
+        event="zpe_result_submitted",
+        service="control-plane",
+        stage="result",
+        status="submitted",
+        request_id=job_meta.get("request_id", _get_request_id(raw)),
+        job_id=job_id,
+        worker_id=worker_id,
+        user_id=job_meta.get("user_id"),
+        backend=settings.compute_mode,
+        result_store=settings.result_store,
+        duration_ms=duration_ms,
+        exit_code=0,
+        qe_version=qe_version,
+    )
     return ZPEComputeResultResponse(idempotent=outcome.idempotent)
 
 
@@ -713,6 +897,8 @@ def zpe_compute_failed(
     raw: Request,
 ) -> ZPEComputeFailedResponse:
     worker_id = require_worker(raw)
+    meta_store = get_job_meta_store()
+    job_meta = meta_store.get_meta(job_id)
     try:
         outcome = submit_failure(
             job_id=job_id,
@@ -724,10 +910,31 @@ def zpe_compute_failed(
         )
     except PermissionError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    settings = get_zpe_settings()
+    log_event(
+        logger,
+        event="zpe_result_failed",
+        service="control-plane",
+        stage="result",
+        status="failed",
+        request_id=job_meta.get("request_id", _get_request_id(raw)),
+        job_id=job_id,
+        worker_id=worker_id,
+        user_id=job_meta.get("user_id"),
+        backend=settings.compute_mode,
+        result_store=settings.result_store,
+        exit_code=1,
+        qe_version=None,
+        error_code=request.error_code,
+        retry_count=outcome.retry_count,
+        requeued=outcome.requeued,
+    )
     return ZPEComputeFailedResponse(
         requeued=outcome.requeued,
         retry_count=outcome.retry_count,
     )
+
+
 @app.get("/calc/zpe/jobs/{job_id}", response_model=ZPEJobStatusResponse)
 def zpe_job_status(job_id: str, raw: Request) -> ZPEJobStatusResponse:
     _require_job_owner(raw, job_id)

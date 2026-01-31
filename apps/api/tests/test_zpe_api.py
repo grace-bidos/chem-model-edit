@@ -7,7 +7,9 @@ import main
 from services.auth.store import AuthStore
 from services.zpe import backends as zpe_backends
 from services.zpe import enroll as zpe_enroll
+from services.zpe import job_meta as zpe_job_meta
 from services.zpe import job_owner as zpe_job_owner
+from services.zpe import ops_flags as zpe_ops_flags
 from services.zpe import queue as zpe_queue
 from services.zpe import queue_targets as zpe_queue_targets
 from services.zpe import result_store as zpe_store
@@ -43,6 +45,8 @@ def _patch_redis(monkeypatch):
     monkeypatch.setattr(zpe_worker_auth, "get_redis_connection", lambda: fake)
     monkeypatch.setattr(zpe_queue_targets, "get_redis_connection", lambda: fake)
     monkeypatch.setattr(zpe_job_owner, "get_redis_connection", lambda: fake)
+    monkeypatch.setattr(zpe_job_meta, "get_redis_connection", lambda: fake)
+    monkeypatch.setattr(zpe_ops_flags, "get_redis_connection", lambda: fake)
     return fake
 
 
@@ -150,3 +154,29 @@ def test_zpe_job_result_not_finished(monkeypatch):
     owner_store.set_owner(job_id, user_id)
     response = client.get(f"/calc/zpe/jobs/{job_id}/result", headers=headers)
     assert response.status_code == 409
+
+
+def test_zpe_submission_disabled(monkeypatch):
+    fake = _patch_redis(monkeypatch)
+    store = RedisResultStore(redis=fake)
+    settings = ZPESettings(compute_mode="mock", result_store="redis")
+
+    monkeypatch.setattr(zpe_backends, "get_result_store", lambda: store)
+    monkeypatch.setattr(zpe_backends, "get_zpe_settings", lambda: settings)
+
+    client = TestClient(main.app)
+    headers, _user_id = _setup_user_and_target(client, monkeypatch, fake)
+    zpe_ops_flags.set_ops_flags(submission_enabled=False, redis=fake)
+
+    response = client.post(
+        "/calc/zpe/jobs",
+        json={
+            "content": QE_INPUT,
+            "mobile_indices": [0],
+            "use_environ": False,
+            "input_dir": None,
+            "calc_mode": "continue",
+        },
+        headers=headers,
+    )
+    assert response.status_code == 503
