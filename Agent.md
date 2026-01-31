@@ -59,7 +59,7 @@
 - Mol*は`Viewer.create`を使い、PDB読み込み後に`ball-and-stick`表現を追加
 - Import/Exportの入出力は`.in` (QE) と座標/原子種に限定
 - `apps/web/src/components/molstar/MolstarViewer.tsx` が表示の中心
-- pnpmストアは `/home/grace/projects/chem-model-edit/.pnpm-store` を共通利用する方針（`.pnpm-store` はgit ignore）
+- pnpmストアは `.pnpm-store` を利用する方針（相対パス／`.pnpm-store` はgit ignore）
 - Codexサンドボックス（workspace-write）では `uv sync` / `just` 実行時は昇格（on-request）が必要
 
 ## ブランチ運用
