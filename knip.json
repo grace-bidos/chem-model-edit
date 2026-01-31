@@ -17,7 +17,6 @@
         "@tanstack/match-sorter-utils",
         "@tanstack/react-devtools",
         "@tanstack/react-router-devtools",
-        "@tanstack/react-table",
         "axe-core",
         "class-variance-authority",
         "clsx",

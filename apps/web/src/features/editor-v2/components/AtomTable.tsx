@@ -1,3 +1,12 @@
+import { useMemo } from 'react'
+import {
+  createColumnHelper,
+  flexRender,
+  getCoreRowModel,
+  type ColumnDef,
+  useReactTable,
+} from '@tanstack/react-table'
+
 import { cn } from '@/lib/utils'
 import {
   Table,
@@ -31,6 +40,8 @@ type AtomTableProps = {
 }
 
 const formatNumber = (value: number, digits: number) => value.toFixed(digits)
+const columnHelper = createColumnHelper<AtomTableRow>()
+const coordinateColumns = new Set(['x', 'y', 'z'])
 
 export function AtomTable({
   rows,
@@ -45,27 +56,73 @@ export function AtomTable({
   showIndex = true,
 }: AtomTableProps) {
   const canSelect = Boolean(onRowClick) && selectionEnabled
-  const colSpan = showIndex ? 5 : 4
+  const columns = useMemo<Array<ColumnDef<AtomTableRow, unknown>>>(() => {
+    const cols: Array<ColumnDef<AtomTableRow, unknown>> = []
+    if (showIndex) {
+      cols.push(
+        columnHelper.accessor('index', {
+          header: '#',
+          cell: ({ getValue }) => getValue<number>() + 1,
+        }),
+      )
+    }
+    cols.push(
+      columnHelper.accessor('symbol', {
+        header: 'El',
+      }),
+    )
+    cols.push(
+      columnHelper.accessor('x', {
+        header: 'X',
+        cell: ({ getValue }) => formatNumber(getValue<number>(), digits),
+      }),
+      columnHelper.accessor('y', {
+        header: 'Y',
+        cell: ({ getValue }) => formatNumber(getValue<number>(), digits),
+      }),
+      columnHelper.accessor('z', {
+        header: 'Z',
+        cell: ({ getValue }) => formatNumber(getValue<number>(), digits),
+      }),
+    )
+    return cols
+  }, [digits, showIndex])
 
+  const table = useReactTable({
+    data: rows,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  })
+
+  const colSpan = table.getVisibleLeafColumns().length
   return (
     <Table
       className="text-xs"
       containerClassName={cn('h-full', containerClassName)}
     >
       <TableHeader className={cn(stickyHeader && 'sticky top-0 bg-slate-50')}>
-        <TableRow>
-          {showIndex ? <TableHead>#</TableHead> : null}
-          <TableHead>El</TableHead>
-          <TableHead>X</TableHead>
-          <TableHead>Y</TableHead>
-          <TableHead>Z</TableHead>
-        </TableRow>
+        {table.getHeaderGroups().map((headerGroup) => (
+          <TableRow key={headerGroup.id}>
+            {headerGroup.headers.map((header) => (
+              <TableHead key={header.id}>
+                {header.isPlaceholder
+                  ? null
+                  : flexRender(
+                      header.column.columnDef.header,
+                      header.getContext(),
+                    )}
+              </TableHead>
+            ))}
+          </TableRow>
+        ))}
       </TableHeader>
       <TableBody>
-        {rows.length ? (
-          rows.map((row) => {
-            const isFixed = fixedIndices?.has(row.index) ?? row.fixed ?? false
-            const isSelected = selectedIndices?.has(row.index) ?? false
+        {table.getRowModel().rows.length ? (
+          table.getRowModel().rows.map((row) => {
+            const isFixed =
+              fixedIndices?.has(row.original.index) ?? row.original.fixed ?? false
+            const isSelected =
+              selectedIndices?.has(row.original.index) ?? false
             const clickable = canSelect && !isFixed
             const rowClasses = cn(
               isFixed && 'bg-slate-50',
@@ -77,31 +134,32 @@ export function AtomTable({
               : 'text-slate-600'
             return (
               <TableRow
-                key={`${row.symbol}-${row.index}`}
+                key={row.id}
                 className={rowClasses}
                 onClick={
                   clickable && onRowClick
-                    ? () => onRowClick(row.index)
+                    ? () => onRowClick(row.original.index)
                     : undefined
                 }
               >
-                {showIndex ? (
-                  <TableCell className="text-xs font-medium text-slate-500">
-                    {row.index + 1}
-                  </TableCell>
-                ) : null}
-                <TableCell className="font-semibold text-slate-700">
-                  {row.symbol}
-                </TableCell>
-                <TableCell className={cn('font-mono', fixedCoordClass)}>
-                  {formatNumber(row.x, digits)}
-                </TableCell>
-                <TableCell className={cn('font-mono', fixedCoordClass)}>
-                  {formatNumber(row.y, digits)}
-                </TableCell>
-                <TableCell className={cn('font-mono', fixedCoordClass)}>
-                  {formatNumber(row.z, digits)}
-                </TableCell>
+                {row.getVisibleCells().map((cell) => {
+                  const columnId = cell.column.id
+                  const cellClass = cn(
+                    columnId === 'index' &&
+                      'text-xs font-medium text-slate-500',
+                    columnId === 'symbol' && 'font-semibold text-slate-700',
+                    coordinateColumns.has(columnId) &&
+                      cn('font-mono', fixedCoordClass),
+                  )
+                  return (
+                    <TableCell key={cell.id} className={cellClass}>
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext(),
+                      )}
+                    </TableCell>
+                  )
+                })}
               </TableRow>
             )
           })
