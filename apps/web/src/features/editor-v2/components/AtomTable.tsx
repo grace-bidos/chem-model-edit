@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
+import type { ColumnDef } from '@tanstack/react-table'
 import {
   createColumnHelper,
   flexRender,
   getCoreRowModel,
-  type ColumnDef,
   useReactTable,
 } from '@tanstack/react-table'
 
