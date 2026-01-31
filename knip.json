@@ -2,7 +2,11 @@
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "workspaces": {
     "apps/web": {
-      "entry": ["src/main.tsx", "src/routes/**/*.tsx"],
+      "entry": [
+        "src/main.tsx",
+        "src/routes/**/*.tsx",
+        "src/features/editor-v2/EditorV2Page.tsx"
+      ],
       "project": ["tsconfig.json"],
       "ignore": ["src/routeTree.gen.ts"],
       "ignoreDependencies": [
