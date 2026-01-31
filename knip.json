@@ -11,6 +11,7 @@
       "project": ["tsconfig.json"],
       "ignore": ["src/routeTree.gen.ts"],
       "ignoreDependencies": [
+        "@chem-model/api-client",
         "@chem-model/shared",
         "@faker-js/faker",
         "@radix-ui/react-checkbox",
