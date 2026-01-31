@@ -6,6 +6,13 @@ import '../styles.css'
 
 import type { ReactNode } from 'react'
 
+const runtimeApiBase = import.meta.env.SSR
+  ? process.env.API_BASE_PUBLIC ??
+    process.env.API_BASE ??
+    import.meta.env.VITE_API_BASE ??
+    'http://localhost:8000'
+  : null
+
 const RouterDevtoolsPanel = import.meta.env.DEV
   ? lazy(() =>
       import('@tanstack/react-router-devtools').then((module) => ({
@@ -56,6 +63,13 @@ function RootDocument({ children }: { children: ReactNode }) {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        {runtimeApiBase ? (
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `window.__API_BASE__ = ${JSON.stringify(runtimeApiBase)};`,
+            }}
+          />
+        ) : null}
         <HeadContent />
       </head>
       <body>

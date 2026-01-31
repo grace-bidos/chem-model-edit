@@ -20,8 +20,6 @@ import type {
 
 import { requestApi } from '@/server/api'
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8000'
-
 type RequestOptions = Parameters<typeof requestApi>[0]['data']
 type RequestInput = Omit<RequestOptions, 'responseType'>
 
@@ -41,6 +39,13 @@ const requestText = async (params: RequestInput): Promise<string> => {
       responseType: 'text',
     },
   })) as string
+}
+
+const resolveApiBase = (): string => {
+  if (typeof window !== 'undefined' && window.__API_BASE__) {
+    return window.__API_BASE__
+  }
+  return import.meta.env.VITE_API_BASE ?? 'http://localhost:8000'
 }
 
 const getToken = () => getAuthToken() ?? undefined
@@ -102,7 +107,7 @@ export function structureViewUrl(
     format,
   })
   const safeId = encodeURIComponent(structureId)
-  return `${API_BASE}/structures/${safeId}/view?${query.toString()}`
+  return `${resolveApiBase()}/structures/${safeId}/view?${query.toString()}`
 }
 
 export async function exportQeInput(structure: Structure): Promise<string> {
