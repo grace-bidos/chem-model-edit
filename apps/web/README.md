@@ -20,6 +20,13 @@ To build this application for production:
 pnpm build
 ```
 
+## SPA Shell (Production)
+
+This app uses TanStack Start in SPA mode. In production, the worker must run in
+shell mode so the root HTML + scripts are rendered. Ensure `TSS_SHELL=true`
+is set in the deploy environment (configured in `wrangler.jsonc` for
+Cloudflare Workers).
+
 ## Testing
 
 This project uses [Vitest](https://vitest.dev/) for testing. You can run the tests with:
