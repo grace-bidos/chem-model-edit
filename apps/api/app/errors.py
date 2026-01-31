@@ -39,6 +39,16 @@ def _error_payload(
     return payload.model_dump(by_alias=True, exclude_none=True)
 
 
+def _sanitize_error_details(details: Any) -> Any:
+    if isinstance(details, BaseException):
+        return str(details)
+    if isinstance(details, dict):
+        return {key: _sanitize_error_details(value) for key, value in details.items()}
+    if isinstance(details, list):
+        return [_sanitize_error_details(value) for value in details]
+    return details
+
+
 def http_exception_handler(_: Request, exc: Exception) -> JSONResponse:
     http_exc = cast(HTTPException, exc)
     detail = http_exc.detail
@@ -53,7 +63,7 @@ def http_exception_handler(_: Request, exc: Exception) -> JSONResponse:
 
 def validation_exception_handler(_: Request, exc: Exception) -> JSONResponse:
     validation_exc = cast(RequestValidationError, exc)
-    details = jsonable_encoder(validation_exc.errors())
+    details = jsonable_encoder(_sanitize_error_details(validation_exc.errors()))
     payload = _error_payload(
         status_code=422,
         message="validation error",
