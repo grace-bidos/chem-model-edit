@@ -10,6 +10,7 @@ node_modules
 apps/web/dist
 apps/web/.tanstack
 apps/web/.vinxi
+apps/web/storybook-static
 .nx
 
 # Python

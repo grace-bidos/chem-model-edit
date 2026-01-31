@@ -51,6 +51,19 @@
       "options": {
         "command": "pnpm -C apps/web test:ui"
       }
+    },
+    "storybook": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm -C apps/web storybook"
+      }
+    },
+    "build-storybook": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/apps/web/storybook-static"],
+      "options": {
+        "command": "pnpm -C apps/web build-storybook"
+      }
     }
   }
 }
