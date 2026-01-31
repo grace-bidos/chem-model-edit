@@ -52,11 +52,8 @@ uv run uvicorn main:app --reload --port 8000
 
 同時起動（`just` が必要）:
 ```bash
+just deps
 just dev
-```
-`XDG_RUNTIME_DIR` のエラーが出る場合はラッパーを使用:
-```bash
-./scripts/just dev
 ```
 
 ## 品質チェック
@@ -70,14 +67,13 @@ uv run pytest
 uv run mypy .
 ```
 
-## トラブルシュート
-- サンドボックス環境では `uv sync` が `EXDEV`（cross-device rename）で失敗する場合があります。
-  同一ファイルシステム上の `UV_CACHE_DIR` / `TMPDIR` を指定するか、非サンドボックス環境で実行してください。
-- git worktree や複数環境で使う場合は、`.just.env`（リポジトリ直下）または
-  `~/.config/chem-model-edit/just.env` に環境ごとのデフォルトを置けます。
-  `Justfile` が自動で読み込みます。例:
-
+Just レシピ:
 ```bash
-UV_CACHE_DIR=/path/on/same/fs
-TMPDIR=/path/on/same/fs/tmp
+just style      # web: prettier + eslint, api: ruff
+just test       # web: vitest, api: pytest
+just typecheck  # web: tsc, api: mypy
 ```
+
+## トラブルシュート
+- サンドボックス環境（例: Codex CLI）では `uv sync` が `EXDEV`（cross-device rename）で失敗する場合があります。
+  その場合は昇格実行で `uv sync` を行ってください。

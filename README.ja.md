@@ -46,6 +46,7 @@ pnpm approve-builds
 
 ## 開発
 ※以下のコマンドは、特記がない限り repo root から実行します。
+※サンドボックス環境（例: Codex CLI）では `uv sync` と `just` は昇格実行が必要です。
 
 ### Web
 ```bash
@@ -65,6 +66,7 @@ uv run uvicorn main:app --reload --port 8000
 ### Web + API 同時起動
 `just` がある場合は両方を起動し、空きポートを自動選択します。
 ```bash
+just deps
 just dev
 ```
 ポート指定:
@@ -85,6 +87,13 @@ pnpm test
 cd apps/api
 uv run pytest
 uv run mypy .
+```
+
+### Just レシピ
+```bash
+just style      # web: prettier + eslint, api: ruff
+just test       # web: vitest, api: pytest
+just typecheck  # web: tsc, api: mypy
 ```
 
 ## 参考

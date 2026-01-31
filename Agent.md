@@ -43,19 +43,24 @@
 ## 開発/検証コマンド
 - Web:
   - `pnpm -C apps/web dev --port 3001`
-  - `XDG_RUNTIME_DIR=.xdg-runtime just web` (justが権限エラーになる場合)
+  - `just web`（Codexサンドボックスでは昇格実行が必要）
   - `pnpm -C apps/web typecheck`
 - API:
+  - `just deps`（初回/依存更新時）
   - `uv run uvicorn apps.api.main:app --reload --port 8000`
   - `uv run pytest`
   - `uv run mypy .`
+ - Just:
+   - `just style`（web: prettier+eslint / api: ruff）
+   - `just test`（web: vitest / api: pytest）
+   - `just typecheck`（web: tsc / api: mypy）
 
 ## 既知の注意点
 - Mol*は`Viewer.create`を使い、PDB読み込み後に`ball-and-stick`表現を追加
 - Import/Exportの入出力は`.in` (QE) と座標/原子種に限定
 - `apps/web/src/components/molstar/MolstarViewer.tsx` が表示の中心
 - pnpmストアは `/home/grace/projects/chem-model-edit/.pnpm-store` を共通利用する方針（`.pnpm-store` はgit ignore）
-- Codexサンドボックス（workspace-write）では `uv sync` が rename 制限で失敗するため、uv 実行時は昇格（on-request）か danger-full-access が必要
+- Codexサンドボックス（workspace-write）では `uv sync` / `just` 実行時は昇格（on-request）が必要
 
 ## ブランチ運用
 - トランクは `main` とし、作業ブランチは必ず `main` から **短命で** 切る
