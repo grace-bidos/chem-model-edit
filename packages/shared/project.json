@@ -4,5 +4,12 @@
   "projectType": "library",
   "root": "packages/shared",
   "sourceRoot": "packages/shared/src",
-  "targets": {}
+  "targets": {
+    "knip": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm exec knip --workspace packages/shared"
+      }
+    }
+  }
 }

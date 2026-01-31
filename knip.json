@@ -1,0 +1,14 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "workspaces": {
+    "apps/web": {
+      "entry": ["src/main.tsx"],
+      "project": ["tsconfig.json"],
+      "ignore": ["src/routeTree.gen.ts"]
+    },
+    "packages/shared": {
+      "entry": ["src/types.ts"],
+      "project": ["tsconfig.json"]
+    }
+  }
+}
