@@ -166,7 +166,7 @@
 - 可動フラグが欠落している場合の扱い（全可動扱い or エラー）
 - wrap は Lx/Ly のみでよいか（非直交セルの扱い）
 - UI配置（既存Editor内に追加 or 専用ページ）
-  - 新UIプロトタイプのURL確定（暫定: `/editor-v2`）
+  - 新UIのURL確定（`/editor`）
 
 ## 決定事項
 
@@ -174,6 +174,6 @@
 - 可動フラグが欠落している場合はエラー表示で中断
 - 非直交セルは未対応（wrap は Lx/Ly のみ）
 - UIは専用ページに実装（将来統合の可能性あり）
-- 新UIのモック/機能接続は別ルートで段階的に進める（暫定: `/editor-v2`）
+- 新UIのモック/機能接続は `/editor` で段階的に進める
 - `/structures` は Structure 直接登録に切り替え、QE などのインポートは `/structures/import` に分離する
 - Supercell v2 は StructureId の 2D グリッドを受け取り、格子は `baseStructureId` の lattice を基準にする（デフォルト軸: row->b, col->a）

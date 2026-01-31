@@ -9,7 +9,7 @@ export default function Header() {
     select: (state) => state.location.pathname,
   })
 
-  if (pathname.startsWith('/editor-v2')) {
+  if (pathname.startsWith('/editor')) {
     return null
   }
 
@@ -39,15 +39,6 @@ export default function Header() {
               }}
             >
               Editor
-            </Link>
-            <Link
-              to="/editor-v2"
-              className="rounded-full px-4 py-1.5 transition hover:text-white"
-              activeProps={{
-                className: 'rounded-full bg-white/10 px-4 py-1.5 text-white',
-              }}
-            >
-              Editor V2
             </Link>
             <Link
               to="/supercell"
