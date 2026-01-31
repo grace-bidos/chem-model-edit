@@ -54,7 +54,7 @@ def test_generate_tiled_supercell_overlap_count():
     assert len(structure.atoms) == 2
     assert meta.na == 2
     assert meta.nb == 1
-    assert meta.overlapCount == 1
+    assert meta.overlap_count == 1
 
 
 def test_build_supercell_from_grid_default_axis():

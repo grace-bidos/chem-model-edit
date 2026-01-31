@@ -66,7 +66,7 @@ ATOMIC_POSITIONS angstrom
 
 def test_transplant_delta_ok():
     response = CLIENT.post(
-        "/transplant/delta",
+        "/api/transforms/delta-transplant",
         json={"small_in": SMALL_IN, "small_out": SMALL_OUT, "large_in": LARGE_IN},
     )
     assert response.status_code == 200
@@ -80,23 +80,23 @@ def test_transplant_delta_ok():
 def test_transplant_delta_missing_flags():
     small_in = SMALL_IN.replace("1 1 1", "").replace("0 0 0", "")
     response = CLIENT.post(
-        "/transplant/delta",
+        "/api/transforms/delta-transplant",
         json={"small_in": small_in, "small_out": SMALL_OUT, "large_in": LARGE_IN},
     )
     assert response.status_code == 400
-    detail = response.json().get("detail", "")
-    assert "フラグ" in detail
+    message = response.json().get("error", {}).get("message", "")
+    assert "フラグ" in message
 
 
 def test_transplant_delta_missing_match():
     large_in = LARGE_IN.replace("2.0 0.0 0.0", "2.1 0.0 0.0", 1)
     response = CLIENT.post(
-        "/transplant/delta",
+        "/api/transforms/delta-transplant",
         json={"small_in": SMALL_IN, "small_out": SMALL_OUT, "large_in": large_in},
     )
     assert response.status_code == 400
-    detail = response.json().get("detail", "")
-    assert "一致する原子" in detail
+    message = response.json().get("error", {}).get("message", "")
+    assert "一致する原子" in message
 
 
 def test_transplant_delta_duplicate_match():
@@ -105,9 +105,9 @@ def test_transplant_delta_duplicate_match():
         "O 2.0 0.0 0.0 0 0 0",
     )
     response = CLIENT.post(
-        "/transplant/delta",
+        "/api/transforms/delta-transplant",
         json={"small_in": SMALL_IN, "small_out": SMALL_OUT, "large_in": large_in},
     )
     assert response.status_code == 400
-    detail = response.json().get("detail", "")
-    assert "複数" in detail
+    message = response.json().get("error", {}).get("message", "")
+    assert "複数" in message

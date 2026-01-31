@@ -4,6 +4,7 @@ import fakeredis
 from fastapi.testclient import TestClient
 
 import main
+from app import deps as app_deps
 from services.zpe import enroll as zpe_enroll
 from services.zpe import result_store as zpe_store
 from services.zpe import worker_auth as zpe_worker_auth
@@ -21,34 +22,36 @@ def _patch_redis(monkeypatch):
 def test_zpe_enroll_token_api(monkeypatch):
     _patch_redis(monkeypatch)
     settings = ZPESettings(admin_token="secret")
-    monkeypatch.setattr(main, "get_zpe_settings", lambda: settings)
+    monkeypatch.setattr(app_deps, "get_zpe_settings", lambda: settings)
 
     client = TestClient(main.app)
-    response = client.post("/calc/zpe/compute/enroll-tokens", json={"ttl_seconds": 60})
+    response = client.post(
+        "/api/zpe/compute/enroll-tokens", json={"ttlSeconds": 60}
+    )
     assert response.status_code == 401
 
     response = client.post(
-        "/calc/zpe/compute/enroll-tokens",
-        json={"ttl_seconds": 60, "label": "lab"},
+        "/api/zpe/compute/enroll-tokens",
+        json={"ttlSeconds": 60, "label": "lab"},
         headers={"Authorization": "Bearer secret"},
     )
     assert response.status_code == 200
     token = response.json()["token"]
 
     register = client.post(
-        "/calc/zpe/compute/servers/register",
+        "/api/zpe/compute/servers",
         json={"token": token, "name": "server-1", "meta": {"gpu": 1}},
     )
     assert register.status_code == 200
     payload = register.json()
-    assert payload["server_id"].startswith("compute-")
-    assert payload["worker_token"]
-    assert payload["token_expires_at"]
-    assert payload["token_ttl_seconds"] > 0
+    assert payload["id"].startswith("compute-")
+    assert payload["workerToken"]
+    assert payload["tokenExpiresAt"]
+    assert payload["tokenTtlSeconds"] > 0
 
     revoke = client.delete(
-        f"/calc/zpe/compute/servers/{payload['server_id']}",
+        f"/api/zpe/compute/servers/{payload['id']}",
         headers={"Authorization": "Bearer secret"},
     )
     assert revoke.status_code == 200
-    assert revoke.json()["revoked_count"] == 1
+    assert revoke.json()["revokedCount"] == 1

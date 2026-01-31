@@ -6,6 +6,7 @@ import fakeredis
 from fastapi.testclient import TestClient
 
 import main
+import app.routers.zpe as zpe_router
 from services.zpe import lease as zpe_lease
 from services.zpe import job_meta as zpe_job_meta
 from services.zpe import ops_flags as zpe_ops_flags
@@ -27,7 +28,7 @@ def _patch_redis(monkeypatch):
 def test_lease_endpoint_returns_job(monkeypatch):
     fake = _patch_redis(monkeypatch)
     settings = ZPESettings(lease_ttl_seconds=60, result_ttl_seconds=60)
-    monkeypatch.setattr(main, "get_zpe_settings", lambda: settings)
+    monkeypatch.setattr(zpe_router, "get_zpe_settings", lambda: settings)
     monkeypatch.setattr(zpe_lease, "get_zpe_settings", lambda: settings)
 
     token_store = zpe_worker_auth.WorkerTokenStore(redis=fake)
@@ -41,21 +42,22 @@ def test_lease_endpoint_returns_job(monkeypatch):
 
     client = TestClient(main.app)
     response = client.post(
-        "/calc/zpe/compute/jobs/lease",
+        "/api/zpe/compute/jobs/lease",
         headers={"Authorization": f"Bearer {worker_token}"},
     )
     assert response.status_code == 200
     data = response.json()
-    assert data["job_id"] == job_id
-    assert data["payload"] == payload
-    assert data["lease_id"]
-    assert data["lease_ttl_seconds"] == 60
+    assert data["jobId"] == job_id
+    assert data["payload"]["content"] == payload["content"]
+    assert data["payload"]["mobileIndices"] == payload["mobile_indices"]
+    assert data["leaseId"]
+    assert data["leaseTtlSeconds"] == 60
 
 
 def test_lease_endpoint_no_job(monkeypatch):
     fake = _patch_redis(monkeypatch)
     settings = ZPESettings(lease_ttl_seconds=60, result_ttl_seconds=60)
-    monkeypatch.setattr(main, "get_zpe_settings", lambda: settings)
+    monkeypatch.setattr(zpe_router, "get_zpe_settings", lambda: settings)
     monkeypatch.setattr(zpe_lease, "get_zpe_settings", lambda: settings)
 
     token_store = zpe_worker_auth.WorkerTokenStore(redis=fake)
@@ -63,7 +65,7 @@ def test_lease_endpoint_no_job(monkeypatch):
 
     client = TestClient(main.app)
     response = client.post(
-        "/calc/zpe/compute/jobs/lease",
+        "/api/zpe/compute/jobs/lease",
         headers={"Authorization": f"Bearer {worker_token}"},
     )
     assert response.status_code == 204
@@ -72,7 +74,7 @@ def test_lease_endpoint_no_job(monkeypatch):
 def test_lease_endpoint_paused(monkeypatch):
     fake = _patch_redis(monkeypatch)
     settings = ZPESettings(lease_ttl_seconds=60, result_ttl_seconds=60)
-    monkeypatch.setattr(main, "get_zpe_settings", lambda: settings)
+    monkeypatch.setattr(zpe_router, "get_zpe_settings", lambda: settings)
     monkeypatch.setattr(zpe_lease, "get_zpe_settings", lambda: settings)
 
     token_store = zpe_worker_auth.WorkerTokenStore(redis=fake)
@@ -81,7 +83,7 @@ def test_lease_endpoint_paused(monkeypatch):
 
     client = TestClient(main.app)
     response = client.post(
-        "/calc/zpe/compute/jobs/lease",
+        "/api/zpe/compute/jobs/lease",
         headers={"Authorization": f"Bearer {worker_token}"},
     )
     assert response.status_code == 204

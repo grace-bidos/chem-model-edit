@@ -16,7 +16,7 @@ def test_export_qe_ok():
             ]
         }
     }
-    response = CLIENT.post("/export", json=payload)
+    response = CLIENT.post("/api/structures/export", json=payload)
     assert response.status_code == 200
     content = response.json()["content"]
     assert "ATOMIC_POSITIONS" in content
@@ -24,5 +24,5 @@ def test_export_qe_ok():
 
 
 def test_export_qe_empty():
-    response = CLIENT.post("/export", json={"structure": {"atoms": []}})
+    response = CLIENT.post("/api/structures/export", json={"structure": {"atoms": []}})
     assert response.status_code == 400
