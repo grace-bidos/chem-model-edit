@@ -265,7 +265,7 @@ export function SupercellTool({
     }
     setIsDownloading(true)
     try {
-      const structure = await getStructure(previewStructureId)
+      const { structure } = await getStructure(previewStructureId)
       const xyz = atomsToXyz(structure.atoms)
       const rows = previewMeta?.rows ?? gridRows
       const cols = previewMeta?.cols ?? gridCols

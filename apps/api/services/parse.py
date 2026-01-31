@@ -109,7 +109,7 @@ def _safe_mapping(value: object) -> Dict[str, Any]:
     if isinstance(value, dict):
         return dict(value)
     try:
-        return dict(value)  # type: ignore[arg-type]
+        return dict(value)  # type: ignore[call-overload,arg-type]
     except Exception:
         return {}
 

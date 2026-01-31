@@ -220,9 +220,7 @@ export default function EditorV2Page() {
   const handleParamsLoaded = useCallback(
     (fileId: string, qeParams: WorkspaceFile['qeParams']) => {
       setFiles((prev) =>
-        prev.map((file) =>
-          file.id === fileId ? { ...file, qeParams } : file,
-        ),
+        prev.map((file) => (file.id === fileId ? { ...file, qeParams } : file)),
       )
     },
     [],

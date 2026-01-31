@@ -43,12 +43,10 @@ export function FilePanel({
   const [isTableLoading, setIsTableLoading] = useState(false)
   const [paramsError, setParamsError] = useState<string | null>(null)
   const [isParamsLoading, setIsParamsLoading] = useState(false)
-  const onStructureLoadedRef = useRef<FilePanelProps['onStructureLoaded']>(
-    onStructureLoaded,
-  )
-  const onParamsLoadedRef = useRef<FilePanelProps['onParamsLoaded']>(
-    onParamsLoaded,
-  )
+  const onStructureLoadedRef =
+    useRef<FilePanelProps['onStructureLoaded']>(onStructureLoaded)
+  const onParamsLoadedRef =
+    useRef<FilePanelProps['onParamsLoaded']>(onParamsLoaded)
 
   useEffect(() => {
     setViewerError(null)
