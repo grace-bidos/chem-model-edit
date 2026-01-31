@@ -70,6 +70,9 @@ importers:
       dockview:
         specifier: ^4.13.1
         version: 4.13.1(react@19.2.3)
+      dockview-core:
+        specifier: ^4.13.1
+        version: 4.13.1
       dockview-react:
         specifier: ^4.13.1
         version: 4.13.1(react@19.2.3)
