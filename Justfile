@@ -120,6 +120,56 @@ web-test:
   set -euo pipefail
   pnpm -C apps/web test
 
+web-test-ui:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pnpm -C apps/web test:ui
+
+storybook:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pnpm -C apps/web storybook
+
+storybook-build:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pnpm -C apps/web build-storybook
+
+nx:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pnpm exec nx
+
+nx-graph:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pnpm exec nx graph
+
+nx-lint:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pnpm exec nx run-many -t lint
+
+nx-typecheck:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pnpm exec nx run-many -t typecheck
+
+nx-test:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pnpm exec nx run-many -t test
+
+nx-build:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pnpm exec nx run-many -t build
+
+nx-knip:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pnpm exec nx run-many -t knip
+
 style:
   #!/usr/bin/env bash
   set -euo pipefail
@@ -138,3 +188,8 @@ typecheck:
   set -euo pipefail
   just web-typecheck
   just api-mypy
+
+ci:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pnpm exec nx run-many -t lint,typecheck,test,knip
