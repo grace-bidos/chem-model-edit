@@ -30,7 +30,7 @@ ATOMIC_POSITIONS angstrom
 
 
 def test_parse_qe_ok():
-    response = CLIENT.post("/parse", json={"content": QE_INPUT})
+    response = CLIENT.post("/api/structures/parse", json={"content": QE_INPUT})
     assert response.status_code == 200
     data = response.json()
     atoms = data["structure"]["atoms"]
@@ -44,15 +44,15 @@ def test_parse_qe_ok():
 
 
 def test_parse_qe_invalid():
-    response = CLIENT.post("/parse", json={"content": "invalid"})
+    response = CLIENT.post("/api/structures/parse", json={"content": "invalid"})
     assert response.status_code == 400
 
 
 def test_parse_qe_non_structure_message():
-    response = CLIENT.post("/parse", json={"content": "&INPUTPP\\n/\\n"})
+    response = CLIENT.post("/api/structures/parse", json={"content": "&INPUTPP\\n/\\n"})
     assert response.status_code == 400
-    detail = response.json().get("detail", "")
-    assert "構造データではありません" in detail
+    message = response.json().get("error", {}).get("message", "")
+    assert "構造データではありません" in message
 
 
 def test_parse_qe_no_manual_fallback(monkeypatch):

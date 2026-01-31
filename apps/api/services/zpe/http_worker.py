@@ -58,7 +58,7 @@ def _request_json(
 def _lease_job(base_url: str, token: str, timeout: int) -> Optional[Dict[str, Any]]:
     status, data = _request_json(
         "POST",
-        f"{base_url}/calc/zpe/compute/jobs/lease",
+        f"{base_url}/api/zpe/compute/jobs/lease",
         token=token,
         payload=None,
         timeout=timeout,
@@ -82,15 +82,15 @@ def _submit_result(
     timeout: int,
 ) -> None:
     payload = {
-        "lease_id": lease_id,
+        "leaseId": lease_id,
         "result": result,
-        "summary_text": summary_text,
-        "freqs_csv": freqs_csv,
+        "summaryText": summary_text,
+        "freqsCsv": freqs_csv,
         "meta": meta,
     }
     status, _ = _request_json(
         "POST",
-        f"{base_url}/calc/zpe/compute/jobs/{job_id}/result",
+        f"{base_url}/api/zpe/compute/jobs/{job_id}/result",
         token=token,
         payload=payload,
         timeout=timeout,
@@ -110,14 +110,14 @@ def _submit_failed(
     timeout: int,
 ) -> None:
     payload = {
-        "lease_id": lease_id,
-        "error_code": error_code,
-        "error_message": error_message,
+        "leaseId": lease_id,
+        "errorCode": error_code,
+        "errorMessage": error_message,
         "traceback": tb,
     }
     _request_json(
         "POST",
-        f"{base_url}/calc/zpe/compute/jobs/{job_id}/failed",
+        f"{base_url}/api/zpe/compute/jobs/{job_id}/failed",
         token=token,
         payload=payload,
         timeout=timeout,
@@ -130,6 +130,8 @@ def run_http_worker() -> None:
         raise RuntimeError("ZPE_WORKER_TOKEN is required for HTTP worker")
 
     base_url = settings.control_api_url.rstrip("/")
+    if base_url.endswith("/api"):
+        base_url = base_url[: -len("/api")]
     token = settings.worker_token
     poll_interval = max(1, int(settings.worker_poll_interval_seconds))
     max_interval = max(poll_interval, int(settings.worker_poll_max_interval_seconds))
@@ -173,12 +175,12 @@ def run_http_worker() -> None:
             continue
 
         backoff = poll_interval
-        job_id = lease.get("job_id")
+        job_id = lease.get("jobId") or lease.get("job_id")
         payload = lease.get("payload")
-        lease_id = lease.get("lease_id")
+        lease_id = lease.get("leaseId") or lease.get("lease_id")
         meta = lease.get("meta") or {}
-        request_id = meta.get("request_id")
-        user_id = meta.get("user_id")
+        request_id = meta.get("requestId") or meta.get("request_id")
+        user_id = meta.get("userId") or meta.get("user_id")
         if not job_id or not payload or not lease_id:
             log_event(
                 logger,

@@ -4,13 +4,14 @@ import fakeredis
 from fastapi.testclient import TestClient
 
 import main
+from services import auth as auth_service
 from services.auth.store import AuthStore
 
 
 def _patch_auth(monkeypatch):
     fake = fakeredis.FakeRedis()
     store = AuthStore(fake)
-    monkeypatch.setattr(main, "get_auth_store", lambda: store)
+    monkeypatch.setattr(auth_service, "get_auth_store", lambda: store)
     return store
 
 
@@ -19,20 +20,22 @@ def test_auth_register_login_logout(monkeypatch):
     client = TestClient(main.app)
 
     response = client.post(
-        "/auth/register",
+        "/api/auth/register",
         json={"email": "user@example.com", "password": "password123"},
     )
     assert response.status_code == 200
     token = response.json()["token"]
 
-    me = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+    me = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert me.status_code == 200
     assert me.json()["user"]["email"] == "user@example.com"
 
-    logout = client.post("/auth/logout", headers={"Authorization": f"Bearer {token}"})
+    logout = client.post(
+        "/api/auth/logout", headers={"Authorization": f"Bearer {token}"}
+    )
     assert logout.status_code == 200
 
-    after = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+    after = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert after.status_code == 401
 
 
@@ -41,13 +44,13 @@ def test_auth_login_invalid(monkeypatch):
     client = TestClient(main.app)
 
     response = client.post(
-        "/auth/register",
+        "/api/auth/register",
         json={"email": "user@example.com", "password": "password123"},
     )
     assert response.status_code == 200
 
     bad = client.post(
-        "/auth/login",
+        "/api/auth/login",
         json={"email": "user@example.com", "password": "wrong"},
     )
     assert bad.status_code == 401
@@ -58,13 +61,13 @@ def test_auth_register_duplicate(monkeypatch):
     client = TestClient(main.app)
 
     response = client.post(
-        "/auth/register",
+        "/api/auth/register",
         json={"email": "user@example.com", "password": "password123"},
     )
     assert response.status_code == 200
 
     duplicate = client.post(
-        "/auth/register",
+        "/api/auth/register",
         json={"email": "user@example.com", "password": "password123"},
     )
-    assert duplicate.status_code == 400
+    assert duplicate.status_code == 409

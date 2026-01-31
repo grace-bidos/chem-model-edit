@@ -4,7 +4,7 @@ set -euo pipefail
 HOST="127.0.0.1"
 PORT="${SCHEMATHESIS_PORT:-8000}"
 BASE_URL="http://${HOST}:${PORT}"
-SCHEMA_URL="${BASE_URL}/openapi.json"
+SCHEMA_URL="${BASE_URL}/api/openapi.json"
 
 uvicorn main:app --host "${HOST}" --port "${PORT}" --log-level warning &
 server_pid=$!
@@ -44,4 +44,4 @@ fi
 schemathesis run "${SCHEMA_URL}" \
   --url "${BASE_URL}" \
   --checks=not_a_server_error \
-  --include-path-regex '^/(health|parse|structures|export|transplant/delta|supercell|supercell/tiled|lattice/params-to-vectors|lattice/vectors-to-params)$'
+  --include-path-regex '^/api/(health|structures/parse|structures|structures/[^/]+|structures/[^/]+/view|structures/export|transforms/delta-transplant|supercells|supercells/tiled|supercells/builds|lattices/convert)$'

@@ -4,6 +4,8 @@ import fakeredis
 from fastapi.testclient import TestClient
 
 import main
+import app.routers.zpe as zpe_router
+from services import auth as auth_service
 from services.auth.store import AuthStore
 from services.zpe import backends as zpe_backends
 from services.zpe import enroll as zpe_enroll
@@ -54,30 +56,30 @@ def _setup_user_and_target(
     client: TestClient, monkeypatch, fake
 ) -> tuple[dict[str, str], str]:
     store = AuthStore(fake)
-    monkeypatch.setattr(main, "get_auth_store", lambda: store)
+    monkeypatch.setattr(auth_service, "get_auth_store", lambda: store)
 
     response = client.post(
-        "/auth/register",
+        "/api/auth/register",
         json={"email": "user@example.com", "password": "password123"},
     )
     payload = response.json()
     token = payload["token"]
-    user_id = payload["user"]["user_id"]
+    user_id = payload["user"]["id"]
     headers = {"Authorization": f"Bearer {token}"}
 
     enroll = client.post(
-        "/calc/zpe/compute/enroll-tokens",
-        json={"ttl_seconds": 60},
+        "/api/zpe/compute/enroll-tokens",
+        json={"ttlSeconds": 60},
         headers=headers,
     )
     enroll_token = enroll.json()["token"]
 
     client.post(
-        "/calc/zpe/compute/servers/register",
+        "/api/zpe/compute/servers",
         json={
             "token": enroll_token,
             "name": "server-1",
-            "queue_name": "zpe",
+            "queueName": "zpe",
         },
     )
     return headers, user_id
@@ -90,35 +92,36 @@ def test_zpe_mock_api_flow(monkeypatch):
 
     monkeypatch.setattr(zpe_backends, "get_result_store", lambda: store)
     monkeypatch.setattr(zpe_backends, "get_zpe_settings", lambda: settings)
+    monkeypatch.setattr(zpe_router, "get_result_store", lambda: store)
 
     client = TestClient(main.app)
     headers, _user_id = _setup_user_and_target(client, monkeypatch, fake)
     response = client.post(
-        "/calc/zpe/jobs",
+        "/api/zpe/jobs",
         json={
             "content": QE_INPUT,
-            "mobile_indices": [0],
-            "use_environ": False,
-            "input_dir": None,
-            "calc_mode": "continue",
+            "mobileIndices": [0],
+            "useEnviron": False,
+            "inputDir": None,
+            "calcMode": "continue",
         },
         headers=headers,
     )
     assert response.status_code == 200
-    job_id = response.json()["job_id"]
+    job_id = response.json()["id"]
 
-    status = client.get(f"/calc/zpe/jobs/{job_id}", headers=headers)
+    status = client.get(f"/api/zpe/jobs/{job_id}", headers=headers)
     assert status.status_code == 200
     assert status.json()["status"] == "finished"
 
-    result = client.get(f"/calc/zpe/jobs/{job_id}/result", headers=headers)
+    result = client.get(f"/api/zpe/jobs/{job_id}/result", headers=headers)
     assert result.status_code == 200
     payload = result.json()["result"]
-    assert payload["zpe_ev"] >= 0.0
-    assert payload["mobile_indices"] == [0]
+    assert payload["zpeEv"] >= 0.0
+    assert payload["mobileIndices"] == [0]
 
     summary = client.get(
-        f"/calc/zpe/jobs/{job_id}/files",
+        f"/api/zpe/jobs/{job_id}/files",
         params={"kind": "summary"},
         headers=headers,
     )
@@ -126,7 +129,7 @@ def test_zpe_mock_api_flow(monkeypatch):
     assert "ZPE summary" in summary.text
 
     freqs = client.get(
-        f"/calc/zpe/jobs/{job_id}/files",
+        f"/api/zpe/jobs/{job_id}/files",
         params={"kind": "freqs"},
         headers=headers,
     )
@@ -136,9 +139,11 @@ def test_zpe_mock_api_flow(monkeypatch):
 
 def test_zpe_job_status_missing(monkeypatch):
     fake = _patch_redis(monkeypatch)
+    store = RedisResultStore(redis=fake)
+    monkeypatch.setattr(zpe_router, "get_result_store", lambda: store)
     client = TestClient(main.app)
     headers, _user_id = _setup_user_and_target(client, monkeypatch, fake)
-    response = client.get("/calc/zpe/jobs/missing-job", headers=headers)
+    response = client.get("/api/zpe/jobs/missing-job", headers=headers)
     assert response.status_code == 404
 
 
@@ -147,12 +152,13 @@ def test_zpe_job_result_not_finished(monkeypatch):
     store = RedisResultStore(redis=fake)
     job_id = "job-not-finished"
     store.set_status(job_id, "queued")
+    monkeypatch.setattr(zpe_router, "get_result_store", lambda: store)
 
     client = TestClient(main.app)
     headers, user_id = _setup_user_and_target(client, monkeypatch, fake)
     owner_store = zpe_job_owner.JobOwnerStore(redis=fake)
     owner_store.set_owner(job_id, user_id)
-    response = client.get(f"/calc/zpe/jobs/{job_id}/result", headers=headers)
+    response = client.get(f"/api/zpe/jobs/{job_id}/result", headers=headers)
     assert response.status_code == 409
 
 
@@ -163,19 +169,20 @@ def test_zpe_submission_disabled(monkeypatch):
 
     monkeypatch.setattr(zpe_backends, "get_result_store", lambda: store)
     monkeypatch.setattr(zpe_backends, "get_zpe_settings", lambda: settings)
+    monkeypatch.setattr(zpe_router, "get_result_store", lambda: store)
 
     client = TestClient(main.app)
     headers, _user_id = _setup_user_and_target(client, monkeypatch, fake)
     zpe_ops_flags.set_ops_flags(submission_enabled=False, redis=fake)
 
     response = client.post(
-        "/calc/zpe/jobs",
+        "/api/zpe/jobs",
         json={
             "content": QE_INPUT,
-            "mobile_indices": [0],
-            "use_environ": False,
-            "input_dir": None,
-            "calc_mode": "continue",
+            "mobileIndices": [0],
+            "useEnviron": False,
+            "inputDir": None,
+            "calcMode": "continue",
         },
         headers=headers,
     )
