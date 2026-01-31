@@ -23,6 +23,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@chem-model/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@chem-model/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -201,6 +204,8 @@ importers:
       wrangler:
         specifier: ^4.61.1
         version: 4.61.1
+
+  packages/api-client: {}
 
   packages/shared: {}
 

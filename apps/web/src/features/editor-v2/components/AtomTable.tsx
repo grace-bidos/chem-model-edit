@@ -120,9 +120,10 @@ export function AtomTable({
         {table.getRowModel().rows.length ? (
           table.getRowModel().rows.map((row) => {
             const isFixed =
-              fixedIndices?.has(row.original.index) ?? row.original.fixed ?? false
-            const isSelected =
-              selectedIndices?.has(row.original.index) ?? false
+              fixedIndices?.has(row.original.index) ??
+              row.original.fixed ??
+              false
+            const isSelected = selectedIndices?.has(row.original.index) ?? false
             const clickable = canSelect && !isFixed
             const rowClasses = cn(
               isFixed && 'bg-slate-50',
