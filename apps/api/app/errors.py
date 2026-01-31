@@ -5,6 +5,7 @@ from typing import Any, Optional, cast
 
 from fastapi import HTTPException, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from redis.exceptions import RedisError
 
@@ -52,10 +53,11 @@ def http_exception_handler(_: Request, exc: Exception) -> JSONResponse:
 
 def validation_exception_handler(_: Request, exc: Exception) -> JSONResponse:
     validation_exc = cast(RequestValidationError, exc)
+    details = jsonable_encoder(validation_exc.errors())
     payload = _error_payload(
         status_code=422,
         message="validation error",
-        details=validation_exc.errors(),
+        details=details,
     )
     return JSONResponse(status_code=422, content=payload)
 
