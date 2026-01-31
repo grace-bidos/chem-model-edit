@@ -7,7 +7,7 @@
     "dev": "pnpm -C apps/web dev",
     "build": "pnpm -C apps/web build",
     "preview": "pnpm -C apps/web preview",
-    "deploy": "pnpm -C apps/web deploy",
+    "deploy": "pnpm -C apps/web run deploy",
     "typecheck": "pnpm -C apps/web typecheck",
     "lint": "pnpm -C apps/web lint",
     "format": "pnpm -C apps/web format",
