@@ -155,26 +155,23 @@ First add your dependencies:
 pnpm add @tanstack/react-query @tanstack/react-query-devtools
 ```
 
-Next we'll need to create a query client and provider. We recommend putting those in `main.tsx`.
+Next we'll need to create a query client and provider. We recommend putting those in the root route layout.
 
 ```tsx
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { Outlet, createRootRoute } from '@tanstack/react-router'
 
 // ...
 
 const queryClient = new QueryClient()
 
-// ...
-
-if (!rootElement.innerHTML) {
-  const root = ReactDOM.createRoot(rootElement)
-
-  root.render(
+export const Route = createRootRoute({
+  component: () => (
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>,
-  )
-}
+      <Outlet />
+    </QueryClientProvider>
+  ),
+})
 ```
 
 You can also add TanStack Query Devtools to the root route (optional).

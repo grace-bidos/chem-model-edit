@@ -1,4 +1,5 @@
 import { getAuthToken } from './auth'
+
 import type {
   AuthMe,
   AuthSession,
@@ -17,59 +18,44 @@ import type {
   ZPEResult,
 } from './types'
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8000'
+import { requestApi } from '@/server/api'
 
-type ApiError = {
-  detail?: string
+type RequestOptions = Parameters<typeof requestApi>[0]['data']
+type RequestInput = Omit<RequestOptions, 'responseType'>
+
+const requestJson = async <T>(params: RequestInput): Promise<T> => {
+  return (await requestApi({
+    data: {
+      ...params,
+      responseType: 'json',
+    },
+  })) as T
 }
 
-const withAuthHeaders = (headers: Record<string, string> = {}) => {
-  const token = getAuthToken()
-  if (!token) {
-    return headers
+const requestText = async (params: RequestInput): Promise<string> => {
+  return (await requestApi({
+    data: {
+      ...params,
+      responseType: 'text',
+    },
+  })) as string
+}
+
+const resolveApiBase = (): string => {
+  if (typeof window !== 'undefined' && window.__API_BASE__) {
+    return window.__API_BASE__
   }
-  return { ...headers, Authorization: `Bearer ${token}` }
+  return import.meta.env.VITE_API_BASE ?? 'http://localhost:8000'
 }
 
-async function handleResponse<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    let message = response.statusText
-    try {
-      const data = (await response.json()) as ApiError
-      if (data.detail) {
-        message = data.detail
-      }
-    } catch (_err) {
-      // ignore JSON parsing errors
-    }
-    throw new Error(message)
-  }
-  return (await response.json()) as T
-}
-
-async function handleTextResponse(response: Response): Promise<string> {
-  if (!response.ok) {
-    let message = response.statusText
-    try {
-      const data = (await response.json()) as ApiError
-      if (data.detail) {
-        message = data.detail
-      }
-    } catch (_err) {
-      // ignore JSON parsing errors
-    }
-    throw new Error(message)
-  }
-  return response.text()
-}
+const getToken = () => getAuthToken() ?? undefined
 
 export async function parseQeInput(content: string): Promise<Structure> {
-  const response = await fetch(`${API_BASE}/parse`, {
+  const data = await requestJson<{ structure: Structure }>({
+    path: '/parse',
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ content }),
+    body: { content },
   })
-  const data = await handleResponse<{ structure: Structure }>(response)
   return data.structure
 }
 
@@ -80,18 +66,17 @@ export async function createStructureFromQe(content: string): Promise<{
   params?: QeParameters | null
   raw_input?: string | null
 }> {
-  const response = await fetch(`${API_BASE}/structures`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ content }),
-  })
-  return handleResponse<{
+  return requestJson<{
     structure_id: string
     structure: Structure
     source: string
     params?: QeParameters | null
     raw_input?: string | null
-  }>(response)
+  }>({
+    path: '/structures',
+    method: 'POST',
+    body: { content },
+  })
 }
 
 export async function getStructure(structureId: string): Promise<{
@@ -101,13 +86,14 @@ export async function getStructure(structureId: string): Promise<{
   source?: string | null
 }> {
   const safeId = encodeURIComponent(structureId)
-  const response = await fetch(`${API_BASE}/structures/${safeId}`)
-  return handleResponse<{
+  return requestJson<{
     structure: Structure
     params?: QeParameters | null
     raw_input?: string | null
     source?: string | null
-  }>(response)
+  }>({
+    path: `/structures/${safeId}`,
+  })
 }
 
 export function structureViewUrl(
@@ -121,16 +107,15 @@ export function structureViewUrl(
     format,
   })
   const safeId = encodeURIComponent(structureId)
-  return `${API_BASE}/structures/${safeId}/view?${query.toString()}`
+  return `${resolveApiBase()}/structures/${safeId}/view?${query.toString()}`
 }
 
 export async function exportQeInput(structure: Structure): Promise<string> {
-  const response = await fetch(`${API_BASE}/export`, {
+  const data = await requestJson<{ content: string }>({
+    path: '/export',
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ structure }),
+    body: { structure },
   })
-  const data = await handleResponse<{ content: string }>(response)
   return data.content
 }
 
@@ -139,16 +124,15 @@ export async function deltaTransplant(params: {
   smallOut: string
   largeIn: string
 }): Promise<string> {
-  const response = await fetch(`${API_BASE}/transplant/delta`, {
+  const data = await requestJson<{ content: string }>({
+    path: '/transplant/delta',
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+    body: {
       small_in: params.smallIn,
       small_out: params.smallOut,
       large_in: params.largeIn,
-    }),
+    },
   })
-  const data = await handleResponse<{ content: string }>(response)
   return data.content
 }
 
@@ -158,12 +142,11 @@ export async function generateSupercell(params: {
   sequence: string
   lattice: Lattice
 }): Promise<{ structure: Structure; meta: SupercellMeta }> {
-  const response = await fetch(`${API_BASE}/supercell`, {
+  return requestJson<{ structure: Structure; meta: SupercellMeta }>({
+    path: '/supercell',
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
+    body: params,
   })
-  return handleResponse<{ structure: Structure; meta: SupercellMeta }>(response)
 }
 
 export async function generateTiledSupercell(params: {
@@ -174,55 +157,51 @@ export async function generateTiledSupercell(params: {
   checkOverlap: boolean
   overlapTolerance?: number
 }): Promise<{ structure: Structure; meta: SupercellMeta }> {
-  const response = await fetch(`${API_BASE}/supercell/tiled`, {
+  return requestJson<{ structure: Structure; meta: SupercellMeta }>({
+    path: '/supercell/tiled',
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
+    body: params,
   })
-  return handleResponse<{ structure: Structure; meta: SupercellMeta }>(response)
 }
 
 export async function buildSupercell(
   params: SupercellBuildRequest,
 ): Promise<SupercellBuildResponse> {
-  const response = await fetch(`${API_BASE}/supercell/build`, {
+  return requestJson<SupercellBuildResponse>({
+    path: '/supercell/build',
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
+    body: params,
   })
-  return handleResponse<SupercellBuildResponse>(response)
 }
 
 export async function latticeVectorsToParams(params: {
   lattice: Lattice
   unit: string
 }): Promise<{ lattice: Lattice; params: LatticeParams; unit: string }> {
-  const response = await fetch(`${API_BASE}/lattice/vectors-to-params`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
-  })
-  return handleResponse<{
+  return requestJson<{
     lattice: Lattice
     params: LatticeParams
     unit: string
-  }>(response)
+  }>({
+    path: '/lattice/vectors-to-params',
+    method: 'POST',
+    body: params,
+  })
 }
 
 export async function latticeParamsToVectors(params: {
   params: LatticeParams
   unit: string
 }): Promise<{ lattice: Lattice; params: LatticeParams; unit: string }> {
-  const response = await fetch(`${API_BASE}/lattice/params-to-vectors`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
-  })
-  return handleResponse<{
+  return requestJson<{
     lattice: Lattice
     params: LatticeParams
     unit: string
-  }>(response)
+  }>({
+    path: '/lattice/params-to-vectors',
+    method: 'POST',
+    body: params,
+  })
 }
 
 export async function parseZpeInput(
@@ -233,51 +212,48 @@ export async function parseZpeInput(
   if (structureId) {
     payload.structure_id = structureId
   }
-  const response = await fetch(`${API_BASE}/calc/zpe/parse`, {
+  return requestJson<ZPEParseResponse>({
+    path: '/calc/zpe/parse',
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: payload,
   })
-  return handleResponse<ZPEParseResponse>(response)
 }
 
 export async function registerAccount(params: {
   email: string
   password: string
 }): Promise<AuthSession> {
-  const response = await fetch(`${API_BASE}/auth/register`, {
+  return requestJson<AuthSession>({
+    path: '/auth/register',
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
+    body: params,
   })
-  return handleResponse<AuthSession>(response)
 }
 
 export async function loginAccount(params: {
   email: string
   password: string
 }): Promise<AuthSession> {
-  const response = await fetch(`${API_BASE}/auth/login`, {
+  return requestJson<AuthSession>({
+    path: '/auth/login',
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
+    body: params,
   })
-  return handleResponse<AuthSession>(response)
 }
 
 export async function fetchAuthMe(): Promise<AuthMe> {
-  const response = await fetch(`${API_BASE}/auth/me`, {
-    headers: withAuthHeaders(),
+  return requestJson<AuthMe>({
+    path: '/auth/me',
+    token: getToken(),
   })
-  return handleResponse<AuthMe>(response)
 }
 
 export async function logoutAccount(): Promise<void> {
-  const response = await fetch(`${API_BASE}/auth/logout`, {
+  await requestJson<{ ok: boolean }>({
+    path: '/auth/logout',
     method: 'POST',
-    headers: withAuthHeaders(),
+    token: getToken(),
   })
-  await handleResponse<{ ok: boolean }>(response)
 }
 
 export async function createEnrollToken(params?: {
@@ -289,60 +265,60 @@ export async function createEnrollToken(params?: {
   ttl_seconds: number
   label?: string | null
 }> {
-  const response = await fetch(`${API_BASE}/calc/zpe/compute/enroll-tokens`, {
+  return requestJson({
+    path: '/calc/zpe/compute/enroll-tokens',
     method: 'POST',
-    headers: withAuthHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({
+    token: getToken(),
+    body: {
       ttl_seconds: params?.ttlSeconds,
       label: params?.label,
-    }),
+    },
   })
-  return handleResponse(response)
 }
 
 export async function fetchQueueTargets(): Promise<ZPEQueueTargetList> {
-  const response = await fetch(`${API_BASE}/calc/zpe/compute/targets`, {
-    headers: withAuthHeaders(),
+  return requestJson<ZPEQueueTargetList>({
+    path: '/calc/zpe/compute/targets',
+    token: getToken(),
   })
-  return handleResponse<ZPEQueueTargetList>(response)
 }
 
 export async function selectQueueTarget(
   targetId: string,
 ): Promise<{ active_target_id: string }> {
-  const response = await fetch(`${API_BASE}/calc/zpe/compute/targets/select`, {
+  return requestJson({
+    path: '/calc/zpe/compute/targets/select',
     method: 'POST',
-    headers: withAuthHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({ target_id: targetId }),
+    token: getToken(),
+    body: { target_id: targetId },
   })
-  return handleResponse(response)
 }
 
 export async function createZpeJob(
   request: ZPEJobRequest,
 ): Promise<ZPEJobResponse> {
-  const response = await fetch(`${API_BASE}/calc/zpe/jobs`, {
+  return requestJson<ZPEJobResponse>({
+    path: '/calc/zpe/jobs',
     method: 'POST',
-    headers: withAuthHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify(request),
+    token: getToken(),
+    body: request,
   })
-  return handleResponse<ZPEJobResponse>(response)
 }
 
 export async function fetchZpeStatus(jobId: string): Promise<ZPEJobStatus> {
   const safeId = encodeURIComponent(jobId)
-  const response = await fetch(`${API_BASE}/calc/zpe/jobs/${safeId}`, {
-    headers: withAuthHeaders(),
+  return requestJson<ZPEJobStatus>({
+    path: `/calc/zpe/jobs/${safeId}`,
+    token: getToken(),
   })
-  return handleResponse<ZPEJobStatus>(response)
 }
 
 export async function fetchZpeResult(jobId: string): Promise<ZPEResult> {
   const safeId = encodeURIComponent(jobId)
-  const response = await fetch(`${API_BASE}/calc/zpe/jobs/${safeId}/result`, {
-    headers: withAuthHeaders(),
+  const data = await requestJson<{ result: ZPEResult }>({
+    path: `/calc/zpe/jobs/${safeId}/result`,
+    token: getToken(),
   })
-  const data = await handleResponse<{ result: ZPEResult }>(response)
   return data.result
 }
 
@@ -351,9 +327,8 @@ export async function downloadZpeFile(
   kind: 'summary' | 'freqs',
 ): Promise<string> {
   const safeId = encodeURIComponent(jobId)
-  const response = await fetch(
-    `${API_BASE}/calc/zpe/jobs/${safeId}/files?kind=${kind}`,
-    { headers: withAuthHeaders() },
-  )
-  return handleTextResponse(response)
+  return requestText({
+    path: `/calc/zpe/jobs/${safeId}/files?kind=${kind}`,
+    token: getToken(),
+  })
 }
