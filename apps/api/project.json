@@ -6,7 +6,8 @@
     "dev": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "uv run uvicorn apps.api.main:app --reload --port 8000"
+        "command": "uv run uvicorn main:app --reload --port 8000",
+        "cwd": "apps/api"
       }
     },
     "test": {
