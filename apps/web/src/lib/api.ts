@@ -14,6 +14,7 @@ const api = createApiClient({
   getToken: () => getAuthToken() ?? undefined,
 })
 
+// API_BASE should be a host root or already end with "/api" (no "/api/v1" style path).
 const normalizeApiBase = (base: string) => {
   const trimmed = base.endsWith('/') ? base.slice(0, -1) : base
   return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`
@@ -24,7 +25,7 @@ const resolveApiBase = (): string => {
     return normalizeApiBase(window.__API_BASE__)
   }
   return normalizeApiBase(
-    import.meta.env.VITE_API_BASE ?? 'http://localhost:8000/api',
+    import.meta.env.VITE_API_BASE ?? 'http://localhost:8000',
   )
 }
 

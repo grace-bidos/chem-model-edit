@@ -16,6 +16,7 @@ type ApiError = {
   }
 }
 
+// API_BASE should be a host root or already end with "/api" (avoid "/api/v1").
 const normalizeApiBase = (base: string) => {
   const trimmed = base.endsWith('/') ? base.slice(0, -1) : base
   return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`
@@ -24,7 +25,7 @@ const normalizeApiBase = (base: string) => {
 const API_BASE = normalizeApiBase(
   process.env.API_BASE ??
     import.meta.env.VITE_API_BASE ??
-    'http://localhost:8000/api',
+    'http://localhost:8000',
 )
 
 async function handleResponse<T>(response: Response): Promise<T> {
