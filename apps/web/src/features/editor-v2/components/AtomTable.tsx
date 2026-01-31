@@ -56,8 +56,8 @@ export function AtomTable({
   showIndex = true,
 }: AtomTableProps) {
   const canSelect = Boolean(onRowClick) && selectionEnabled
-  const columns = useMemo<Array<ColumnDef<AtomTableRow, unknown>>>(() => {
-    const cols: Array<ColumnDef<AtomTableRow, unknown>> = []
+  const columns = useMemo<Array<ColumnDef<AtomTableRow, any>>>(() => {
+    const cols: Array<ColumnDef<AtomTableRow, any>> = []
     if (showIndex) {
       cols.push(
         columnHelper.accessor('index', {
