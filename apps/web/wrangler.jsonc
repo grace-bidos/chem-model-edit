@@ -3,13 +3,14 @@
   "name": "chem-model-edit",
   "compatibility_date": "2026-01-28",
   "compatibility_flags": ["nodejs_compat"],
-  "main": "@tanstack/react-start/server-entry",
+  "main": "./src/worker.ts",
   "vars": {
     "TSS_SHELL": "true",
     "TSS_SERVER_FN_BASE": "/_serverFn/",
   },
   "assets": {
     "directory": "./dist/client",
+    "binding": "ASSETS",
   },
   "observability": {
     "enabled": true,
