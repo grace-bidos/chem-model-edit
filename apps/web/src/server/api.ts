@@ -23,7 +23,8 @@ const normalizeApiBase = (base: string) => {
 }
 
 const API_BASE = normalizeApiBase(
-  process.env.API_BASE ??
+  process.env.API_BASE_PUBLIC ??
+    process.env.API_BASE ??
     import.meta.env.VITE_API_BASE ??
     'http://localhost:8000',
 )

@@ -6,6 +6,7 @@
   "main": "@tanstack/react-start/server-entry",
   "vars": {
     "TSS_SHELL": "true",
+    "TSS_SERVER_FN_BASE": "/_serverFn/",
   },
   "assets": {
     "directory": "./dist/client",
