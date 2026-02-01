@@ -5,14 +5,13 @@ import { getAuthToken } from './auth'
 import type { ApiRequest } from '@chem-model/api-client'
 import { requestApi } from '@/server/api'
 
-const request = async <T>(params: ApiRequest): Promise<T> => {
-  return (await requestApi({ data: params })) as T
+type ApiError = {
+  error?: {
+    code?: string
+    message?: string
+    details?: unknown
+  }
 }
-
-const api = createApiClient({
-  request,
-  getToken: () => getAuthToken() ?? undefined,
-})
 
 // API_BASE should be a host root or already end with "/api" (no "/api/v1" style path).
 const normalizeApiBase = (base: string) => {
@@ -28,6 +27,51 @@ const resolveApiBase = (): string => {
     import.meta.env.VITE_API_BASE ?? 'http://localhost:8000',
   )
 }
+
+const requestViaFetch = async <T>(params: ApiRequest): Promise<T> => {
+  const { path, method, body, token, responseType } = params
+  const resolvedMethod = method ?? 'GET'
+  const headers: Record<string, string> = {}
+  if (body !== undefined) {
+    headers['Content-Type'] = 'application/json'
+  }
+  if (token) {
+    headers.Authorization = `Bearer ${token}`
+  }
+  const response = await fetch(`${resolveApiBase()}${path}`, {
+    method: resolvedMethod,
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  })
+  if (!response.ok) {
+    let message = response.statusText
+    try {
+      const data = (await response.clone().json()) as ApiError
+      if (data.error?.message) {
+        message = data.error.message
+      }
+    } catch (_err) {
+      // ignore JSON parsing errors
+    }
+    throw new Error(message)
+  }
+  if (responseType === 'text') {
+    return (await response.text()) as T
+  }
+  return (await response.json()) as T
+}
+
+const request = async <T>(params: ApiRequest): Promise<T> => {
+  if (typeof window !== 'undefined') {
+    return requestViaFetch<T>(params)
+  }
+  return (await requestApi({ data: params })) as T
+}
+
+const api = createApiClient({
+  request,
+  getToken: () => getAuthToken() ?? undefined,
+})
 
 export const parseQeInput = api.parseQeInput
 export const createStructureFromQe = api.createStructureFromQe
