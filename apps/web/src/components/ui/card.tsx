@@ -33,7 +33,7 @@ CardHeader.displayName = 'CardHeader'
 
 /** Card のタイトル要素。 */
 const CardTitle = React.forwardRef<
-  HTMLParagraphElement,
+  HTMLHeadingElement,
   React.HTMLAttributes<HTMLHeadingElement>
 >(({ className, ...props }, ref) => (
   <h3
