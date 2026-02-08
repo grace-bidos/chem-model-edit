@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Dict, Any
 from uuid import uuid4
 
-from models import ZPEJobRequest
+from app.schemas.zpe import ZPEJobRequest
 from .io import format_freqs_csv, format_summary
 from .parse import extract_fixed_indices, parse_kpoints_automatic
 from .http_queue import enqueue_http_job

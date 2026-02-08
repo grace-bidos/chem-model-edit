@@ -7,7 +7,7 @@ from typing import Dict, Optional
 from uuid import uuid4
 
 from ase import Atoms as ASEAtoms
-from models import QeParameters, Structure
+from app.schemas.common import QeParameters, Structure
 from services.cif import atoms_to_cif
 from services.parse import extract_qe_params, parse_qe_atoms, structure_from_ase
 

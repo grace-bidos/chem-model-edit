@@ -13,7 +13,7 @@ from ase.calculators.espresso import Espresso
 from ase.vibrations import Vibrations
 from rq import get_current_job
 
-from models import ZPEJobRequest
+from app.schemas.zpe import ZPEJobRequest
 from .cache import clean_vib_cache, sanitize_vib_cache
 from .environ import prepare_environ_files, resolve_environ_path
 from .io import format_freqs_csv, format_summary, write_result_json

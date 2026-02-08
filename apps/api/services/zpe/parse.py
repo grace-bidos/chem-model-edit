@@ -7,7 +7,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 from ase import Atoms as ASEAtoms
 from ase.io import read as ase_read
 
-from models import Atom, Lattice, Structure, Vector3
+from app.schemas.common import Atom, Lattice, Structure, Vector3
 
 
 _POSITION_HEADER = re.compile(r"^\s*ATOMIC_POSITIONS\b", re.IGNORECASE)

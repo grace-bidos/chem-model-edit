@@ -8,7 +8,7 @@ from ase import Atoms as ASEAtoms
 from ase.io import read as ase_read
 from pymatgen.io.pwscf import PWInput
 
-from models import Atom, Lattice, QeParameters, Structure, Vector3
+from app.schemas.common import Atom, Lattice, QeParameters, Structure, Vector3
 
 
 def _ase_atoms_from_content(content: str) -> ASEAtoms:
