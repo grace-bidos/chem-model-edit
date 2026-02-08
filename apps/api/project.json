@@ -27,7 +27,7 @@
     "typecheck": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "uv run mypy .",
+        "command": "uv run mypy --strict app services main.py",
         "cwd": "apps/api"
       }
     },

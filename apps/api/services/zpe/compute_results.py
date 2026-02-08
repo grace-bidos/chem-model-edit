@@ -67,8 +67,9 @@ def submit_result(
 
     for _ in range(3):
         pipe = redis.pipeline()
+        pipe_any = cast(Any, pipe)
         try:
-            pipe.watch(status_key, lease_key)
+            pipe_any.watch(status_key, lease_key)
             status = _decode_map(cast(dict[bytes, bytes], pipe.hgetall(status_key)))
             if status.get("status") == "finished":
                 existing_result = pipe.get(result_key)
@@ -127,8 +128,9 @@ def submit_failure(
 
     for _ in range(3):
         pipe = redis.pipeline()
+        pipe_any = cast(Any, pipe)
         try:
-            pipe.watch(lease_key, retry_key)
+            pipe_any.watch(lease_key, retry_key)
             lease = _get_lease(pipe, job_id)
             if not lease:
                 raise PermissionError("lease not found")

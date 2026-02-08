@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, cast
 
+from ase import Atoms as ASEAtoms
 from fastapi import APIRouter, HTTPException
 
 from app.schemas.supercell import (
@@ -12,10 +13,14 @@ from app.schemas.supercell import (
 )
 from services.parse import structure_from_ase
 from services.structures import get_structure_entry, register_structure_atoms
-from services.supercell import build_supercell_from_grid
+from services.supercells import build_supercell_from_grid
 
 router = APIRouter(prefix="/api/supercells", tags=["supercells"])
 logger = logging.getLogger(__name__)
+
+
+def _atoms_cell(atoms: ASEAtoms) -> Any:
+    return cast(Any, atoms).get_cell()
 
 
 def _cell_has_lattice(cell: Any) -> bool:
@@ -50,11 +55,11 @@ async def supercell_build(request: SupercellBuildRequest) -> SupercellBuildRespo
         ) from exc
 
     base_atoms = base_entry.atoms
-    base_cell = base_atoms.get_cell()
+    base_cell = _atoms_cell(base_atoms)
     if not _cell_has_lattice(base_cell):
         raise HTTPException(status_code=400, detail="base structure has no lattice")
 
-    tiles: dict[str, Any] = {}
+    tiles: dict[str, ASEAtoms] = {}
     structure_ids_used: list[str] = []
     for row in request.grid.tiles:
         for structure_id in row:
@@ -76,7 +81,7 @@ async def supercell_build(request: SupercellBuildRequest) -> SupercellBuildRespo
         for structure_id, atoms in tiles.items():
             if structure_id == request.base_structure_id:
                 continue
-            cell = atoms.get_cell()
+            cell = _atoms_cell(atoms)
             lattice_ok = _cell_has_lattice(cell) and _cells_match(base_cell, cell)
             if lattice_ok:
                 continue

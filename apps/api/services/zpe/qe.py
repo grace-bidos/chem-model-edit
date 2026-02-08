@@ -3,7 +3,7 @@ from __future__ import annotations
 import inspect
 import shutil
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, cast
 
 from ase.calculators.espresso import EspressoProfile
 
@@ -47,7 +47,8 @@ def build_espresso_profile(
         kwargs["argv"] = argv
     else:
         raise RuntimeError("Unsupported EspressoProfile signature")
-    return EspressoProfile(**kwargs)
+    profile_factory = cast(Any, EspressoProfile)
+    return cast(EspressoProfile, profile_factory(**kwargs))
 
 
 def resolve_pw_command(settings: ZPESettings) -> str:

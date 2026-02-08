@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import json
 import secrets
-from typing import Optional, cast
+from typing import Any, Optional, cast
 from uuid import uuid4
 
 from redis import Redis, WatchError
@@ -81,9 +81,10 @@ class AuthStore:
         payload = json.dumps(user.__dict__)
 
         pipe = self.redis.pipeline(transaction=True)
+        pipe_any = cast(Any, pipe)
         for _ in range(5):
             try:
-                pipe.watch(email_key)
+                pipe_any.watch(email_key)
                 if pipe.exists(email_key):
                     pipe.reset()
                     raise ValueError("email already registered")
