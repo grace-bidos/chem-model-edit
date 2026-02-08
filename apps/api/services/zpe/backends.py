@@ -37,8 +37,8 @@ def enqueue_zpe_job(payload: Dict[str, Any], *, queue_name: str | None = None) -
             result_ttl=settings.result_ttl_seconds,
         )
         job_id = job.id
-        if job_id is None:
-            raise RuntimeError("RQ enqueue returned a job with no id")
+        if not isinstance(job_id, str) or not job_id:
+            raise RuntimeError("RQ enqueue returned an invalid job id")
         store.set_status(job_id, "queued")
         return job_id
     if settings.compute_mode == "remote-http":

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any, Protocol, SupportsFloat, cast
 
+import numpy as np
+from numpy.typing import NDArray
 from ase import Atoms as ASEAtoms
 
 from app.schemas.supercell import SupercellGrid, SupercellGridAxis
@@ -9,6 +11,7 @@ from app.schemas.supercell import SupercellGrid, SupercellGridAxis
 
 type Vec3 = tuple[float, float, float]
 type PBCLike = bool | tuple[bool, bool, bool]
+type FloatArray = NDArray[np.float64]
 
 
 class CellLike(Protocol):
@@ -85,23 +88,6 @@ def _extract_cell_vectors(base_atoms: ASEAtoms) -> tuple[Vec3, Vec3, CellLike]:
     return base_a, base_b, base_cell
 
 
-def _extract_symbols_positions(atoms: ASEAtoms) -> list[tuple[str, Vec3]]:
-    """構造の元素記号と座標を抽出する．
-
-    Parameters:
-        atoms: 抽出対象の ASE Atoms．
-
-    Returns:
-        `(symbol, position)` の配列．
-    """
-    symbols = cast(list[str], cast(Any, atoms).get_chemical_symbols())
-    raw_positions = cast(list[object], cast(Any, atoms).get_positions())
-    parsed: list[tuple[str, Vec3]] = []
-    for symbol, position in zip(symbols, raw_positions, strict=True):
-        parsed.append((symbol, _extract_vec3(position)))
-    return parsed
-
-
 def _extract_pbc(base_atoms: ASEAtoms) -> PBCLike:
     """周期境界条件を抽出する．
 
@@ -118,17 +104,19 @@ def _extract_pbc(base_atoms: ASEAtoms) -> PBCLike:
     return (bool(pbc[0]), bool(pbc[1]), bool(pbc[2]))
 
 
-def _add_vec3(lhs: Vec3, rhs: Vec3) -> Vec3:
-    """2つの3次元ベクトルを加算する．
+def _extract_symbols_positions_array(atoms: ASEAtoms) -> tuple[list[str], FloatArray]:
+    """構造から元素記号配列と座標配列を抽出する．
 
     Parameters:
-        lhs: 左辺ベクトル．
-        rhs: 右辺ベクトル．
+        atoms: 抽出対象の ASE Atoms．
 
     Returns:
-        加算結果．
+        元素記号配列と，`(N, 3)` 形状の座標配列．
     """
-    return (lhs[0] + rhs[0], lhs[1] + rhs[1], lhs[2] + rhs[2])
+    symbols = cast(list[str], cast(Any, atoms).get_chemical_symbols())
+    positions = cast(Any, atoms).get_positions()
+    pos_array = np.asarray(positions, dtype=np.float64)
+    return symbols, pos_array
 
 
 def _scale_vec3(vec: Vec3, scalar: int) -> Vec3:
@@ -142,58 +130,6 @@ def _scale_vec3(vec: Vec3, scalar: int) -> Vec3:
         スカラー倍したベクトル．
     """
     return (vec[0] * scalar, vec[1] * scalar, vec[2] * scalar)
-
-
-def _shifted_positions_for_tile(
-    atoms: ASEAtoms,
-    *,
-    row_vec: Vec3,
-    col_vec: Vec3,
-    row_index: int,
-    col_index: int,
-) -> list[tuple[str, Vec3]]:
-    """タイル配置に応じた平行移動後の原子座標を返す．
-
-    Parameters:
-        atoms: タイルとして配置する構造．
-        row_vec: 行方向の格子ベクトル．
-        col_vec: 列方向の格子ベクトル．
-        row_index: 行インデックス．
-        col_index: 列インデックス．
-
-    Returns:
-        平行移動後の `(symbol, position)` 配列．
-    """
-    shift = _add_vec3(_scale_vec3(row_vec, row_index), _scale_vec3(col_vec, col_index))
-    return [
-        (symbol, _add_vec3(pos, shift))
-        for symbol, pos in _extract_symbols_positions(atoms)
-    ]
-
-
-def _has_overlap_linear(
-    *, existing_positions: list[Vec3], new_pos: Vec3, tolerance_sq: float
-) -> bool:
-    """新規原子が既存原子と重なるかを線形探索で判定する．
-
-    Parameters:
-        existing_positions: 既存原子の座標配列．
-        new_pos: 判定対象の新規原子座標．
-        tolerance_sq: 許容距離の2乗値．
-
-    Returns:
-        1件以上重なりがある場合は `True`．
-
-    Notes:
-        返り値を使って `overlap_count` を1原子につき最大1回だけ増やす．
-    """
-    for existing in existing_positions:
-        dx = existing[0] - new_pos[0]
-        dy = existing[1] - new_pos[1]
-        dz = existing[2] - new_pos[2]
-        if dx * dx + dy * dy + dz * dz <= tolerance_sq:
-            return True
-    return False
 
 
 def _compute_output_cell(
@@ -228,6 +164,87 @@ def _compute_output_cell(
     return out_cell
 
 
+def _count_incremental_overlaps_np(
+    *,
+    existing_positions: FloatArray,
+    new_positions: FloatArray,
+    tolerance_sq: float,
+) -> int:
+    """新規配置原子に対して，既存原子との重なり数を増分計算する．
+
+    Parameters:
+        existing_positions: すでに配置済みの座標配列．
+        new_positions: 今回追加する座標配列．
+        tolerance_sq: 許容距離の2乗値．
+
+    Returns:
+        新規原子に対する重なりヒット数．
+    """
+    overlap_count = 0
+    for index in range(new_positions.shape[0]):
+        point = new_positions[index]
+        hit_existing = False
+        if existing_positions.shape[0] > 0:
+            diff_existing = existing_positions - point
+            d2_existing = np.einsum("ij,ij->i", diff_existing, diff_existing)
+            hit_existing = bool(np.any(d2_existing <= tolerance_sq))
+        if hit_existing:
+            overlap_count += 1
+            continue
+        if index > 0:
+            prev = new_positions[:index]
+            diff_prev = prev - point
+            d2_prev = np.einsum("ij,ij->i", diff_prev, diff_prev)
+            if bool(np.any(d2_prev <= tolerance_sq)):
+                overlap_count += 1
+    return overlap_count
+
+
+def count_overlap_pairs_spatial_hash(points: FloatArray, *, tolerance: float) -> int:
+    """空間ハッシュ法で閾値内ペア数を数える．
+
+    Parameters:
+        points: `(N, 3)` 形状の座標配列．
+        tolerance: 判定距離．
+
+    Returns:
+        閾値内にある原子ペア数．
+
+    Raises:
+        ValueError: `tolerance <= 0` の場合．
+    """
+    if tolerance <= 0:
+        raise ValueError("tolerance must be positive")
+    if points.shape[0] < 2:
+        return 0
+
+    tolerance_sq = tolerance * tolerance
+    cell_size = tolerance
+    buckets: dict[tuple[int, int, int], list[int]] = {}
+    count = 0
+
+    offsets = [
+        (dx, dy, dz)
+        for dx in (-1, 0, 1)
+        for dy in (-1, 0, 1)
+        for dz in (-1, 0, 1)
+    ]
+
+    for idx in range(points.shape[0]):
+        point = points[idx]
+        cell = tuple(np.floor(point / cell_size).astype(np.int64).tolist())
+        cx, cy, cz = cell
+        for ox, oy, oz in offsets:
+            neighbor = (cx + ox, cy + oy, cz + oz)
+            for other_idx in buckets.get(neighbor, []):
+                diff = points[other_idx] - point
+                d2 = float(np.dot(diff, diff))
+                if d2 <= tolerance_sq:
+                    count += 1
+        buckets.setdefault(cell, []).append(idx)
+    return count
+
+
 def build_supercell_from_grid(
     base_atoms: ASEAtoms,
     grid: SupercellGrid,
@@ -259,32 +276,44 @@ def build_supercell_from_grid(
     axis = _resolve_axis(grid.axis)
     base_a, base_b, base_cell = _extract_cell_vectors(base_atoms)
 
-    row_vec = base_a if axis.row == "a" else base_b
-    col_vec = base_a if axis.col == "a" else base_b
+    row_vec = np.asarray(base_a if axis.row == "a" else base_b, dtype=np.float64)
+    col_vec = np.asarray(base_a if axis.col == "a" else base_b, dtype=np.float64)
+
     symbols: list[str] = []
-    positions: list[Vec3] = []
+    position_chunks: list[FloatArray] = []
     overlap_count = 0
+    existing_positions = np.empty((0, 3), dtype=np.float64)
+
+    tile_cache: dict[str, tuple[list[str], FloatArray]] = {}
 
     for row_index, row in enumerate(grid.tiles):
         for col_index, structure_id in enumerate(row):
             atoms = tiles[structure_id]
-            shifted_atoms = _shifted_positions_for_tile(
-                atoms,
-                row_vec=row_vec,
-                col_vec=col_vec,
-                row_index=row_index,
-                col_index=col_index,
-            )
-            for symbol, new_pos in shifted_atoms:
-                if check_overlap:
-                    if _has_overlap_linear(
-                        existing_positions=positions,
-                        new_pos=new_pos,
-                        tolerance_sq=tolerance_sq,
-                    ):
-                        overlap_count += 1
-                positions.append(new_pos)
-                symbols.append(symbol)
+            cached = tile_cache.get(structure_id)
+            if cached is None:
+                cached = _extract_symbols_positions_array(atoms)
+                tile_cache[structure_id] = cached
+            tile_symbols, tile_positions = cached
+
+            shift = row_vec * row_index + col_vec * col_index
+            shifted_positions = tile_positions + shift
+
+            if check_overlap:
+                overlap_count += _count_incremental_overlaps_np(
+                    existing_positions=existing_positions,
+                    new_positions=shifted_positions,
+                    tolerance_sq=tolerance_sq,
+                )
+                if existing_positions.shape[0] == 0:
+                    existing_positions = shifted_positions.copy()
+                else:
+                    existing_positions = cast(
+                        FloatArray,
+                        np.concatenate((existing_positions, shifted_positions), axis=0),
+                    )
+
+            symbols.extend(tile_symbols)
+            position_chunks.append(shifted_positions)
 
     out_cell = _compute_output_cell(
         base_cell=base_cell,
@@ -295,9 +324,14 @@ def build_supercell_from_grid(
         axis=axis,
     )
 
+    if position_chunks:
+        positions_array = cast(FloatArray, np.concatenate(position_chunks, axis=0))
+    else:
+        positions_array = np.empty((0, 3), dtype=np.float64)
+
     atoms_out = ASEAtoms(
         symbols=symbols,
-        positions=positions,
+        positions=positions_array.tolist(),
         cell=out_cell,
         pbc=_extract_pbc(base_atoms),
     )
