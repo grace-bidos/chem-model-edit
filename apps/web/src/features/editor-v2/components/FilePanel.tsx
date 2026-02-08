@@ -50,7 +50,7 @@ export function FilePanel({
 
   useEffect(() => {
     setViewerError(null)
-  }, [data.cifUrl, data.pdbText])
+  }, [data.cifUrl])
 
   useEffect(() => {
     onStructureLoadedRef.current = onStructureLoaded
@@ -252,12 +252,6 @@ export function FilePanel({
             {data.cifUrl ? (
               <MolstarViewer
                 cifUrl={data.cifUrl}
-                onError={setViewerError}
-                onLoad={() => setViewerError(null)}
-              />
-            ) : data.pdbText ? (
-              <MolstarViewer
-                pdbText={data.pdbText}
                 onError={setViewerError}
                 onLoad={() => setViewerError(null)}
               />

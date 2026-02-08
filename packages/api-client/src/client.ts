@@ -43,6 +43,7 @@ export type ApiClient = {
   createStructureFromQe: (content: string) => Promise<StructureCreateResponse>
   getStructure: (structure_id: string) => Promise<StructureGetResponse>
   exportQeInput: (structure: Structure) => Promise<string>
+  exportStructureCif: (structure: Structure) => Promise<string>
   deltaTransplant: (params: DeltaTransplantRequest) => Promise<string>
   buildSupercell: (params: SupercellBuildRequest) => Promise<SupercellBuildResponse>
   parseZpeInput: (content: string, structure_id?: string | null) => Promise<ZPEParseResponse>
@@ -110,6 +111,15 @@ export const createApiClient = (options: ApiClientOptions): ApiClient => {
         body,
       })
       return data.content
+    },
+
+    async exportStructureCif(structure) {
+      const body: StructureExportRequest = { structure }
+      return requestText({
+        path: '/structures/cif',
+        method: 'POST',
+        body,
+      })
     },
 
     async deltaTransplant(params) {
