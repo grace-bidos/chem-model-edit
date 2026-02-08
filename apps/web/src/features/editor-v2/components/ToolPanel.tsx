@@ -41,6 +41,7 @@ import {
 import { Switch } from '@/components/ui/switch'
 import {
   createEnrollToken,
+  createStructureFromQe,
   createZpeJob,
   deltaTransplant,
   downloadZpeFile,
@@ -51,14 +52,12 @@ import {
   getStructure,
   loginAccount,
   logoutAccount,
-  parseQeInput,
   parseZpeInput,
   registerAccount,
   selectQueueTarget,
   structureViewUrl,
 } from '@/lib/api'
 import { clearSession, getStoredSession, storeSession } from '@/lib/auth'
-import { atomsToPdb } from '@/lib/pdb'
 import { cn } from '@/lib/utils'
 
 interface ToolPanelProps {
@@ -84,7 +83,7 @@ const toolTitles: Record<ToolMode, string> = {
 
 type TransferSummary = {
   structure: Structure
-  pdbText: string
+  cifUrl: string
   sourceAtoms: number | null
   targetAtoms: number | null
   transferredAtoms: number | null
@@ -1533,7 +1532,7 @@ function TransferToolPanel({
 
   useEffect(() => {
     setViewerError(null)
-  }, [transferSummary?.pdbText])
+  }, [transferSummary?.cifUrl])
 
   const resolveStructure = useCallback(async (file: WorkspaceFile) => {
     if (file.structure) {
@@ -1634,14 +1633,16 @@ function TransferToolPanel({
         if (applyTokenRef.current !== token) {
           return
         }
-        const nextStructure = await parseQeInput(content)
+        const {
+          structure: nextStructure,
+          structure_id: structureId,
+        } = await createStructureFromQe(content)
         if (applyTokenRef.current !== token) {
           return
         }
-        const pdbText = atomsToPdb(nextStructure.atoms)
         setTransferSummary({
           structure: nextStructure,
-          pdbText,
+          cifUrl: structureViewUrl(structureId, { format: 'cif' }),
           sourceAtoms,
           targetAtoms,
           transferredAtoms: null,
@@ -1668,18 +1669,24 @@ function TransferToolPanel({
         ...targetStructure,
         atoms: nextAtoms,
       }
-      const pdbText = atomsToPdb(nextAtoms)
-      setTransferSummary({
-        structure: nextStructure,
-        pdbText,
-        sourceAtoms,
-        targetAtoms,
-        transferredAtoms,
-      })
       const content = await exportQeInput(nextStructure)
       if (applyTokenRef.current !== token) {
         return
       }
+      const {
+        structure: previewStructure,
+        structure_id: structureId,
+      } = await createStructureFromQe(content)
+      if (applyTokenRef.current !== token) {
+        return
+      }
+      setTransferSummary({
+        structure: previewStructure,
+        cifUrl: structureViewUrl(structureId, { format: 'cif' }),
+        sourceAtoms,
+        targetAtoms,
+        transferredAtoms,
+      })
       setExportContent(content)
       setExportFilename(createTransferFilename(targetFile.name))
     } catch (err) {
@@ -1713,7 +1720,7 @@ function TransferToolPanel({
     downloadTextFile(exportContent, filename, 'text/plain')
   }
 
-  const previewReady = Boolean(transferSummary?.pdbText)
+  const previewReady = Boolean(transferSummary?.cifUrl)
   const deltaReady = useDeltaTransplant
     ? Boolean(smallOutText.trim() && sourceFile?.qeInput && targetFile?.qeInput)
     : true
@@ -1754,7 +1761,7 @@ function TransferToolPanel({
           <div className="relative min-h-0 flex-1">
             {previewReady && transferSummary ? (
               <MolstarViewer
-                pdbText={transferSummary.pdbText}
+                cifUrl={transferSummary.cifUrl}
                 onError={setViewerError}
                 onLoad={() => setViewerError(null)}
                 className="h-full w-full rounded-none border-0"
