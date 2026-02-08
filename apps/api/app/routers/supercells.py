@@ -44,7 +44,10 @@ async def supercell_build(request: SupercellBuildRequest) -> SupercellBuildRespo
     try:
         base_entry = get_structure_entry(request.base_structure_id)
     except KeyError as exc:
-        raise HTTPException(status_code=404, detail="Structure not found") from exc
+        raise HTTPException(
+            status_code=404,
+            detail=f"Structure {request.base_structure_id!r} not found",
+        ) from exc
 
     base_atoms = base_entry.atoms
     base_cell = base_atoms.get_cell()
@@ -62,7 +65,8 @@ async def supercell_build(request: SupercellBuildRequest) -> SupercellBuildRespo
                 entry = get_structure_entry(structure_id)
             except KeyError as exc:
                 raise HTTPException(
-                    status_code=404, detail="Structure not found"
+                    status_code=404,
+                    detail=f"Structure {structure_id!r} not found",
                 ) from exc
             tiles[structure_id] = entry.atoms
 

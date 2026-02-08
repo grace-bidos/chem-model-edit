@@ -15,7 +15,9 @@ def build_supercell_from_grid(
     overlap_tolerance: float | None = None,
 ) -> tuple[ASEAtoms, int]:
     if check_overlap and (overlap_tolerance is None or overlap_tolerance <= 0):
-        raise ValueError("重複チェックの許容誤差が無効です。")
+        raise ValueError(
+            "overlap_tolerance must be a positive number when check_overlap is enabled"
+        )
 
     axis = grid.axis or SupercellGridAxis(row="b", col="a")
     base_cell = base_atoms.get_cell()

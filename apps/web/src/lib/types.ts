@@ -4,7 +4,6 @@ export type {
   AuthSession,
   AuthUser,
   Lattice,
-  LatticeParams,
   QeParameters,
   Structure,
   SupercellBuildMeta,

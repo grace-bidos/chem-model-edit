@@ -8,7 +8,6 @@ export type OpenApiSchemas = Schemas
 export type Atom = Schemas['Atom']
 export type Vector3 = Schemas['Vector3']
 export type Lattice = Schemas['Lattice']
-export type LatticeParams = Schemas['LatticeParams']
 export type Structure = Schemas['Structure-Output']
 export type StructureInput = Schemas['Structure-Input']
 export type QeParameters = Schemas['QeParameters']
