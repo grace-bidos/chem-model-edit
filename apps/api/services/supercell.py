@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import List, Tuple
-
 from ase import Atoms as ASEAtoms
 
 from app.schemas.supercell import SupercellGrid, SupercellGridAxis
@@ -27,8 +25,8 @@ def build_supercell_from_grid(
     row_vec = base_a if axis.row == "a" else base_b
     col_vec = base_a if axis.col == "a" else base_b
 
-    symbols: List[str] = []
-    positions: List[Tuple[float, float, float]] = []
+    symbols: list[str] = []
+    positions: list[tuple[float, float, float]] = []
     overlap_count = 0
     tolerance_sq = (overlap_tolerance or 0.0) ** 2
 
