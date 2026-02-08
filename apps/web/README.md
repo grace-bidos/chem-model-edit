@@ -41,6 +41,13 @@ git diff -- packages/api-client/
 
 If `git diff` is non-empty, commit generated artifacts in the same PR.
 
+## SPA Shell (Production)
+
+This app uses TanStack Start in SPA mode. In production, the worker must run in
+shell mode so the root HTML + scripts are rendered. Ensure `TSS_SHELL=true`
+is set in the deploy environment (already configured in `wrangler.jsonc` for
+Cloudflare Workers).
+
 ## Verification commands
 
 ```bash
