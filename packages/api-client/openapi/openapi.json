@@ -1,0 +1,3033 @@
+{
+  "components": {
+    "schemas": {
+      "Atom": {
+        "additionalProperties": false,
+        "properties": {
+          "symbol": {
+            "maxLength": 3,
+            "minLength": 1,
+            "title": "Symbol",
+            "type": "string"
+          },
+          "x": {
+            "title": "X",
+            "type": "number"
+          },
+          "y": {
+            "title": "Y",
+            "type": "number"
+          },
+          "z": {
+            "title": "Z",
+            "type": "number"
+          }
+        },
+        "required": [
+          "symbol",
+          "x",
+          "y",
+          "z"
+        ],
+        "title": "Atom",
+        "type": "object"
+      },
+      "AuthLoginRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "AuthLoginRequest",
+        "type": "object"
+      },
+      "AuthLogoutResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "ok": {
+            "default": true,
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "title": "AuthLogoutResponse",
+        "type": "object"
+      },
+      "AuthMe": {
+        "additionalProperties": false,
+        "properties": {
+          "expires_at": {
+            "title": "Expires At",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/AuthUser"
+          }
+        },
+        "required": [
+          "user",
+          "expires_at"
+        ],
+        "title": "AuthMe",
+        "type": "object"
+      },
+      "AuthRegisterRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "AuthRegisterRequest",
+        "type": "object"
+      },
+      "AuthSession": {
+        "additionalProperties": false,
+        "properties": {
+          "expires_at": {
+            "title": "Expires At",
+            "type": "string"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/AuthUser"
+          }
+        },
+        "required": [
+          "token",
+          "expires_at",
+          "user"
+        ],
+        "title": "AuthSession",
+        "type": "object"
+      },
+      "AuthUser": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "created_at"
+        ],
+        "title": "AuthUser",
+        "type": "object"
+      },
+      "ComputeFailedRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "error_code": {
+            "title": "Error Code",
+            "type": "string"
+          },
+          "error_message": {
+            "title": "Error Message",
+            "type": "string"
+          },
+          "lease_id": {
+            "title": "Lease Id",
+            "type": "string"
+          },
+          "traceback": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Traceback"
+          }
+        },
+        "required": [
+          "lease_id",
+          "error_code",
+          "error_message"
+        ],
+        "title": "ComputeFailedRequest",
+        "type": "object"
+      },
+      "ComputeFailedResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "ok": {
+            "default": true,
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "requeued": {
+            "title": "Requeued",
+            "type": "boolean"
+          },
+          "retry_count": {
+            "title": "Retry Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "requeued",
+          "retry_count"
+        ],
+        "title": "ComputeFailedResponse",
+        "type": "object"
+      },
+      "ComputeLeaseResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "lease_id": {
+            "title": "Lease Id",
+            "type": "string"
+          },
+          "lease_ttl_seconds": {
+            "title": "Lease Ttl Seconds",
+            "type": "integer"
+          },
+          "meta": {
+            "additionalProperties": true,
+            "title": "Meta",
+            "type": "object"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "title": "Payload",
+            "type": "object"
+          }
+        },
+        "required": [
+          "job_id",
+          "payload",
+          "lease_id",
+          "lease_ttl_seconds"
+        ],
+        "title": "ComputeLeaseResponse",
+        "type": "object"
+      },
+      "ComputeRegisterRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "meta": {
+            "additionalProperties": true,
+            "title": "Meta",
+            "type": "object"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "queue_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queue Name"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "ComputeRegisterRequest",
+        "type": "object"
+      },
+      "ComputeRegisterResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "registered_at": {
+            "title": "Registered At",
+            "type": "string"
+          },
+          "token_expires_at": {
+            "title": "Token Expires At",
+            "type": "string"
+          },
+          "token_ttl_seconds": {
+            "title": "Token Ttl Seconds",
+            "type": "integer"
+          },
+          "worker_token": {
+            "title": "Worker Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "registered_at",
+          "worker_token",
+          "token_expires_at",
+          "token_ttl_seconds"
+        ],
+        "title": "ComputeRegisterResponse",
+        "type": "object"
+      },
+      "ComputeResultRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "freqs_csv": {
+            "title": "Freqs Csv",
+            "type": "string"
+          },
+          "lease_id": {
+            "title": "Lease Id",
+            "type": "string"
+          },
+          "meta": {
+            "additionalProperties": true,
+            "title": "Meta",
+            "type": "object"
+          },
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          },
+          "summary_text": {
+            "title": "Summary Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "lease_id",
+          "result",
+          "summary_text",
+          "freqs_csv"
+        ],
+        "title": "ComputeResultRequest",
+        "type": "object"
+      },
+      "ComputeResultResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "idempotent": {
+            "default": false,
+            "title": "Idempotent",
+            "type": "boolean"
+          },
+          "ok": {
+            "default": true,
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "title": "ComputeResultResponse",
+        "type": "object"
+      },
+      "ComputeRevokeResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "revoked_count": {
+            "title": "Revoked Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revoked_count"
+        ],
+        "title": "ComputeRevokeResponse",
+        "type": "object"
+      },
+      "DeltaTransplantRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "large_in": {
+            "title": "Large In",
+            "type": "string"
+          },
+          "small_in": {
+            "title": "Small In",
+            "type": "string"
+          },
+          "small_out": {
+            "title": "Small Out",
+            "type": "string"
+          }
+        },
+        "required": [
+          "small_in",
+          "small_out",
+          "large_in"
+        ],
+        "title": "DeltaTransplantRequest",
+        "type": "object"
+      },
+      "DeltaTransplantResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "title": "DeltaTransplantResponse",
+        "type": "object"
+      },
+      "EnrollTokenRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "ttl_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ttl Seconds"
+          }
+        },
+        "title": "EnrollTokenRequest",
+        "type": "object"
+      },
+      "EnrollTokenResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "expires_at": {
+            "title": "Expires At",
+            "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          },
+          "ttl_seconds": {
+            "title": "Ttl Seconds",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "token",
+          "expires_at",
+          "ttl_seconds"
+        ],
+        "title": "EnrollTokenResponse",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "Lattice": {
+        "additionalProperties": false,
+        "properties": {
+          "a": {
+            "$ref": "#/components/schemas/Vector3"
+          },
+          "b": {
+            "$ref": "#/components/schemas/Vector3"
+          },
+          "c": {
+            "$ref": "#/components/schemas/Vector3"
+          }
+        },
+        "required": [
+          "a",
+          "b",
+          "c"
+        ],
+        "title": "Lattice",
+        "type": "object"
+      },
+      "LatticeConvertRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "from": {
+            "enum": [
+              "vectors",
+              "params"
+            ],
+            "title": "From",
+            "type": "string"
+          },
+          "lattice": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Lattice"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "params": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LatticeParams"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unit": {
+            "default": "angstrom",
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "from"
+        ],
+        "title": "LatticeConvertRequest",
+        "type": "object"
+      },
+      "LatticeConvertResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "lattice": {
+            "$ref": "#/components/schemas/Lattice"
+          },
+          "params": {
+            "$ref": "#/components/schemas/LatticeParams"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "lattice",
+          "params",
+          "unit"
+        ],
+        "title": "LatticeConvertResponse",
+        "type": "object"
+      },
+      "LatticeParams": {
+        "additionalProperties": false,
+        "properties": {
+          "a": {
+            "title": "A",
+            "type": "number"
+          },
+          "alpha": {
+            "title": "Alpha",
+            "type": "number"
+          },
+          "b": {
+            "title": "B",
+            "type": "number"
+          },
+          "beta": {
+            "title": "Beta",
+            "type": "number"
+          },
+          "c": {
+            "title": "C",
+            "type": "number"
+          },
+          "gamma": {
+            "title": "Gamma",
+            "type": "number"
+          }
+        },
+        "required": [
+          "a",
+          "b",
+          "c",
+          "alpha",
+          "beta",
+          "gamma"
+        ],
+        "title": "LatticeParams",
+        "type": "object"
+      },
+      "OpsFlagsRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "dequeue_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dequeue Enabled"
+          },
+          "submission_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submission Enabled"
+          }
+        },
+        "title": "OpsFlagsRequest",
+        "type": "object"
+      },
+      "OpsFlagsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "dequeue_enabled": {
+            "title": "Dequeue Enabled",
+            "type": "boolean"
+          },
+          "submission_enabled": {
+            "title": "Submission Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "submission_enabled",
+          "dequeue_enabled"
+        ],
+        "title": "OpsFlagsResponse",
+        "type": "object"
+      },
+      "Pagination": {
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Pagination",
+        "type": "object"
+      },
+      "QeParameters": {
+        "additionalProperties": false,
+        "properties": {
+          "cell": {
+            "additionalProperties": true,
+            "title": "Cell",
+            "type": "object"
+          },
+          "control": {
+            "additionalProperties": true,
+            "title": "Control",
+            "type": "object"
+          },
+          "electrons": {
+            "additionalProperties": true,
+            "title": "Electrons",
+            "type": "object"
+          },
+          "ions": {
+            "additionalProperties": true,
+            "title": "Ions",
+            "type": "object"
+          },
+          "kpoints": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kpoints"
+          },
+          "pseudopotentials": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Pseudopotentials",
+            "type": "object"
+          },
+          "system": {
+            "additionalProperties": true,
+            "title": "System",
+            "type": "object"
+          }
+        },
+        "title": "QeParameters",
+        "type": "object"
+      },
+      "QueueTarget": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "queue_name": {
+            "title": "Queue Name",
+            "type": "string"
+          },
+          "registered_at": {
+            "title": "Registered At",
+            "type": "string"
+          },
+          "server_id": {
+            "title": "Server Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "queue_name",
+          "server_id",
+          "registered_at"
+        ],
+        "title": "QueueTarget",
+        "type": "object"
+      },
+      "QueueTargetListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "active_target_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Target Id"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          },
+          "targets": {
+            "items": {
+              "$ref": "#/components/schemas/QueueTarget"
+            },
+            "title": "Targets",
+            "type": "array"
+          }
+        },
+        "required": [
+          "targets",
+          "pagination"
+        ],
+        "title": "QueueTargetListResponse",
+        "type": "object"
+      },
+      "QueueTargetSelectResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "active_target_id": {
+            "title": "Active Target Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "active_target_id"
+        ],
+        "title": "QueueTargetSelectResponse",
+        "type": "object"
+      },
+      "Structure-Input": {
+        "additionalProperties": false,
+        "properties": {
+          "atoms": {
+            "items": {
+              "$ref": "#/components/schemas/Atom"
+            },
+            "title": "Atoms",
+            "type": "array"
+          },
+          "lattice": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Lattice"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "atoms"
+        ],
+        "title": "Structure",
+        "type": "object"
+      },
+      "Structure-Output": {
+        "additionalProperties": false,
+        "properties": {
+          "atoms": {
+            "items": {
+              "$ref": "#/components/schemas/Atom"
+            },
+            "title": "Atoms",
+            "type": "array"
+          },
+          "lattice": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Lattice"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "atoms"
+        ],
+        "title": "Structure",
+        "type": "object"
+      },
+      "StructureCreateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "title": "StructureCreateRequest",
+        "type": "object"
+      },
+      "StructureCreateResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "params": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/QeParameters"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "raw_input": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Input"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "structure": {
+            "$ref": "#/components/schemas/Structure-Output"
+          },
+          "structure_id": {
+            "title": "Structure Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "structure_id",
+          "structure",
+          "source"
+        ],
+        "title": "StructureCreateResponse",
+        "type": "object"
+      },
+      "StructureExportRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format"
+          },
+          "structure": {
+            "$ref": "#/components/schemas/Structure-Input"
+          }
+        },
+        "required": [
+          "structure"
+        ],
+        "title": "StructureExportRequest",
+        "type": "object"
+      },
+      "StructureExportResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "title": "StructureExportResponse",
+        "type": "object"
+      },
+      "StructureGetResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "params": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/QeParameters"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "raw_input": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Input"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "structure": {
+            "$ref": "#/components/schemas/Structure-Output"
+          }
+        },
+        "required": [
+          "structure"
+        ],
+        "title": "StructureGetResponse",
+        "type": "object"
+      },
+      "StructureParseRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "title": "StructureParseRequest",
+        "type": "object"
+      },
+      "StructureParseResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "structure": {
+            "$ref": "#/components/schemas/Structure-Output"
+          }
+        },
+        "required": [
+          "structure"
+        ],
+        "title": "StructureParseResponse",
+        "type": "object"
+      },
+      "SupercellBuildMeta": {
+        "additionalProperties": false,
+        "properties": {
+          "base_structure_id": {
+            "title": "Base Structure Id",
+            "type": "string"
+          },
+          "cols": {
+            "title": "Cols",
+            "type": "integer"
+          },
+          "overlap_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overlap Count"
+          },
+          "rows": {
+            "title": "Rows",
+            "type": "integer"
+          },
+          "structure_ids_used": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Structure Ids Used",
+            "type": "array"
+          },
+          "tile_count": {
+            "title": "Tile Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows",
+          "cols",
+          "tile_count",
+          "base_structure_id",
+          "structure_ids_used"
+        ],
+        "title": "SupercellBuildMeta",
+        "type": "object"
+      },
+      "SupercellBuildOptions": {
+        "additionalProperties": false,
+        "properties": {
+          "check_overlap": {
+            "default": false,
+            "title": "Check Overlap",
+            "type": "boolean"
+          },
+          "overlap_tolerance": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overlap Tolerance"
+          },
+          "validate_lattice": {
+            "default": "none",
+            "enum": [
+              "none",
+              "warn",
+              "error"
+            ],
+            "title": "Validate Lattice",
+            "type": "string"
+          }
+        },
+        "title": "SupercellBuildOptions",
+        "type": "object"
+      },
+      "SupercellBuildOutput": {
+        "additionalProperties": false,
+        "properties": {
+          "include_structure": {
+            "default": false,
+            "title": "Include Structure",
+            "type": "boolean"
+          }
+        },
+        "title": "SupercellBuildOutput",
+        "type": "object"
+      },
+      "SupercellBuildRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "base_structure_id": {
+            "title": "Base Structure Id",
+            "type": "string"
+          },
+          "grid": {
+            "$ref": "#/components/schemas/SupercellGrid"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SupercellBuildOptions"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "output": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SupercellBuildOutput"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "base_structure_id",
+          "grid"
+        ],
+        "title": "SupercellBuildRequest",
+        "type": "object"
+      },
+      "SupercellBuildResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "meta": {
+            "$ref": "#/components/schemas/SupercellBuildMeta"
+          },
+          "structure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Structure-Output"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "structure_id": {
+            "title": "Structure Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "structure_id",
+          "meta"
+        ],
+        "title": "SupercellBuildResponse",
+        "type": "object"
+      },
+      "SupercellGrid": {
+        "additionalProperties": false,
+        "properties": {
+          "axis": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SupercellGridAxis"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cols": {
+            "minimum": 1.0,
+            "title": "Cols",
+            "type": "integer"
+          },
+          "rows": {
+            "minimum": 1.0,
+            "title": "Rows",
+            "type": "integer"
+          },
+          "tiles": {
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Tiles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rows",
+          "cols",
+          "tiles"
+        ],
+        "title": "SupercellGrid",
+        "type": "object"
+      },
+      "SupercellGridAxis": {
+        "additionalProperties": false,
+        "properties": {
+          "col": {
+            "enum": [
+              "a",
+              "b"
+            ],
+            "title": "Col",
+            "type": "string"
+          },
+          "row": {
+            "enum": [
+              "a",
+              "b"
+            ],
+            "title": "Row",
+            "type": "string"
+          }
+        },
+        "required": [
+          "row",
+          "col"
+        ],
+        "title": "SupercellGridAxis",
+        "type": "object"
+      },
+      "SupercellMeta": {
+        "additionalProperties": false,
+        "properties": {
+          "layers": {
+            "title": "Layers",
+            "type": "integer"
+          },
+          "na": {
+            "title": "Na",
+            "type": "integer"
+          },
+          "nb": {
+            "title": "Nb",
+            "type": "integer"
+          },
+          "overlap_count": {
+            "default": 0,
+            "title": "Overlap Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "na",
+          "nb",
+          "layers"
+        ],
+        "title": "SupercellMeta",
+        "type": "object"
+      },
+      "SupercellRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "lattice": {
+            "$ref": "#/components/schemas/Lattice"
+          },
+          "sequence": {
+            "title": "Sequence",
+            "type": "string"
+          },
+          "structure_a": {
+            "$ref": "#/components/schemas/Structure-Input"
+          },
+          "structure_b": {
+            "$ref": "#/components/schemas/Structure-Input"
+          }
+        },
+        "required": [
+          "structure_a",
+          "structure_b",
+          "sequence",
+          "lattice"
+        ],
+        "title": "SupercellRequest",
+        "type": "object"
+      },
+      "SupercellResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "meta": {
+            "$ref": "#/components/schemas/SupercellMeta"
+          },
+          "structure": {
+            "$ref": "#/components/schemas/Structure-Output"
+          }
+        },
+        "required": [
+          "structure",
+          "meta"
+        ],
+        "title": "SupercellResponse",
+        "type": "object"
+      },
+      "TiledSupercellRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "check_overlap": {
+            "default": false,
+            "title": "Check Overlap",
+            "type": "boolean"
+          },
+          "lattice": {
+            "$ref": "#/components/schemas/Lattice"
+          },
+          "overlap_tolerance": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overlap Tolerance"
+          },
+          "pattern": {
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Pattern",
+            "type": "array"
+          },
+          "structure_a": {
+            "$ref": "#/components/schemas/Structure-Input"
+          },
+          "structure_b": {
+            "$ref": "#/components/schemas/Structure-Input"
+          }
+        },
+        "required": [
+          "structure_a",
+          "structure_b",
+          "pattern",
+          "lattice"
+        ],
+        "title": "TiledSupercellRequest",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "Vector3": {
+        "additionalProperties": false,
+        "properties": {
+          "x": {
+            "title": "X",
+            "type": "number"
+          },
+          "y": {
+            "title": "Y",
+            "type": "number"
+          },
+          "z": {
+            "title": "Z",
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y",
+          "z"
+        ],
+        "title": "Vector3",
+        "type": "object"
+      },
+      "ZPEJobRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "calc_mode": {
+            "default": "continue",
+            "enum": [
+              "new",
+              "continue"
+            ],
+            "title": "Calc Mode",
+            "type": "string"
+          },
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "input_dir": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Dir"
+          },
+          "mobile_indices": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Mobile Indices",
+            "type": "array"
+          },
+          "structure_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Structure Id"
+          },
+          "use_environ": {
+            "default": false,
+            "title": "Use Environ",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "content",
+          "mobile_indices"
+        ],
+        "title": "ZPEJobRequest",
+        "type": "object"
+      },
+      "ZPEJobResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "ZPEJobResponse",
+        "type": "object"
+      },
+      "ZPEJobResultResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {
+            "$ref": "#/components/schemas/ZPEResult"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "ZPEJobResultResponse",
+        "type": "object"
+      },
+      "ZPEJobStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "ZPEJobStatus",
+        "type": "object"
+      },
+      "ZPEParseRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "structure_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Structure Id"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "title": "ZPEParseRequest",
+        "type": "object"
+      },
+      "ZPEParseResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "atomic_species": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Atomic Species",
+            "type": "object"
+          },
+          "fixed_indices": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Fixed Indices",
+            "type": "array"
+          },
+          "kpoints": {
+            "anyOf": [
+              {
+                "maxItems": 3,
+                "minItems": 3,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kpoints"
+          },
+          "structure": {
+            "$ref": "#/components/schemas/Structure-Output"
+          }
+        },
+        "required": [
+          "structure",
+          "fixed_indices"
+        ],
+        "title": "ZPEParseResponse",
+        "type": "object"
+      },
+      "ZPEResult": {
+        "additionalProperties": false,
+        "properties": {
+          "cache_checked": {
+            "title": "Cache Checked",
+            "type": "integer"
+          },
+          "cache_deleted": {
+            "title": "Cache Deleted",
+            "type": "integer"
+          },
+          "calc_end_time": {
+            "title": "Calc End Time",
+            "type": "string"
+          },
+          "calc_start_time": {
+            "title": "Calc Start Time",
+            "type": "string"
+          },
+          "delta": {
+            "title": "Delta",
+            "type": "number"
+          },
+          "ecutrho": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ecutrho"
+          },
+          "ecutwfc": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ecutwfc"
+          },
+          "elapsed_seconds": {
+            "title": "Elapsed Seconds",
+            "type": "number"
+          },
+          "fixed_indices": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Fixed Indices",
+            "type": "array"
+          },
+          "freqs_cm": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Freqs Cm",
+            "type": "array"
+          },
+          "kpoints": {
+            "maxItems": 3,
+            "minItems": 3,
+            "prefixItems": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Kpoints",
+            "type": "array"
+          },
+          "low_cut_cm": {
+            "title": "Low Cut Cm",
+            "type": "number"
+          },
+          "mobile_indices": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Mobile Indices",
+            "type": "array"
+          },
+          "pseudo_dir": {
+            "title": "Pseudo Dir",
+            "type": "string"
+          },
+          "qe_input": {
+            "title": "Qe Input",
+            "type": "string"
+          },
+          "s_vib_jmol_k": {
+            "title": "S Vib Jmol K",
+            "type": "number"
+          },
+          "temperature": {
+            "title": "Temperature",
+            "type": "number"
+          },
+          "use_environ": {
+            "title": "Use Environ",
+            "type": "boolean"
+          },
+          "zpe_ev": {
+            "title": "Zpe Ev",
+            "type": "number"
+          }
+        },
+        "required": [
+          "freqs_cm",
+          "zpe_ev",
+          "s_vib_jmol_k",
+          "mobile_indices",
+          "fixed_indices",
+          "kpoints",
+          "delta",
+          "low_cut_cm",
+          "temperature",
+          "use_environ",
+          "qe_input",
+          "pseudo_dir",
+          "calc_start_time",
+          "calc_end_time",
+          "elapsed_seconds",
+          "cache_checked",
+          "cache_deleted"
+        ],
+        "title": "ZPEResult",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Chem Model API",
+    "version": "0.2.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/auth/login": {
+      "post": {
+        "operationId": "login_api_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthSession"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Login",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "operationId": "logout_api_auth_logout_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthLogoutResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Logout",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "operationId": "me_api_auth_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthMe"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Me",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "operationId": "register_api_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthRegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthSession"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/health": {
+      "get": {
+        "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Health Api Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/lattices/convert": {
+      "post": {
+        "operationId": "convert_lattice_api_lattices_convert_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LatticeConvertRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LatticeConvertResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Convert Lattice",
+        "tags": [
+          "lattices"
+        ]
+      }
+    },
+    "/api/structures": {
+      "post": {
+        "operationId": "create_structure_api_structures_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StructureCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StructureCreateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Structure",
+        "tags": [
+          "structures"
+        ]
+      }
+    },
+    "/api/structures/export": {
+      "post": {
+        "operationId": "export_structure_api_structures_export_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StructureExportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StructureExportResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Structure",
+        "tags": [
+          "structures"
+        ]
+      }
+    },
+    "/api/structures/parse": {
+      "post": {
+        "operationId": "parse_structure_api_structures_parse_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StructureParseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StructureParseResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Parse Structure",
+        "tags": [
+          "structures"
+        ]
+      }
+    },
+    "/api/structures/{structure_id}": {
+      "get": {
+        "operationId": "get_structure_api_structures__structure_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "structure_id",
+            "required": true,
+            "schema": {
+              "title": "Structure Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StructureGetResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Structure",
+        "tags": [
+          "structures"
+        ]
+      }
+    },
+    "/api/structures/{structure_id}/view": {
+      "get": {
+        "operationId": "view_structure_api_structures__structure_id__view_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "structure_id",
+            "required": true,
+            "schema": {
+              "title": "Structure Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "cif",
+              "title": "Format",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "View Structure",
+        "tags": [
+          "structures"
+        ]
+      }
+    },
+    "/api/supercells": {
+      "post": {
+        "operationId": "supercell_api_supercells_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupercellRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupercellResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Supercell",
+        "tags": [
+          "supercells"
+        ]
+      }
+    },
+    "/api/supercells/builds": {
+      "post": {
+        "operationId": "supercell_build_api_supercells_builds_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupercellBuildRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupercellBuildResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Supercell Build",
+        "tags": [
+          "supercells"
+        ]
+      }
+    },
+    "/api/supercells/tiled": {
+      "post": {
+        "operationId": "supercell_tiled_api_supercells_tiled_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TiledSupercellRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupercellResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Supercell Tiled",
+        "tags": [
+          "supercells"
+        ]
+      }
+    },
+    "/api/transforms/delta-transplant": {
+      "post": {
+        "operationId": "delta_transplant_api_transforms_delta_transplant_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeltaTransplantRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeltaTransplantResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delta Transplant",
+        "tags": [
+          "transforms"
+        ]
+      }
+    },
+    "/api/zpe/admin/ops": {
+      "get": {
+        "operationId": "zpe_ops_flags_api_zpe_admin_ops_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsFlagsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Zpe Ops Flags",
+        "tags": [
+          "zpe"
+        ]
+      },
+      "patch": {
+        "operationId": "zpe_ops_flags_update_api_zpe_admin_ops_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpsFlagsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsFlagsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Zpe Ops Flags Update",
+        "tags": [
+          "zpe"
+        ]
+      }
+    },
+    "/api/zpe/compute/enroll-tokens": {
+      "post": {
+        "operationId": "zpe_compute_enroll_token_api_zpe_compute_enroll_tokens_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnrollTokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrollTokenResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Zpe Compute Enroll Token",
+        "tags": [
+          "zpe"
+        ]
+      }
+    },
+    "/api/zpe/compute/jobs/lease": {
+      "post": {
+        "operationId": "zpe_compute_lease_api_zpe_compute_jobs_lease_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComputeLeaseResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Zpe Compute Lease",
+        "tags": [
+          "zpe"
+        ]
+      }
+    },
+    "/api/zpe/compute/jobs/{job_id}/failed": {
+      "post": {
+        "operationId": "zpe_compute_failed_api_zpe_compute_jobs__job_id__failed_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComputeFailedRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComputeFailedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Zpe Compute Failed",
+        "tags": [
+          "zpe"
+        ]
+      }
+    },
+    "/api/zpe/compute/jobs/{job_id}/result": {
+      "post": {
+        "operationId": "zpe_compute_result_api_zpe_compute_jobs__job_id__result_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComputeResultRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComputeResultResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Zpe Compute Result",
+        "tags": [
+          "zpe"
+        ]
+      }
+    },
+    "/api/zpe/compute/servers": {
+      "post": {
+        "operationId": "zpe_compute_register_api_zpe_compute_servers_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComputeRegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComputeRegisterResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Zpe Compute Register",
+        "tags": [
+          "zpe"
+        ]
+      }
+    },
+    "/api/zpe/compute/servers/{server_id}": {
+      "delete": {
+        "operationId": "zpe_compute_revoke_api_zpe_compute_servers__server_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "server_id",
+            "required": true,
+            "schema": {
+              "title": "Server Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComputeRevokeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Zpe Compute Revoke",
+        "tags": [
+          "zpe"
+        ]
+      }
+    },
+    "/api/zpe/jobs": {
+      "post": {
+        "operationId": "zpe_jobs_api_zpe_jobs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ZPEJobRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZPEJobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Zpe Jobs",
+        "tags": [
+          "zpe"
+        ]
+      }
+    },
+    "/api/zpe/jobs/{job_id}": {
+      "get": {
+        "operationId": "zpe_job_status_api_zpe_jobs__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZPEJobStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Zpe Job Status",
+        "tags": [
+          "zpe"
+        ]
+      }
+    },
+    "/api/zpe/jobs/{job_id}/files": {
+      "get": {
+        "operationId": "zpe_job_files_api_zpe_jobs__job_id__files_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": [
+                "summary",
+                "freqs"
+              ],
+              "title": "Kind",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Zpe Job Files",
+        "tags": [
+          "zpe"
+        ]
+      }
+    },
+    "/api/zpe/jobs/{job_id}/result": {
+      "get": {
+        "operationId": "zpe_job_result_api_zpe_jobs__job_id__result_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZPEJobResultResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Zpe Job Result",
+        "tags": [
+          "zpe"
+        ]
+      }
+    },
+    "/api/zpe/parse": {
+      "post": {
+        "operationId": "zpe_parse_api_zpe_parse_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ZPEParseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZPEParseResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Zpe Parse",
+        "tags": [
+          "zpe"
+        ]
+      }
+    },
+    "/api/zpe/targets": {
+      "get": {
+        "operationId": "list_queue_targets_api_zpe_targets_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueTargetListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Queue Targets",
+        "tags": [
+          "zpe"
+        ]
+      }
+    },
+    "/api/zpe/targets/{target_id}/active": {
+      "put": {
+        "operationId": "select_queue_target_api_zpe_targets__target_id__active_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "target_id",
+            "required": true,
+            "schema": {
+              "title": "Target Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueTargetSelectResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Select Queue Target",
+        "tags": [
+          "zpe"
+        ]
+      }
+    }
+  }
+}

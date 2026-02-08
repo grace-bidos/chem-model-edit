@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils'
 import { atomsToXyz } from '@/lib/xyz'
 
 type SupercellResult = {
-  structureId: string
+  structure_id: string
   meta: SupercellBuildMeta
 }
 
@@ -223,7 +223,7 @@ export function SupercellTool({
     setIsBuilding(true)
     try {
       const result = await buildSupercell({
-        baseStructureId: baseId,
+        base_structure_id: baseId,
         grid: {
           rows: gridRows,
           cols: gridCols,
@@ -231,19 +231,19 @@ export function SupercellTool({
           axis,
         },
         options: {
-          checkOverlap,
-          overlapTolerance: tolerance,
-          validateLattice,
+          check_overlap: checkOverlap,
+          overlap_tolerance: tolerance,
+          validate_lattice: validateLattice,
         },
         output: {
-          includeStructure: false,
+          include_structure: false,
         },
       })
-      setPreviewStructureId(result.id)
+      setPreviewStructureId(result.structure_id)
       setPreviewMeta(result.meta)
       setPreviewError(null)
       onSupercellCreated?.({
-        structureId: result.id,
+        structure_id: result.structure_id,
         meta: result.meta,
       })
     } catch (error) {
@@ -354,14 +354,14 @@ export function SupercellTool({
                 Overlap
               </div>
               <div className="font-semibold text-slate-700">
-                {previewMeta?.overlapCount ?? (checkOverlap ? '...' : '—')}
+                {previewMeta?.overlap_count ?? (checkOverlap ? '...' : '—')}
               </div>
             </div>
           </div>
           {previewMeta ? (
             <div className="mt-3 rounded-md border border-slate-200 bg-white px-2 py-2 text-[10px] text-slate-500">
-              base: {previewMeta.baseStructureId.slice(0, 8)} • used:{' '}
-              {previewMeta.structureIdsUsed.length}
+              base: {previewMeta.base_structure_id.slice(0, 8)} • used:{' '}
+              {previewMeta.structure_ids_used.length}
             </div>
           ) : null}
           {downloadError ? (

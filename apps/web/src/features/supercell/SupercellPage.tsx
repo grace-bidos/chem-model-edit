@@ -51,7 +51,7 @@ export default function SupercellPage() {
     na: 0,
     nb: 0,
     layers: 0,
-    overlapCount: 0,
+    overlap_count: 0,
   })
   const [error, setError] = useState<string | null>(null)
   const [converterError, setConverterError] = useState<string | null>(null)
@@ -231,12 +231,12 @@ export default function SupercellPage() {
         throw new Error('重複チェックの許容誤差が無効です。')
       }
       const result = await generateTiledSupercell({
-        structureA,
-        structureB,
+        structure_a: structureA,
+        structure_b: structureB,
         pattern: patternGrid,
         lattice: { a, b, c },
-        checkOverlap: overlapCheck,
-        overlapTolerance: tolerance,
+        check_overlap: overlapCheck,
+        overlap_tolerance: tolerance,
       })
       setAtoms(result.structure.atoms)
       setMeta(result.meta)
@@ -538,7 +538,7 @@ export default function SupercellPage() {
                 <div className="flex items-center justify-between">
                   <span>Overlaps</span>
                   <Badge variant="outline" className="border-white/10">
-                    {meta.overlapCount ?? 0}
+                    {meta.overlap_count}
                   </Badge>
                 </div>
               </div>

@@ -1,221 +1,57 @@
-export type Atom = {
-  symbol: string
-  x: number
-  y: number
-  z: number
-}
+import type { components, paths } from './generated/schema'
 
-export type Vector3 = {
-  x: number
-  y: number
-  z: number
-}
+type Schemas = components['schemas']
 
-export type Lattice = {
-  a: Vector3
-  b: Vector3
-  c: Vector3
-}
+export type OpenApiPaths = paths
+export type OpenApiSchemas = Schemas
 
-export type LatticeParams = {
-  a: number
-  b: number
-  c: number
-  alpha: number
-  beta: number
-  gamma: number
-}
+export type Atom = Schemas['Atom']
+export type Vector3 = Schemas['Vector3']
+export type Lattice = Schemas['Lattice']
+export type LatticeParams = Schemas['LatticeParams']
+export type Structure = Schemas['Structure-Output']
+export type StructureInput = Schemas['Structure-Input']
+export type QeParameters = Schemas['QeParameters']
+export type Pagination = Schemas['Pagination']
 
-export type Structure = {
-  atoms: Atom[]
-  lattice?: Lattice | null
-}
+export type AuthUser = Schemas['AuthUser']
+export type AuthSession = Schemas['AuthSession']
+export type AuthMe = Schemas['AuthMe']
+export type AuthLogoutResponse = Schemas['AuthLogoutResponse']
 
-export type QeParameters = {
-  control: Record<string, unknown>
-  system: Record<string, unknown>
-  electrons: Record<string, unknown>
-  ions: Record<string, unknown>
-  cell: Record<string, unknown>
-  pseudopotentials: Record<string, string>
-  kpoints?: Record<string, unknown> | null
-}
+export type StructureParseResponse = Schemas['StructureParseResponse']
+export type StructureCreateResponse = Schemas['StructureCreateResponse']
+export type StructureGetResponse = Schemas['StructureGetResponse']
+export type StructureExportResponse = Schemas['StructureExportResponse']
+export type StructureParseRequest = Schemas['StructureParseRequest']
+export type StructureCreateRequest = Schemas['StructureCreateRequest']
+export type StructureExportRequest = Schemas['StructureExportRequest']
 
-export type Pagination = {
-  total: number
-  limit: number
-  offset: number
-}
+export type DeltaTransplantRequest = Schemas['DeltaTransplantRequest']
+export type DeltaTransplantResponse = Schemas['DeltaTransplantResponse']
 
-export type AuthUser = {
-  id: string
-  email: string
-  createdAt: string
-}
+export type SupercellMeta = Schemas['SupercellMeta']
+export type SupercellResponse = Schemas['SupercellResponse']
+export type SupercellRequest = Schemas['SupercellRequest']
+export type TiledSupercellRequest = Schemas['TiledSupercellRequest']
+export type SupercellGridAxis = Schemas['SupercellGridAxis']
+export type SupercellGrid = Schemas['SupercellGrid']
+export type SupercellBuildOptions = Schemas['SupercellBuildOptions']
+export type SupercellBuildOutput = Schemas['SupercellBuildOutput']
+export type SupercellBuildRequest = Schemas['SupercellBuildRequest']
+export type SupercellBuildMeta = Schemas['SupercellBuildMeta']
+export type SupercellBuildResponse = Schemas['SupercellBuildResponse']
 
-export type AuthSession = {
-  token: string
-  expiresAt: string
-  user: AuthUser
-}
-
-export type AuthMe = {
-  user: AuthUser
-  expiresAt: string
-}
-
-export type AuthLogoutResponse = {
-  ok: true
-}
-
-export type StructureParseResponse = {
-  structure: Structure
-}
-
-export type StructureCreateResponse = {
-  id: string
-  structure: Structure
-  source: string
-  params?: QeParameters | null
-  rawInput?: string | null
-}
-
-export type StructureGetResponse = {
-  structure: Structure
-  params?: QeParameters | null
-  rawInput?: string | null
-  source?: string | null
-}
-
-export type StructureExportResponse = {
-  content: string
-}
-
-export type DeltaTransplantResponse = {
-  content: string
-}
-
-export type SupercellMeta = {
-  na: number
-  nb: number
-  layers: number
-  overlapCount?: number
-}
-
-export type SupercellResponse = {
-  structure: Structure
-  meta: SupercellMeta
-}
-
-export type SupercellGridAxis =
-  | { row: 'a'; col: 'b' }
-  | { row: 'b'; col: 'a' }
-
-export type SupercellGrid = {
-  rows: number
-  cols: number
-  tiles: string[][]
-  axis?: SupercellGridAxis
-}
-
-export type SupercellBuildOptions = {
-  checkOverlap?: boolean
-  overlapTolerance?: number
-  validateLattice?: 'none' | 'warn' | 'error'
-}
-
-export type SupercellBuildOutput = {
-  includeStructure?: boolean
-}
-
-export type SupercellBuildRequest = {
-  baseStructureId: string
-  grid: SupercellGrid
-  options?: SupercellBuildOptions
-  output?: SupercellBuildOutput
-}
-
-export type SupercellBuildMeta = {
-  rows: number
-  cols: number
-  tileCount: number
-  overlapCount?: number
-  baseStructureId: string
-  structureIdsUsed: string[]
-}
-
-export type SupercellBuildResponse = {
-  id: string
-  structure?: Structure
-  meta: SupercellBuildMeta
-}
-
-export type ZPEParseResponse = {
-  structure: Structure
-  fixedIndices: number[]
-  atomicSpecies: Record<string, string>
-  kpoints?: [number, number, number] | null
-}
-
-export type ZPEJobRequest = {
-  content: string
-  mobileIndices: number[]
-  useEnviron?: boolean
-  inputDir?: string | null
-  calcMode?: 'new' | 'continue'
-  structureId?: string | null
-}
-
-export type ZPEJobResponse = {
-  id: string
-}
-
-export type ZPEJobStatus = {
-  status: string
-  detail?: string | null
-  updatedAt?: string | null
-}
-
-export type ZPEQueueTarget = {
-  id: string
-  queueName: string
-  serverId: string
-  registeredAt: string
-  name?: string | null
-}
-
-export type ZPEQueueTargetList = {
-  targets: ZPEQueueTarget[]
-  activeTargetId?: string | null
-  pagination: Pagination
-}
-
-export type ZPEResult = {
-  freqsCm: number[]
-  zpeEv: number
-  sVibJmolK: number
-  mobileIndices: number[]
-  fixedIndices: number[]
-  kpoints: [number, number, number]
-  delta: number
-  lowCutCm: number
-  temperature: number
-  useEnviron: boolean
-  qeInput: string
-  pseudoDir: string
-  calcStartTime: string
-  calcEndTime: string
-  elapsedSeconds: number
-  cacheChecked: number
-  cacheDeleted: number
-  ecutwfc?: number | null
-  ecutrho?: number | null
-}
-
-export type ErrorResponse = {
-  error: {
-    code: string
-    message: string
-    details?: unknown
-  }
-}
+export type ZPEParseResponse = Schemas['ZPEParseResponse']
+export type ZPEJobRequest = Schemas['ZPEJobRequest']
+export type ZPEJobResponse = Schemas['ZPEJobResponse']
+export type ZPEJobStatus = Schemas['ZPEJobStatus']
+export type ZPEQueueTarget = Schemas['QueueTarget']
+export type ZPEQueueTargetList = Schemas['QueueTargetListResponse']
+export type ZPEQueueTargetSelectResponse = Schemas['QueueTargetSelectResponse']
+export type ZPEResult = Schemas['ZPEResult']
+export type EnrollTokenResponse = Schemas['EnrollTokenResponse']
+export type AuthLoginRequest = Schemas['AuthLoginRequest']
+export type AuthRegisterRequest = Schemas['AuthRegisterRequest']
+export type LatticeConvertRequest = Schemas['LatticeConvertRequest']
+export type EnrollTokenRequest = Schemas['EnrollTokenRequest']

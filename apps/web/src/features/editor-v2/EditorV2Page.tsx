@@ -109,7 +109,7 @@ export default function EditorV2Page() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const handleSupercellCreated = useCallback(
-    (result: { structureId: string; meta: SupercellBuildMeta }) => {
+    (result: { structure_id: string; meta: SupercellBuildMeta }) => {
       const timestamp = new Date()
         .toISOString()
         .slice(0, 19)
@@ -121,8 +121,8 @@ export default function EditorV2Page() {
         name,
         kind: 'out',
         label: `Supercell ${result.meta.rows}x${result.meta.cols}`,
-        structureId: result.structureId,
-        cifUrl: structureViewUrl(result.structureId, { format: 'cif' }),
+        structureId: result.structure_id,
+        cifUrl: structureViewUrl(result.structure_id, { format: 'cif' }),
         parseSource: 'supercell',
         initialOpenSections: { table: false, parameter: false },
       }
@@ -383,10 +383,10 @@ export default function EditorV2Page() {
             const content = await file.text()
             const {
               structure,
-              id: structureId,
+              structure_id: structureId,
               source,
               params,
-              rawInput,
+              raw_input: rawInput,
             } = await createStructureFromQe(content)
             const baseName = file.name.replace(/\.[^/.]+$/, '') || file.name
             const id = createImportId()
