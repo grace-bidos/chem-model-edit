@@ -26,6 +26,8 @@ router = APIRouter(prefix="/api/structures", tags=["structures"])
 
 
 def _ase_from_structure(structure: Structure) -> ASEAtoms:
+    if not structure.atoms:
+        raise ValueError("原子が空です。")
     symbols = [atom.symbol for atom in structure.atoms]
     positions = [(atom.x, atom.y, atom.z) for atom in structure.atoms]
     if structure.lattice is None:
@@ -100,6 +102,9 @@ async def export_structure(
 async def export_structure_cif(
     request: StructureExportRequest,
 ) -> Response:
-    atoms = _ase_from_structure(request.structure)
-    cif_text = atoms_to_cif(atoms)
+    try:
+        atoms = _ase_from_structure(request.structure)
+        cif_text = atoms_to_cif(atoms)
+    except Exception as exc:
+        raise ValueError("CIFへの変換に失敗しました。") from exc
     return Response(content=cif_text, media_type="chemical/x-cif")

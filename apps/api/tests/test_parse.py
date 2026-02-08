@@ -64,6 +64,27 @@ def test_export_structure_cif_without_store_side_effect():
     assert "_atom_site_fract_x" in text
 
 
+def test_export_structure_cif_empty_atoms_returns_400():
+    response = CLIENT.post(
+        "/api/structures/cif",
+        json={"structure": {"atoms": [], "lattice": None}},
+    )
+    assert response.status_code == 400
+
+
+def test_export_structure_cif_invalid_symbol_returns_400():
+    response = CLIENT.post(
+        "/api/structures/cif",
+        json={
+            "structure": {
+                "atoms": [{"symbol": "0", "x": 0.0, "y": 0.0, "z": 0.0}],
+                "lattice": None,
+            }
+        },
+    )
+    assert response.status_code == 400
+
+
 def test_parse_qe_invalid():
     response = CLIENT.post("/api/structures/parse", json={"content": "invalid"})
     assert response.status_code == 400
