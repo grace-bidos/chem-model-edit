@@ -107,9 +107,10 @@ class ComputeEnrollStore:
             payload["meta"] = json.dumps(meta, ensure_ascii=False)
         server_key = f"{_SERVER_PREFIX}{server_id}"
         pipe = self.redis.pipeline(transaction=True)
+        pipe_any = cast(Any, pipe)
         for _ in range(5):
             try:
-                pipe.watch(key)
+                pipe_any.watch(key)
                 if not pipe.exists(key):
                     pipe.reset()
                     raise KeyError("token not found")

@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import logging
 import time
+from typing import Awaitable, Callable
 
 from fastapi import Request
+from starlette.responses import Response
 
 from services.zpe.structured_log import log_event, new_request_id
 
@@ -15,7 +17,19 @@ def get_request_id(request: Request) -> str:
     return request_id or new_request_id()
 
 
-async def add_request_context(request: Request, call_next):
+async def add_request_context(
+    request: Request,
+    call_next: Callable[[Request], Awaitable[Response]],
+) -> Response:
+    """リクエストの相関IDとZPE向けアクセスログを付与する．
+
+    Parameters:
+        request: 受信したHTTPリクエスト．
+        call_next: 次のミドルウェアまたはエンドポイントを呼ぶコールバック．
+
+    Returns:
+        後続処理のレスポンス．
+    """
     request_id = request.headers.get("x-request-id") or new_request_id()
     request.state.request_id = request_id
     start = time.monotonic()

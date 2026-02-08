@@ -2,13 +2,40 @@ from __future__ import annotations
 
 from io import StringIO
 import re
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Sequence, SupportsFloat, Tuple, cast
 
 from ase import Atoms as ASEAtoms
 from ase.io import read as ase_read
 from pymatgen.io.pwscf import PWInput
 
 from app.schemas.common import Atom, Lattice, QeParameters, Structure, Vector3
+
+
+def _as_float3(value: object) -> tuple[float, float, float]:
+    vec = cast(tuple[object, object, object], value)
+    return (
+        float(cast(SupportsFloat, vec[0])),
+        float(cast(SupportsFloat, vec[1])),
+        float(cast(SupportsFloat, vec[2])),
+    )
+
+
+def _ase_symbols_positions(atoms_obj: ASEAtoms) -> list[tuple[str, tuple[float, float, float]]]:
+    symbols = cast(list[str], cast(Any, atoms_obj).get_chemical_symbols())
+    positions = cast(list[object], cast(Any, atoms_obj).get_positions())
+    return [
+        (symbol, _as_float3(position))
+        for symbol, position in zip(symbols, positions, strict=True)
+    ]
+
+
+def _ase_lattice_vectors(atoms_obj: ASEAtoms) -> list[list[float]]:
+    cell = cast(Any, atoms_obj).get_cell()
+    raw_vectors = cast(list[list[object]], cell.tolist())
+    return [
+        [float(cast(SupportsFloat, row[0])), float(cast(SupportsFloat, row[1])), float(cast(SupportsFloat, row[2]))]
+        for row in raw_vectors
+    ]
 
 
 def _ase_atoms_from_content(content: str) -> ASEAtoms:
@@ -37,12 +64,10 @@ def _pymatgen_atoms_from_content(content: str) -> ASEAtoms:
 
 
 def structure_from_ase(atoms_obj: ASEAtoms) -> Structure:
-    symbols = atoms_obj.get_chemical_symbols()
-    positions = atoms_obj.get_positions()
     parsed: List[Atom] = []
-    for symbol, (x, y, z) in zip(symbols, positions):
+    for symbol, (x, y, z) in _ase_symbols_positions(atoms_obj):
         parsed.append(Atom(symbol=symbol, x=float(x), y=float(y), z=float(z)))
-    lattice = _lattice_from_vectors(atoms_obj.get_cell().tolist())
+    lattice = _lattice_from_vectors(_ase_lattice_vectors(atoms_obj))
     return Structure(atoms=parsed, lattice=lattice)
 
 
@@ -106,12 +131,13 @@ def parse_qe_atoms(content: str) -> Tuple[ASEAtoms, str]:
 def _safe_mapping(value: object) -> Dict[str, Any]:
     if value is None:
         return {}
-    if isinstance(value, dict):
-        return dict(value)
+    if isinstance(value, Mapping):
+        return {str(key): item for key, item in value.items()}
     try:
-        return dict(value)  # type: ignore[call-overload,arg-type]
+        mapped = cast(dict[object, Any], dict(cast(Any, value)))
     except Exception:
         return {}
+    return {str(key): item for key, item in mapped.items()}
 
 
 def _safe_dict_like(value: object) -> Optional[Dict[str, Any]]:

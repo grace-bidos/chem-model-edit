@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import lru_cache
 import os
 from pathlib import Path
-from typing import Any, Literal, Optional, cast
+from typing import Literal, Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -71,5 +71,9 @@ class ZPESettings(BaseSettings):
 
 @lru_cache
 def get_zpe_settings() -> ZPESettings:
-    settings_cls = cast(Any, ZPESettings)
-    return settings_cls(_env_file=_resolve_env_file())
+    """ZPE設定を環境変数から読み込み，キャッシュして返す．
+
+    Returns:
+        解決済みの設定オブジェクト．
+    """
+    return ZPESettings(_env_file=_resolve_env_file())  # type: ignore[call-arg]

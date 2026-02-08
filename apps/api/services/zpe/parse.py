@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from io import StringIO
 import re
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Sequence, SupportsFloat, Tuple, cast
 
 from ase import Atoms as ASEAtoms
 from ase.io import read as ase_read
@@ -17,6 +17,30 @@ _BLOCK_START = re.compile(
     re.IGNORECASE,
 )
 _SPECIES_HEADER = re.compile(r"^\s*ATOMIC_SPECIES\b", re.IGNORECASE)
+
+
+def _as_float3(value: object) -> tuple[float, float, float]:
+    vec = cast(tuple[object, object, object], value)
+    return (
+        float(cast(SupportsFloat, vec[0])),
+        float(cast(SupportsFloat, vec[1])),
+        float(cast(SupportsFloat, vec[2])),
+    )
+
+
+def _ase_symbols_positions(atoms: ASEAtoms) -> list[tuple[str, tuple[float, float, float]]]:
+    symbols = cast(list[str], cast(Any, atoms).get_chemical_symbols())
+    positions = cast(list[object], cast(Any, atoms).get_positions())
+    return [(symbol, _as_float3(position)) for symbol, position in zip(symbols, positions, strict=True)]
+
+
+def _ase_lattice_vectors(atoms: ASEAtoms) -> list[list[float]]:
+    cell = cast(Any, atoms).get_cell()
+    raw_vectors = cast(list[list[object]], cell.tolist())
+    return [
+        [float(cast(SupportsFloat, row[0])), float(cast(SupportsFloat, row[1])), float(cast(SupportsFloat, row[2]))]
+        for row in raw_vectors
+    ]
 
 
 def _iter_atomic_position_lines(content: str) -> List[str]:
@@ -177,12 +201,10 @@ def _lattice_from_vectors(
 
 def parse_qe_structure(content: str) -> Tuple[Structure, List[int]]:
     atoms = parse_qe_atoms(content)
-    symbols = atoms.get_chemical_symbols()
-    positions = atoms.get_positions()
     parsed_atoms: List[Atom] = []
-    for symbol, (x, y, z) in zip(symbols, positions):
+    for symbol, (x, y, z) in _ase_symbols_positions(atoms):
         parsed_atoms.append(Atom(symbol=symbol, x=float(x), y=float(y), z=float(z)))
-    lattice = _lattice_from_vectors(atoms.get_cell().tolist())
+    lattice = _lattice_from_vectors(_ase_lattice_vectors(atoms))
     fixed_indices = extract_fixed_indices(content)
     return Structure(atoms=parsed_atoms, lattice=lattice), fixed_indices
 

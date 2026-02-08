@@ -111,7 +111,10 @@ class RedisResultStore(ResultStore):
         raw = cast(Optional[bytes], self.redis.get(f"{_RESULT_PREFIX}{job_id}"))
         if raw is None:
             raise KeyError("result not found")
-        return json.loads(raw)
+        parsed = json.loads(raw)
+        if not isinstance(parsed, dict):
+            raise ValueError("invalid result payload type")
+        return cast(Dict[str, Any], parsed)
 
     def get_file(self, job_id: str, kind: str) -> str:
         if kind == "summary":

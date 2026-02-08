@@ -7,7 +7,7 @@ import os
 import shutil
 import uuid
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Iterator, cast
 
 from ase.calculators.espresso import Espresso
 from ase.vibrations import Vibrations
@@ -28,12 +28,12 @@ from .parse import (
 from .paths import resolve_pseudo_dir, resolve_work_dir
 from .qe import build_espresso_profile
 from .result_store import get_result_store
-from .settings import get_zpe_settings
+from .settings import ZPESettings, get_zpe_settings
 from .thermo import calc_zpe_and_s_vib, normalize_frequencies
 
 
 @contextmanager
-def _chdir(path: Path):
+def _chdir(path: Path) -> Iterator[None]:
     prev = Path.cwd()
     os.chdir(path)
     try:
@@ -87,7 +87,7 @@ def _finalize_artifacts(
 def _compute_mock_artifacts(
     request: ZPEJobRequest,
     *,
-    settings: Any,
+    settings: ZPESettings,
     job_dir: Path,
 ) -> ZPEComputeArtifacts:
     fixed_indices = extract_fixed_indices(request.content)
@@ -232,7 +232,7 @@ def compute_zpe_artifacts(payload: Dict[str, Any], *, job_id: str) -> ZPECompute
             settings=settings,
         )
 
-        atoms.calc = Espresso(
+        atoms.calc = cast(Any, Espresso)(
             pseudopotentials=pseudos,
             input_data=input_data,
             kpts=kpts_use,
@@ -245,14 +245,14 @@ def compute_zpe_artifacts(payload: Dict[str, Any], *, job_id: str) -> ZPECompute
 
         cache_info = sanitize_vib_cache(job_dir, settings.vib_name, natoms=len(atoms))
 
-        vib = Vibrations(
+        vib = cast(Any, Vibrations)(
             atoms,
             indices=mobile_indices,
             delta=settings.delta,
             name=settings.vib_name,
         )
-        vib.run()
-        freqs_cm = vib.get_frequencies()
+        cast(Any, vib).run()
+        freqs_cm = cast(list[float], cast(Any, vib).get_frequencies())
 
     zpe_ev, s_vib_jmol_k = calc_zpe_and_s_vib(
         freqs_cm,

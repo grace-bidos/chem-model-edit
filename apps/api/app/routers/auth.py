@@ -9,15 +9,24 @@ from app.schemas.auth import (
     AuthMe,
     AuthRegisterRequest,
     AuthSession,
-    AuthUser,
+    AuthUser as AuthUserSchema,
 )
 from services import auth as auth_service
+from services.auth.store import AuthUser
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
-def _to_auth_user(user) -> AuthUser:
-    return AuthUser(id=user.user_id, email=user.email, created_at=user.created_at)
+def _to_auth_user(user: AuthUser) -> AuthUserSchema:
+    """内部ユーザー型をAPIレスポンス型へ変換する．
+
+    Parameters:
+        user: 認証ストアのユーザー情報．
+
+    Returns:
+        APIレスポンス用のユーザー情報．
+    """
+    return AuthUserSchema(id=user.user_id, email=user.email, created_at=user.created_at)
 
 
 @router.post("/register", response_model=AuthSession)
