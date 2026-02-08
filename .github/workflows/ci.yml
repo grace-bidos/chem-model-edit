@@ -65,3 +65,36 @@ jobs:
       - name: Schemathesis
         run: uv run bash scripts/schemathesis.sh
         working-directory: apps/api
+
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.27.0
+          run_install: false
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install Python dependencies
+        run: uv sync --dev
+        working-directory: apps/api
+      - name: Install Node dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Export OpenAPI schema
+        run: PYTHONPATH=apps/api uv run --project apps/api python apps/api/scripts/export_openapi.py
+      - name: Regenerate API client
+        run: pnpm -C packages/api-client run generate
+      - name: Check generated files are committed
+        run: git diff --exit-code packages/api-client/
