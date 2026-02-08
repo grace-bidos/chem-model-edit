@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import pytest
+import numpy as np
 from ase import Atoms as ASEAtoms
 
-from services.supercells import build_supercell_from_grid
+from services.supercells import (
+    build_supercell_from_grid,
+    count_overlap_pairs_spatial_hash,
+)
 from app.schemas.supercell import SupercellGrid, SupercellGridAxis
 
 
@@ -137,3 +141,33 @@ def test_build_supercell_from_grid_overlap_count_is_per_new_atom():
 
     # 2つ目以降の各新規原子は、既存原子と1件でも重なれば+1される。
     assert overlap_count == 3
+
+
+def _count_overlap_pairs_bruteforce(points: np.ndarray, *, tolerance: float) -> int:
+    tolerance_sq = tolerance * tolerance
+    count = 0
+    for i in range(points.shape[0] - 1):
+        diff = points[i + 1 :] - points[i]
+        d2 = np.einsum("ij,ij->i", diff, diff)
+        count += int(np.sum(d2 <= tolerance_sq))
+    return count
+
+
+def test_overlap_pair_counter_spatial_hash_matches_bruteforce():
+    points = np.asarray(
+        [
+            (0.0, 0.0, 0.0),
+            (0.01, 0.0, 0.0),
+            (1.0, 1.0, 1.0),
+            (1.005, 1.0, 1.0),
+            (2.0, 2.0, 2.0),
+        ],
+        dtype=np.float64,
+    )
+    tolerance = 0.02
+
+    brute = _count_overlap_pairs_bruteforce(points, tolerance=tolerance)
+    spatial_hash = count_overlap_pairs_spatial_hash(points, tolerance=tolerance)
+
+    assert brute == 2
+    assert spatial_hash == brute
