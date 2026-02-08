@@ -80,7 +80,7 @@ class SupercellBuildMeta(ApiModel):
 
 
 class SupercellBuildResponse(ApiModel):
-    id: str
+    structure_id: str
     structure: Optional[Structure] = None
     meta: SupercellBuildMeta
 

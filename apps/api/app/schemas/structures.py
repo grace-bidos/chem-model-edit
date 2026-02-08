@@ -21,7 +21,7 @@ class StructureCreateRequest(ApiModel):
 
 
 class StructureCreateResponse(ApiModel):
-    id: str
+    structure_id: str
     structure: Structure
     source: str
     params: Optional[QeParameters] = None

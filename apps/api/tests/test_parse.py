@@ -43,6 +43,14 @@ def test_parse_qe_ok():
     assert lattice["c"]["z"] == 5.0
 
 
+def test_create_structure_returns_structure_id():
+    response = CLIENT.post("/api/structures", json={"content": QE_INPUT})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["structure_id"]
+    assert data["structure"]["atoms"][0]["symbol"] == "H"
+
+
 def test_parse_qe_invalid():
     response = CLIENT.post("/api/structures/parse", json={"content": "invalid"})
     assert response.status_code == 400

@@ -47,11 +47,11 @@ def test_lease_endpoint_returns_job(monkeypatch):
     )
     assert response.status_code == 200
     data = response.json()
-    assert data["jobId"] == job_id
+    assert data["job_id"] == job_id
     assert data["payload"]["content"] == payload["content"]
-    assert data["payload"]["mobileIndices"] == payload["mobile_indices"]
-    assert data["leaseId"]
-    assert data["leaseTtlSeconds"] == 60
+    assert data["payload"]["mobile_indices"] == payload["mobile_indices"]
+    assert data["lease_id"]
+    assert data["lease_ttl_seconds"] == 60
 
 
 def test_lease_endpoint_no_job(monkeypatch):

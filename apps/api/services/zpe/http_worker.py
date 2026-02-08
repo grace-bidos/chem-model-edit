@@ -82,10 +82,10 @@ def _submit_result(
     timeout: int,
 ) -> None:
     payload = {
-        "leaseId": lease_id,
+        "lease_id": lease_id,
         "result": result,
-        "summaryText": summary_text,
-        "freqsCsv": freqs_csv,
+        "summary_text": summary_text,
+        "freqs_csv": freqs_csv,
         "meta": meta,
     }
     status, _ = _request_json(
@@ -110,9 +110,9 @@ def _submit_failed(
     timeout: int,
 ) -> None:
     payload = {
-        "leaseId": lease_id,
-        "errorCode": error_code,
-        "errorMessage": error_message,
+        "lease_id": lease_id,
+        "error_code": error_code,
+        "error_message": error_message,
         "traceback": tb,
     }
     _request_json(
@@ -175,12 +175,13 @@ def run_http_worker() -> None:
             continue
 
         backoff = poll_interval
-        job_id = lease.get("jobId") or lease.get("job_id")
+        # TODO(api-contract): remove camelCase fallback after all workers migrate.
+        job_id = lease.get("job_id") or lease.get("jobId")
         payload = lease.get("payload")
-        lease_id = lease.get("leaseId") or lease.get("lease_id")
+        lease_id = lease.get("lease_id") or lease.get("leaseId")
         meta = lease.get("meta") or {}
-        request_id = meta.get("requestId") or meta.get("request_id")
-        user_id = meta.get("userId") or meta.get("user_id")
+        request_id = meta.get("request_id") or meta.get("requestId")
+        user_id = meta.get("user_id") or meta.get("userId")
         if not job_id or not payload or not lease_id:
             log_event(
                 logger,
