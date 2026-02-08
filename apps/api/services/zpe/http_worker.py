@@ -175,13 +175,12 @@ def run_http_worker() -> None:
             continue
 
         backoff = poll_interval
-        # TODO(api-contract): remove camelCase fallback after all workers migrate.
-        job_id = lease.get("job_id") or lease.get("jobId")
+        job_id = lease.get("job_id")
         payload = lease.get("payload")
-        lease_id = lease.get("lease_id") or lease.get("leaseId")
+        lease_id = lease.get("lease_id")
         meta = lease.get("meta") or {}
-        request_id = meta.get("request_id") or meta.get("requestId")
-        user_id = meta.get("user_id") or meta.get("userId")
+        request_id = meta.get("request_id")
+        user_id = meta.get("user_id")
         if not job_id or not payload or not lease_id:
             log_event(
                 logger,
