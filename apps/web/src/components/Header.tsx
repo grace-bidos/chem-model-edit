@@ -4,6 +4,7 @@ import { Activity, Database, Share2, Upload } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 
+/** エディタ以外のルートで表示するグローバルヘッダー。 */
 export default function Header() {
   const pathname = useRouterState({
     select: (state) => state.location.pathname,

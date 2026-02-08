@@ -3,6 +3,7 @@ import * as SwitchPrimitives from '@radix-ui/react-switch'
 
 import { cn } from '@/lib/utils'
 
+/** Radix Switch を使ったトグル入力コンポーネント。 */
 const Switch = React.forwardRef<
   React.ElementRef<typeof SwitchPrimitives.Root>,
   React.ComponentPropsWithoutRef<typeof SwitchPrimitives.Root>

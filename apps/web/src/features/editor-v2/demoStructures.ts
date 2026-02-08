@@ -1,3 +1,4 @@
+/** デモ表示用のPDB文字列サンプル。 */
 export const DEMO_STRUCTURES = {
   benzene: [
     'HEADER    BENZENE',

@@ -3,6 +3,7 @@ import type { Atom } from './types'
 const LINE_RE =
   /^\s*(?<sym>[A-Za-z]{1,3})\s+(?<x>-?\d+\.?\d*(?:[eE][+-]?\d+)?)\s+(?<y>-?\d+\.?\d*(?:[eE][+-]?\d+)?)\s+(?<z>-?\d+\.?\d*(?:[eE][+-]?\d+)?)/
 
+/** XYZ 形式の座標行を Atom 配列へ変換する。 */
 export function parseXyzBlock(text: string): Array<Atom> {
   const atoms: Array<Atom> = []
   const lines = text.split(/\r?\n/).map((line) => line.trim())
@@ -20,6 +21,7 @@ export function parseXyzBlock(text: string): Array<Atom> {
   return atoms
 }
 
+/** Atom 配列を XYZ 形式の行文字列へ変換する。 */
 export function atomsToXyz(atoms: Array<Atom>): string {
   return atoms
     .map(

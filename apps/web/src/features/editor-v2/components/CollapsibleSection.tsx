@@ -11,6 +11,7 @@ interface CollapsibleSectionProps {
   contentClassName?: string
 }
 
+/** 任意セクションを開閉可能なカードとして表示する。 */
 export function CollapsibleSection({
   title,
   defaultOpen = false,

@@ -1,5 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 
+/** API プロキシ呼び出し時に渡すリクエスト情報。 */
 export type ApiRequest = {
   path: string
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
@@ -16,7 +17,7 @@ type ApiError = {
   }
 }
 
-// API_BASE should be a host root or already end with "/api" (avoid "/api/v1").
+/** API ベースURLを `/api` 終端へ正規化する。 */
 const normalizeApiBase = (base: string) => {
   const trimmed = base.endsWith('/') ? base.slice(0, -1) : base
   return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`
@@ -65,6 +66,7 @@ type RequestApiFn = ((options: { data: ApiRequest }) => Promise<unknown>) & {
   url: string
 }
 
+/** サーバー側から API へプロキシする共通リクエスト関数。 */
 export const requestApi: RequestApiFn = createServerFn({
   method: 'POST',
 })
