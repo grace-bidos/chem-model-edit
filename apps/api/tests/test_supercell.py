@@ -7,7 +7,8 @@ from services.supercell import (
     generate_supercell,
     generate_tiled_supercell,
 )
-from models import Atom, Lattice, Structure, SupercellGrid, SupercellGridAxis, Vector3
+from app.schemas.common import Atom, Lattice, Structure, Vector3
+from app.schemas.supercell import SupercellGrid, SupercellGridAxis
 
 
 def _make_lattice(

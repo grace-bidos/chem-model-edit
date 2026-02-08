@@ -4,15 +4,8 @@ from typing import Iterable, List, Tuple
 
 from ase import Atoms as ASEAtoms
 
-from models import (
-    Atom,
-    Lattice,
-    Structure,
-    SupercellGrid,
-    SupercellGridAxis,
-    SupercellMeta,
-    Vector3,
-)
+from app.schemas.common import Atom, Lattice, Structure, Vector3
+from app.schemas.supercell import SupercellGrid, SupercellGridAxis, SupercellMeta
 
 
 def _apply_shift(

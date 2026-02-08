@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import fakeredis
 
-from models import ZPEJobRequest
+from app.schemas.zpe import ZPEJobRequest
 from services.zpe import backends
 from services.zpe import http_queue as zpe_http
 from services.zpe import queue as zpe_queue

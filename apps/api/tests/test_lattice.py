@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 
-from models import Lattice, LatticeParams, Vector3
+from app.schemas.common import Lattice, LatticeParams, Vector3
 from services.lattice import params_to_vectors, vectors_to_params
 
 

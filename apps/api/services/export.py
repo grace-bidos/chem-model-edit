@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Iterable
 
-from models import Atom, Structure
+from app.schemas.common import Atom, Structure
 
 
 def _atoms_to_qe_positions(atoms: Iterable[Atom]) -> str:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import fakeredis
 
-from models import ZPEJobRequest
+from app.schemas.zpe import ZPEJobRequest
 from services.zpe import backends
 from services.zpe.result_store import RedisResultStore
 from services.zpe.settings import ZPESettings
