@@ -2,28 +2,38 @@ import * as React from 'react'
 
 import { cn } from '@/lib/utils'
 
-type TableProps = React.TableHTMLAttributes<HTMLTableElement> & {
-  containerClassName?: string
-}
+/** {@link Table} が受け取る props。 */
+type TableProps = React.TableHTMLAttributes<HTMLTableElement>
 
+/** 独立スクロールが必要なテーブル領域を包むコンテナ。 */
+const TableContainer = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn(
+      'relative w-full min-h-0 max-h-full overscroll-contain overflow-auto',
+      className,
+    )}
+    {...props}
+  />
+))
+TableContainer.displayName = 'TableContainer'
+
+/** shadcn/ui 標準に合わせた基本テーブル要素。 */
 const Table = React.forwardRef<HTMLTableElement, TableProps>(
-  ({ className, containerClassName, ...props }, ref) => (
-    <div
-      className={cn(
-        'relative w-full min-h-0 max-h-full overscroll-contain overflow-auto',
-        containerClassName,
-      )}
-    >
-      <table
-        ref={ref}
-        className={cn('w-full caption-bottom text-sm', className)}
-        {...props}
-      />
-    </div>
+  ({ className, ...props }, ref) => (
+    <table
+      ref={ref}
+      className={cn('w-full caption-bottom text-sm', className)}
+      {...props}
+    />
   ),
 )
 Table.displayName = 'Table'
 
+/** テーブルヘッダー領域。 */
 const TableHeader = React.forwardRef<
   HTMLTableSectionElement,
   React.HTMLAttributes<HTMLTableSectionElement>
@@ -32,6 +42,7 @@ const TableHeader = React.forwardRef<
 ))
 TableHeader.displayName = 'TableHeader'
 
+/** テーブル本文領域。 */
 const TableBody = React.forwardRef<
   HTMLTableSectionElement,
   React.HTMLAttributes<HTMLTableSectionElement>
@@ -44,6 +55,7 @@ const TableBody = React.forwardRef<
 ))
 TableBody.displayName = 'TableBody'
 
+/** テーブルフッター領域。 */
 const TableFooter = React.forwardRef<
   HTMLTableSectionElement,
   React.HTMLAttributes<HTMLTableSectionElement>
@@ -59,6 +71,7 @@ const TableFooter = React.forwardRef<
 ))
 TableFooter.displayName = 'TableFooter'
 
+/** テーブル行要素。 */
 const TableRow = React.forwardRef<
   HTMLTableRowElement,
   React.HTMLAttributes<HTMLTableRowElement>
@@ -74,6 +87,7 @@ const TableRow = React.forwardRef<
 ))
 TableRow.displayName = 'TableRow'
 
+/** ヘッダーセル要素。 */
 const TableHead = React.forwardRef<
   HTMLTableCellElement,
   React.ThHTMLAttributes<HTMLTableCellElement>
@@ -89,6 +103,7 @@ const TableHead = React.forwardRef<
 ))
 TableHead.displayName = 'TableHead'
 
+/** データセル要素。 */
 const TableCell = React.forwardRef<
   HTMLTableCellElement,
   React.TdHTMLAttributes<HTMLTableCellElement>
@@ -101,6 +116,7 @@ const TableCell = React.forwardRef<
 ))
 TableCell.displayName = 'TableCell'
 
+/** キャプション要素。 */
 const TableCaption = React.forwardRef<
   HTMLTableCaptionElement,
   React.HTMLAttributes<HTMLTableCaptionElement>
@@ -115,6 +131,7 @@ TableCaption.displayName = 'TableCaption'
 
 export {
   Table,
+  TableContainer,
   TableHeader,
   TableBody,
   TableFooter,

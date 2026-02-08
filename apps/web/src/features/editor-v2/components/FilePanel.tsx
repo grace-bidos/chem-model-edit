@@ -8,6 +8,15 @@ import type { WorkspaceFile } from '../types'
 import type { QeParameters, Structure } from '@/lib/types'
 
 import MolstarViewer from '@/components/molstar/MolstarViewer'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { getStructure } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
@@ -22,6 +31,86 @@ interface FilePanelProps {
   className?: string
 }
 
+type ParamGroup = {
+  label: string
+  entries: Array<[string, unknown]>
+}
+
+const formatParamValue = (value: unknown) => {
+  if (value === null || value === undefined) {
+    return ''
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value)
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => String(entry)).join(', ')
+  }
+  if (typeof value === 'object') {
+    try {
+      return JSON.stringify(value)
+    } catch (_error) {
+      return String(value)
+    }
+  }
+  return String(value)
+}
+
+const buildParamGroups = (params: QeParameters | null): Array<ParamGroup> => {
+  if (!params) {
+    return []
+  }
+  const rawGroups: Array<{
+    label: string
+    values: Record<string, unknown> | null | undefined
+  }> = [
+    { label: 'Control', values: params.control },
+    { label: 'System', values: params.system },
+    { label: 'Electrons', values: params.electrons },
+    { label: 'Ions', values: params.ions },
+    { label: 'Cell', values: params.cell },
+    { label: 'Pseudopotentials', values: params.pseudopotentials },
+    { label: 'K-points', values: params.kpoints ?? {} },
+  ]
+  return rawGroups
+    .map(({ label, values }) => ({
+      label,
+      entries: Object.entries(values ?? {}),
+    }))
+    .filter((group) => group.entries.length > 0)
+}
+
+type ParameterTableProps = {
+  group: ParamGroup
+}
+
+/** Parameters セクション用のキー/値テーブルを描画する。 */
+function ParameterTable({ group }: ParameterTableProps) {
+  return (
+    <TableContainer className="rounded border border-slate-100 bg-slate-50">
+      <Table className="text-xs">
+        <TableHeader className="sticky top-0 z-10 bg-slate-50">
+          <TableRow>
+            <TableHead className="w-2/5">Key</TableHead>
+            <TableHead>Value</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {group.entries.map(([key, value]) => (
+            <TableRow key={`${group.label}-${key}`}>
+              <TableCell className="font-medium text-slate-500">{key}</TableCell>
+              <TableCell className="break-all font-mono text-[11px] text-slate-700">
+                {formatParamValue(value) || '-'}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  )
+}
+
+/** ビューア・原子表・QEパラメータ表を含む単一ファイルパネルを表示する。 */
 export function FilePanel({
   data,
   fileId,
@@ -157,49 +246,7 @@ export function FilePanel({
       ? 'Failed to load parameters.'
       : 'No parameters.'
 
-  const formatParamValue = (value: unknown) => {
-    if (value === null || value === undefined) {
-      return ''
-    }
-    if (typeof value === 'number' || typeof value === 'boolean') {
-      return String(value)
-    }
-    if (Array.isArray(value)) {
-      return value.map((entry) => String(entry)).join(', ')
-    }
-    if (typeof value === 'object') {
-      try {
-        return JSON.stringify(value)
-      } catch (_error) {
-        return String(value)
-      }
-    }
-    return String(value)
-  }
-
-  const paramGroups = useMemo(() => {
-    if (!qeParams) {
-      return []
-    }
-    const rawGroups: Array<{
-      label: string
-      values: Record<string, unknown> | null | undefined
-    }> = [
-      { label: 'Control', values: qeParams.control },
-      { label: 'System', values: qeParams.system },
-      { label: 'Electrons', values: qeParams.electrons },
-      { label: 'Ions', values: qeParams.ions },
-      { label: 'Cell', values: qeParams.cell },
-      { label: 'Pseudopotentials', values: qeParams.pseudopotentials },
-      { label: 'K-points', values: qeParams.kpoints ?? {} },
-    ]
-    const groups: Array<{ label: string; entries: Array<[string, unknown]> }> =
-      rawGroups.map(({ label, values }) => ({
-        label,
-        entries: Object.entries(values ?? {}),
-      }))
-    return groups.filter((group) => group.entries.length > 0)
-  }, [qeParams])
+  const paramGroups = useMemo(() => buildParamGroups(qeParams), [qeParams])
 
   return (
     <div
@@ -292,7 +339,7 @@ export function FilePanel({
                   digits={4}
                   emptyText={tableEmptyText}
                   showIndex
-                  containerClassName="h-full rounded border border-slate-100 bg-slate-50 p-2"
+                  containerClassName="h-full"
                 />
               </div>
             </div>
@@ -318,19 +365,7 @@ export function FilePanel({
                         <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                           {group.label}
                         </p>
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          {group.entries.map(([key, value]) => (
-                            <div
-                              key={`${group.label}-${key}`}
-                              className="flex flex-col gap-1"
-                            >
-                              <span className="text-slate-500">{key}</span>
-                              <div className="rounded border border-slate-200 bg-slate-50 px-2 py-1">
-                                {formatParamValue(value) || '-'}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+                        <ParameterTable group={group} />
                       </div>
                     ))}
                   </div>

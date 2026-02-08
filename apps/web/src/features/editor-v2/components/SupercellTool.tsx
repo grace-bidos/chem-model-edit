@@ -70,6 +70,43 @@ const downloadTextFile = (content: string, filename: string, type: string) => {
   URL.revokeObjectURL(url)
 }
 
+const validateBuildInput = (params: {
+  baseId: string | null
+  baseHasLattice: boolean
+  grid: Array<Array<string>>
+  checkOverlap: boolean
+  overlapTolerance: string
+}) => {
+  const { baseId, baseHasLattice, grid, checkOverlap, overlapTolerance } = params
+  const gridRows = grid.length
+  const gridCols = gridRows > 0 ? grid[0].length : 0
+
+  if (!baseId) {
+    return { error: 'Select a base structure.' }
+  }
+  if (!baseHasLattice) {
+    return { error: 'Base structure has no lattice data.' }
+  }
+  if (!gridRows || !gridCols) {
+    return { error: 'Grid is empty.' }
+  }
+  if (grid.some((row) => row.length !== gridCols)) {
+    return { error: 'Grid dimensions are invalid.' }
+  }
+  if (grid.some((row) => row.some((cell) => !cell))) {
+    return { error: 'Grid has empty cells.' }
+  }
+  if (!checkOverlap) {
+    return { error: null, overlapTolerance: undefined }
+  }
+  const parsed = Number(overlapTolerance)
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return { error: 'Overlap tolerance is invalid.' }
+  }
+  return { error: null, overlapTolerance: parsed }
+}
+
+/** Supercell 構築向けのグリッド編集ツールを表示する。 */
 export function SupercellTool({
   structures,
   onSupercellCreated,
@@ -190,40 +227,27 @@ export function SupercellTool({
     setPreviewError(null)
     setPreviewMeta(null)
     setPreviewStructureId(null)
-    if (!baseId) {
+    const validation = validateBuildInput({
+      baseId,
+      baseHasLattice,
+      grid,
+      checkOverlap,
+      overlapTolerance,
+    })
+    if (validation.error) {
+      setBuildError(validation.error)
+      return
+    }
+    const checkedBaseId = baseId
+    if (!checkedBaseId) {
       setBuildError('Select a base structure.')
       return
-    }
-    if (!baseHasLattice) {
-      setBuildError('Base structure has no lattice data.')
-      return
-    }
-    if (!gridRows || !gridCols) {
-      setBuildError('Grid is empty.')
-      return
-    }
-    if (grid.some((row) => row.length !== gridCols)) {
-      setBuildError('Grid dimensions are invalid.')
-      return
-    }
-    if (grid.some((row) => row.some((cell) => !cell))) {
-      setBuildError('Grid has empty cells.')
-      return
-    }
-    let tolerance: number | undefined
-    if (checkOverlap) {
-      const parsed = Number(overlapTolerance)
-      if (!Number.isFinite(parsed) || parsed < 0) {
-        setBuildError('Overlap tolerance is invalid.')
-        return
-      }
-      tolerance = parsed
     }
 
     setIsBuilding(true)
     try {
       const result = await buildSupercell({
-        base_structure_id: baseId,
+        base_structure_id: checkedBaseId,
         grid: {
           rows: gridRows,
           cols: gridCols,
@@ -232,7 +256,7 @@ export function SupercellTool({
         },
         options: {
           check_overlap: checkOverlap,
-          overlap_tolerance: tolerance,
+          overlap_tolerance: validation.overlapTolerance,
           validate_lattice: validateLattice,
         },
         output: {

@@ -65,12 +65,14 @@ const toolPanelId = (id: ToolMode) => `${TOOL_PANEL_PREFIX}-${id}`
 const TOOL_MODE_IDS = new Set<ToolMode>(TOOL_NAV.map((tool) => tool.id))
 const isToolMode = (value: unknown): value is ToolMode =>
   typeof value === 'string' && TOOL_MODE_IDS.has(value as ToolMode)
+
 const createImportId = () => {
   if (typeof globalThis.crypto.randomUUID === 'function') {
     return globalThis.crypto.randomUUID()
   }
   return `import-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 }
+
 const validateImportFile = (file: File): string | null => {
   const lowerName = file.name.toLowerCase()
   const hasAllowedExtension = ALLOWED_EXTENSIONS.some((ext) =>
@@ -85,6 +87,50 @@ const validateImportFile = (file: File): string | null => {
   return null
 }
 
+const getFileStatusLabel = (status: FilePanelStatus) => {
+  switch (status) {
+    case 'visible':
+      return 'Visible'
+    case 'open':
+      return 'Open'
+    default:
+      return 'Closed'
+  }
+}
+
+const mergeImportFailures = (
+  prev: Array<ImportFailure>,
+  failedFiles: Array<ImportFailure>,
+) => {
+  const merged = new Map(prev.map((item) => [`${item.name}:${item.message}`, item]))
+  for (const failure of failedFiles) {
+    merged.set(`${failure.name}:${failure.message}`, failure)
+  }
+  return Array.from(merged.values())
+}
+
+const createSupercellOutputFile = (
+  result: { structure_id: string; meta: SupercellBuildMeta },
+): WorkspaceFile => {
+  const timestamp = new Date()
+    .toISOString()
+    .slice(0, 19)
+    .replace(/[:.]/g, '')
+    .replace('T', '-')
+  const name = `supercell-${result.meta.rows}x${result.meta.cols}-${timestamp}.in`
+  return {
+    id: createImportId(),
+    name,
+    kind: 'out',
+    label: `Supercell ${result.meta.rows}x${result.meta.cols}`,
+    structureId: result.structure_id,
+    cifUrl: structureViewUrl(result.structure_id, { format: 'cif' }),
+    parseSource: 'supercell',
+    initialOpenSections: { table: false, parameter: false },
+  }
+}
+
+/** エディタ v2 のワークスペース画面を表示する。 */
 export default function EditorV2Page() {
   const [files, setFiles] = useState<Array<WorkspaceFile>>(() => [
     ...INITIAL_FILES,
@@ -110,23 +156,7 @@ export default function EditorV2Page() {
 
   const handleSupercellCreated = useCallback(
     (result: { structure_id: string; meta: SupercellBuildMeta }) => {
-      const timestamp = new Date()
-        .toISOString()
-        .slice(0, 19)
-        .replace(/[:.]/g, '')
-        .replace('T', '-')
-      const name = `supercell-${result.meta.rows}x${result.meta.cols}-${timestamp}.in`
-      const nextFile: WorkspaceFile = {
-        id: createImportId(),
-        name,
-        kind: 'out',
-        label: `Supercell ${result.meta.rows}x${result.meta.cols}`,
-        structureId: result.structure_id,
-        cifUrl: structureViewUrl(result.structure_id, { format: 'cif' }),
-        parseSource: 'supercell',
-        initialOpenSections: { table: false, parameter: false },
-      }
-      setFiles((prev) => [...prev, nextFile])
+      setFiles((prev) => [...prev, createSupercellOutputFile(result)])
     },
     [],
   )
@@ -443,15 +473,7 @@ export default function EditorV2Page() {
         }
 
         if (failedFiles.length > 0) {
-          setImportFailures((prev) => {
-            const merged = new Map(
-              prev.map((item) => [`${item.name}:${item.message}`, item]),
-            )
-            for (const failure of failedFiles) {
-              merged.set(`${failure.name}:${failure.message}`, failure)
-            }
-            return Array.from(merged.values())
-          })
+          setImportFailures((prev) => mergeImportFailures(prev, failedFiles))
         }
       } finally {
         setIsImporting(false)
@@ -624,12 +646,7 @@ export default function EditorV2Page() {
                   const status = fileStatuses.get(file.id) ?? 'closed'
                   const isVisible = status === 'visible'
                   const isOpen = status === 'open'
-                  const statusLabel =
-                    status === 'visible'
-                      ? 'Visible'
-                      : status === 'open'
-                        ? 'Open'
-                        : 'Closed'
+                  const statusLabel = getFileStatusLabel(status)
                   return (
                     <button
                       type="button"
