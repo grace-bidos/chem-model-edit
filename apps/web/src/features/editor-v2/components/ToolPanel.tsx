@@ -139,6 +139,33 @@ const createTransferFilename = (targetName: string) => {
   return `${base}Transferred${extension}`
 }
 
+const renderToolByMode = (params: {
+  mode: ToolMode
+  files?: Array<WorkspaceFile>
+  structures?: Array<WorkspaceFile>
+  onSupercellCreated?: (result: {
+    structure_id: string
+    meta: SupercellBuildMeta
+  }) => void
+}) => {
+  const { mode, files, structures, onSupercellCreated } = params
+  switch (mode) {
+    case 'vibration':
+      return <ZpeToolPanel files={files} />
+    case 'supercell':
+      return (
+        <SupercellTool
+          structures={structures ?? []}
+          onSupercellCreated={onSupercellCreated}
+        />
+      )
+    case 'transfer':
+      return <TransferToolPanel structures={structures ?? files ?? []} />
+    default:
+      return null
+  }
+}
+
 function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
   const availableFiles = useMemo(
     () => files.filter((file) => file.kind === 'in'),
@@ -2028,6 +2055,7 @@ function TransferToolPanel({
   )
 }
 
+/** 編集ツール（Transfer/Supercell/Vibration）をモード別に表示する。 */
 export function ToolPanel({
   mode,
   files,
@@ -2066,23 +2094,7 @@ export function ToolPanel({
         </div>
       ) : null}
 
-      {(() => {
-        switch (mode) {
-          case 'vibration':
-            return <ZpeToolPanel files={files} />
-          case 'supercell':
-            return (
-              <SupercellTool
-                structures={structures ?? []}
-                onSupercellCreated={onSupercellCreated}
-              />
-            )
-          case 'transfer':
-            return <TransferToolPanel structures={structures ?? files ?? []} />
-          default:
-            return null
-        }
-      })()}
+      {renderToolByMode({ mode, files, structures, onSupercellCreated })}
     </div>
   )
 }

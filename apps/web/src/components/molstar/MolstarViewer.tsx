@@ -27,6 +27,22 @@ type MolstarHelpers = {
   Bond: any
 }
 
+const MOLSTAR_SELECTION_ERROR = 'Mol* の選択状態更新に失敗した。'
+
+const normalizeSelectionIndices = (
+  selectedAtomIndices?: Array<number>,
+  disabledAtomIndices?: Array<number>,
+) => {
+  if (!selectedAtomIndices || selectedAtomIndices.length === 0) {
+    return []
+  }
+  const disabledSet = new Set(disabledAtomIndices ?? [])
+  return Array.from(new Set(selectedAtomIndices))
+    .filter((index) => !disabledSet.has(index))
+    .sort((a, b) => a - b)
+}
+
+/** Mol* 上の選択状態を更新する 3D ビューア。 */
 export default function MolstarViewer({
   cifUrl,
   structures,
@@ -81,15 +97,10 @@ export default function MolstarViewer({
 
   const selectionEnabled = selectedAtomIndices !== undefined
 
-  const normalizedSelection = useMemo(() => {
-    if (!selectedAtomIndices || selectedAtomIndices.length === 0) {
-      return []
-    }
-    const disabledSet = new Set(disabledAtomIndices ?? [])
-    return Array.from(new Set(selectedAtomIndices))
-      .filter((index) => !disabledSet.has(index))
-      .sort((a, b) => a - b)
-  }, [selectedAtomIndices, disabledAtomIndices])
+  const normalizedSelection = useMemo(
+    () => normalizeSelectionIndices(selectedAtomIndices, disabledAtomIndices),
+    [selectedAtomIndices, disabledAtomIndices],
+  )
 
   const selectionSignature = useMemo(
     () => normalizedSelection.join(','),
@@ -127,7 +138,7 @@ export default function MolstarViewer({
       const message =
         error instanceof Error && error.message
           ? error.message
-          : 'Mol* selection update failed.'
+          : MOLSTAR_SELECTION_ERROR
       console.error('Mol* selection clear failed.', error)
       onError?.(message)
       return
@@ -147,7 +158,7 @@ export default function MolstarViewer({
       const message =
         error instanceof Error && error.message
           ? error.message
-          : 'Mol* selection update failed.'
+          : MOLSTAR_SELECTION_ERROR
       console.error('Mol* selection apply failed.', error)
       onError?.(message)
     }
