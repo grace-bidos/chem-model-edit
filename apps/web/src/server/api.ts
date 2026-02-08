@@ -43,7 +43,11 @@ async function handleResponse<T>(response: Response): Promise<T> {
     }
     throw new Error(message)
   }
-  return (await response.json()) as T
+  const text = await response.text()
+  if (!text) {
+    return undefined as T
+  }
+  return JSON.parse(text) as T
 }
 
 async function handleTextResponse(response: Response): Promise<string> {
