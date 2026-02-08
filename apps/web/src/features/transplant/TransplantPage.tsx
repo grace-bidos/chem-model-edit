@@ -68,9 +68,9 @@ export default function TransplantPage() {
     setIsRunning(true)
     try {
       const content = await deltaTransplant({
-        smallIn: inputs.smallIn,
-        smallOut: inputs.smallOut,
-        largeIn: inputs.largeIn,
+        small_in: inputs.smallIn,
+        small_out: inputs.smallOut,
+        large_in: inputs.largeIn,
       })
       setResult(content)
     } catch (err) {

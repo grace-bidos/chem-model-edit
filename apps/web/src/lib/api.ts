@@ -58,10 +58,5 @@ export function structureViewUrl(
     format?: 'cif'
   },
 ): string {
-  const format = params?.format ?? 'cif'
-  const query = new URLSearchParams({
-    format,
-  })
-  const safeId = encodeURIComponent(structureId)
-  return `${resolveApiBase()}/structures/${safeId}/view?${query.toString()}`
+  return `${resolveApiBase()}${api.structureViewPath(structureId, params)}`
 }
