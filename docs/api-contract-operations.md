@@ -38,9 +38,9 @@ When backend schemas/routes change:
 
 ```bash
 uv sync --dev --project apps/api
-uv run --project apps/api python scripts/export_openapi.py
+PYTHONPATH=apps/api uv run --project apps/api python apps/api/scripts/export_openapi.py
 pnpm -C packages/api-client run generate
-git diff --exit-code packages/api-client/openapi/openapi.json packages/api-client/src/generated/schema.ts
+git diff --exit-code packages/api-client/
 ```
 
 CI enforces these steps in the `contract` job.

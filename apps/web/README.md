@@ -12,7 +12,11 @@ pnpm -C apps/web dev
 ## Runtime contract with API
 
 - Backend API base is `/api` and OpenAPI is served at `/api/openapi.json`.
-- `API_BASE_PUBLIC` / `API_BASE` / `VITE_API_BASE` should point to the API origin with `/api` included.
+- Runtime variable precedence:
+  - `API_BASE_PUBLIC`: preferred in Cloudflare Workers runtime (server-side).
+  - `API_BASE`: server-side fallback (Node/SSR environments).
+  - `VITE_API_BASE`: build-time fallback for local/dev.
+- All of the above should point to the API origin with `/api` included.
   - Example: `https://chem-model-api-668647845784.asia-northeast1.run.app/api`
 - `apps/web/src/server/api.ts` is the only HTTP boundary from web to backend.
 - API request/response fields are `snake_case` on the wire.
@@ -30,9 +34,9 @@ Any backend API schema change must update generated client artifacts:
 
 ```bash
 uv sync --dev --project apps/api
-uv run --project apps/api python scripts/export_openapi.py
+PYTHONPATH=apps/api uv run --project apps/api python apps/api/scripts/export_openapi.py
 pnpm -C packages/api-client run generate
-git diff -- packages/api-client/openapi/openapi.json packages/api-client/src/generated/schema.ts
+git diff -- packages/api-client/
 ```
 
 If `git diff` is non-empty, commit generated artifacts in the same PR.
