@@ -81,6 +81,30 @@
 - PRがマージされたら対応worktreeは削除する（`git worktree remove` → `git worktree prune`）
 - ルートの `.gitignore` に `.worktrees/` を含める
 
+## 標準Git運用フロー（推奨）
+- 0. 作業開始前に `main` を最新化する（`origin/main` に合わせる）
+- 1. `main` から短命ブランチを切って worktree を作る
+- 2. worktree 上で実装・検証（`just style`, `just typecheck`, `just test` など）
+- 3. コミットしてPR作成、`main` 向けにマージする
+- 4. マージ後に対応worktreeを削除し、不要ローカルブランチを削除する
+- 5. 最後に再度 `main` を `origin/main` に同期し、リモート追跡を prune する
+
+### 推奨コマンド
+- `just git-main-sync`:
+  - `git fetch origin --prune`
+  - `git branch -f main origin/main`
+- `just git-wt-start <branch> [name]`:
+  - 例: `just git-wt-start docs/worktree-flow-main-sync`
+  - 例: `just git-wt-start fix/cloudrun-api-contract cloudrun-contract`
+- `just git-wt-clean <worktree-path> [branch]`:
+  - 例: `just git-wt-clean .worktrees/docs-worktree-flow docs/worktree-flow-main-sync`
+  - worktree 削除 → prune → （指定時）ローカルブランチ削除まで実行
+
+### 重要な注意
+- worktreeで使用中のブランチは削除できない。先に `git worktree remove` または別ブランチへ `switch` する
+- `main` の作業ツリーで直接開発しない（レビュー/確認専用）
+- マージ後の掃除までを1セットで完了させる
+
 ## 進め方のベストプラクティス
 - 変更前に影響範囲と対象ファイルを明確化
 - 破壊的変更は避け、既存実装との互換性を維持

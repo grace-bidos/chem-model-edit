@@ -208,3 +208,38 @@ ci:
   #!/usr/bin/env bash
   set -euo pipefail
   pnpm exec nx run-many -t lint,typecheck,test,knip
+
+git-main-sync:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  git fetch origin --prune
+  git branch -f main origin/main
+  echo "main synced to origin/main"
+
+git-wt-start branch name='':
+  #!/usr/bin/env bash
+  set -euo pipefail
+  branch="{{branch}}"
+  name="{{name}}"
+  if [[ -z "$name" ]]; then
+    name="${branch//\//-}"
+  fi
+  path=".worktrees/$name"
+  git fetch origin --prune
+  git branch -f main origin/main
+  git worktree add "$path" -b "$branch" main
+  echo "created worktree: $path ($branch)"
+
+git-wt-clean path branch='':
+  #!/usr/bin/env bash
+  set -euo pipefail
+  path="{{path}}"
+  branch="{{branch}}"
+  git worktree remove "$path"
+  git worktree prune
+  if [[ -n "$branch" ]]; then
+    git branch -d "$branch"
+  fi
+  git fetch origin --prune
+  git branch -f main origin/main
+  echo "cleaned worktree: $path"
