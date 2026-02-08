@@ -69,7 +69,7 @@ def _setup_user_and_target(
 
     enroll = client.post(
         "/api/zpe/compute/enroll-tokens",
-        json={"ttlSeconds": 60},
+        json={"ttl_seconds": 60},
         headers=headers,
     )
     enroll_token = enroll.json()["token"]
@@ -79,7 +79,7 @@ def _setup_user_and_target(
         json={
             "token": enroll_token,
             "name": "server-1",
-            "queueName": "zpe",
+            "queue_name": "zpe",
         },
     )
     return headers, user_id
@@ -100,10 +100,10 @@ def test_zpe_mock_api_flow(monkeypatch):
         "/api/zpe/jobs",
         json={
             "content": QE_INPUT,
-            "mobileIndices": [0],
-            "useEnviron": False,
-            "inputDir": None,
-            "calcMode": "continue",
+            "mobile_indices": [0],
+            "use_environ": False,
+            "input_dir": None,
+            "calc_mode": "continue",
         },
         headers=headers,
     )
@@ -117,8 +117,8 @@ def test_zpe_mock_api_flow(monkeypatch):
     result = client.get(f"/api/zpe/jobs/{job_id}/result", headers=headers)
     assert result.status_code == 200
     payload = result.json()["result"]
-    assert payload["zpeEv"] >= 0.0
-    assert payload["mobileIndices"] == [0]
+    assert payload["zpe_ev"] >= 0.0
+    assert payload["mobile_indices"] == [0]
 
     summary = client.get(
         f"/api/zpe/jobs/{job_id}/files",
@@ -179,10 +179,10 @@ def test_zpe_submission_disabled(monkeypatch):
         "/api/zpe/jobs",
         json={
             "content": QE_INPUT,
-            "mobileIndices": [0],
-            "useEnviron": False,
-            "inputDir": None,
-            "calcMode": "continue",
+            "mobile_indices": [0],
+            "use_environ": False,
+            "input_dir": None,
+            "calc_mode": "continue",
         },
         headers=headers,
     )

@@ -135,4 +135,8 @@ async def supercell_build(request: SupercellBuildRequest) -> SupercellBuildRespo
         base_structure_id=request.base_structure_id,
         structure_ids_used=structure_ids_used,
     )
-    return SupercellBuildResponse(id=structure_id, structure=structure, meta=meta)
+    return SupercellBuildResponse(
+        structure_id=structure_id,
+        structure=structure,
+        meta=meta,
+    )

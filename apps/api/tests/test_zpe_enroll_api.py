@@ -26,13 +26,13 @@ def test_zpe_enroll_token_api(monkeypatch):
 
     client = TestClient(main.app)
     response = client.post(
-        "/api/zpe/compute/enroll-tokens", json={"ttlSeconds": 60}
+        "/api/zpe/compute/enroll-tokens", json={"ttl_seconds": 60}
     )
     assert response.status_code == 401
 
     response = client.post(
         "/api/zpe/compute/enroll-tokens",
-        json={"ttlSeconds": 60, "label": "lab"},
+        json={"ttl_seconds": 60, "label": "lab"},
         headers={"Authorization": "Bearer secret"},
     )
     assert response.status_code == 200
@@ -45,13 +45,13 @@ def test_zpe_enroll_token_api(monkeypatch):
     assert register.status_code == 200
     payload = register.json()
     assert payload["id"].startswith("compute-")
-    assert payload["workerToken"]
-    assert payload["tokenExpiresAt"]
-    assert payload["tokenTtlSeconds"] > 0
+    assert payload["worker_token"]
+    assert payload["token_expires_at"]
+    assert payload["token_ttl_seconds"] > 0
 
     revoke = client.delete(
         f"/api/zpe/compute/servers/{payload['id']}",
         headers={"Authorization": "Bearer secret"},
     )
     assert revoke.status_code == 200
-    assert revoke.json()["revokedCount"] == 1
+    assert revoke.json()["revoked_count"] == 1

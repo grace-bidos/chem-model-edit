@@ -34,7 +34,7 @@ async def create_structure(request: StructureCreateRequest) -> StructureCreateRe
         request.content
     )
     return StructureCreateResponse(
-        id=structure_id,
+        structure_id=structure_id,
         structure=structure,
         source=source,
         params=params,

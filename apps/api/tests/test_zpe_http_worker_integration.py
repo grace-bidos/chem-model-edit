@@ -67,14 +67,14 @@ def _make_handler() -> type[BaseHTTPRequestHandler]:
                     return
                 handler_cls.leased = True
                 payload = {
-                    "jobId": self.job_id,
-                    "leaseId": self.lease_id,
-                    "leaseTtlSeconds": 30,
+                    "job_id": self.job_id,
+                    "lease_id": self.lease_id,
+                    "lease_ttl_seconds": 30,
                     "payload": {
                         "content": QE_INPUT,
-                        "mobileIndices": [0],
-                        "useEnviron": False,
-                        "calcMode": "continue",
+                        "mobile_indices": [0],
+                        "use_environ": False,
+                        "calc_mode": "continue",
                     },
                 }
                 self._send_json(200, payload)
@@ -124,13 +124,13 @@ def test_http_worker_success(monkeypatch, tmp_path):
         lease = http_worker._lease_job(base_url, handler_cls.token, timeout=5)
         assert lease is not None
         artifacts = zpe_worker.compute_zpe_artifacts(
-            lease["payload"], job_id=lease["jobId"]
+            lease["payload"], job_id=lease["job_id"]
         )
         http_worker._submit_result(
             base_url,
             handler_cls.token,
-            lease["jobId"],
-            lease["leaseId"],
+            lease["job_id"],
+            lease["lease_id"],
             artifacts.result,
             artifacts.summary_text,
             artifacts.freqs_csv,
@@ -141,7 +141,7 @@ def test_http_worker_success(monkeypatch, tmp_path):
         server.shutdown()
 
     assert handler_cls.result_payload is not None
-    assert handler_cls.result_payload["leaseId"] == handler_cls.lease_id
+    assert handler_cls.result_payload["lease_id"] == handler_cls.lease_id
 
 
 def test_http_worker_failed(monkeypatch, tmp_path):
@@ -160,8 +160,8 @@ def test_http_worker_failed(monkeypatch, tmp_path):
         http_worker._submit_failed(
             base_url,
             handler_cls.token,
-            lease["jobId"],
-            lease["leaseId"],
+            lease["job_id"],
+            lease["lease_id"],
             "TEST_ERROR",
             "boom",
             "trace",
@@ -171,4 +171,4 @@ def test_http_worker_failed(monkeypatch, tmp_path):
         server.shutdown()
 
     assert handler_cls.failed_payload is not None
-    assert handler_cls.failed_payload["errorCode"] == "TEST_ERROR"
+    assert handler_cls.failed_payload["error_code"] == "TEST_ERROR"

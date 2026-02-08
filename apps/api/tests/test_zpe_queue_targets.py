@@ -41,7 +41,7 @@ def _register_target(
 ) -> str:
     enroll = client.post(
         "/api/zpe/compute/enroll-tokens",
-        json={"ttlSeconds": 60},
+        json={"ttl_seconds": 60},
         headers=headers,
     )
     enroll_token = enroll.json()["token"]
@@ -50,7 +50,7 @@ def _register_target(
         json={
             "token": enroll_token,
             "name": f"server-{queue_name}",
-            "queueName": queue_name,
+            "queue_name": queue_name,
         },
     )
     assert register.status_code == 200
@@ -68,7 +68,7 @@ def test_queue_target_list_and_select(monkeypatch):
     assert listing.status_code == 200
     payload = listing.json()
     assert len(payload["targets"]) == 1
-    active_id = payload["activeTargetId"]
+    active_id = payload["active_target_id"]
     assert active_id is not None
 
     _register_target(client, headers, "zpe-2")
@@ -78,7 +78,7 @@ def test_queue_target_list_and_select(monkeypatch):
     payload = listing.json()
     assert len(payload["targets"]) == 2
     second = next(
-        target for target in payload["targets"] if target["queueName"] == "zpe-2"
+        target for target in payload["targets"] if target["queue_name"] == "zpe-2"
     )
     second_id = second["id"]
 
@@ -86,7 +86,7 @@ def test_queue_target_list_and_select(monkeypatch):
         f"/api/zpe/targets/{second_id}/active", headers=headers
     )
     assert select.status_code == 200
-    assert select.json()["activeTargetId"] == second_id
+    assert select.json()["active_target_id"] == second_id
 
     listing = client.get("/api/zpe/targets", headers=headers)
-    assert listing.json()["activeTargetId"] == second_id
+    assert listing.json()["active_target_id"] == second_id
