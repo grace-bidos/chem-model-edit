@@ -1,9 +1,8 @@
 import { createRouter } from '@tanstack/react-router'
 
-// Import the generated route tree
 import { routeTree } from './routeTree.gen'
 
-// Create a new router instance
+/** アプリケーション全体で共有する TanStack Router インスタンスを生成する。 */
 export const getRouter = () => {
   const router = createRouter({
     routeTree,

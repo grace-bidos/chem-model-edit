@@ -4,6 +4,7 @@ import { Check } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 
+/** Radix Checkbox を使った真偽入力コンポーネント。 */
 const Checkbox = React.forwardRef<
   React.ElementRef<typeof CheckboxPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root>

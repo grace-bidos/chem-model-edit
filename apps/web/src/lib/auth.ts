@@ -2,6 +2,7 @@ import type { AuthSession } from './types'
 
 const SESSION_KEY = 'chem-model-auth-session'
 
+/** ローカルストレージから認証セッションを取得する。 */
 export function getStoredSession(): AuthSession | null {
   if (typeof window === 'undefined') {
     return null
@@ -17,6 +18,7 @@ export function getStoredSession(): AuthSession | null {
   }
 }
 
+/** 認証セッションをローカルストレージへ保存する。 */
 export function storeSession(session: AuthSession) {
   if (typeof window === 'undefined') {
     return
@@ -24,6 +26,7 @@ export function storeSession(session: AuthSession) {
   window.localStorage.setItem(SESSION_KEY, JSON.stringify(session))
 }
 
+/** ローカルストレージ上の認証セッションを削除する。 */
 export function clearSession() {
   if (typeof window === 'undefined') {
     return
@@ -31,6 +34,7 @@ export function clearSession() {
   window.localStorage.removeItem(SESSION_KEY)
 }
 
+/** 保存済みセッションから Bearer トークンを取得する。 */
 export function getAuthToken(): string | null {
   const session = getStoredSession()
   return session?.token ?? null

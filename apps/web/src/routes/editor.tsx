@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 
 const EditorPage = lazy(() => import('@/features/editor-v2/EditorV2Page'))
 
+/** エディタ画面ルート。 */
 export const Route = createFileRoute('/editor')({
   component: EditorRoute,
 })

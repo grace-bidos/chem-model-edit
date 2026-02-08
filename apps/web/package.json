@@ -72,6 +72,7 @@
     "axe-core": "^4.11.1",
     "chromatic": "^12.2.0",
     "eslint": "^9.39.2",
+    "eslint-plugin-tsdoc": "^0.4.0",
     "jest-axe": "^10.0.0",
     "jsdom": "^27.0.0",
     "prettier": "^3.5.3",

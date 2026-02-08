@@ -34,6 +34,7 @@ const Devtools = import.meta.env.DEV
     )
   : null
 
+/** ルートレイアウトのエントリーポイント。 */
 export const Route = createRootRoute({
   component: RootLayout,
 })

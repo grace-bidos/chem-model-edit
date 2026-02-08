@@ -4,6 +4,7 @@ import type { VariantProps } from 'class-variance-authority'
 
 import { cn } from '@/lib/utils'
 
+/** {@link Badge} のバリアント別クラス定義。 */
 const badgeVariants = cva(
   'inline-flex items-center rounded-full border border-transparent px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
   {
@@ -23,9 +24,11 @@ const badgeVariants = cva(
   },
 )
 
+/** {@link Badge} が受け取る props。 */
 export type BadgeProps = React.HTMLAttributes<HTMLDivElement> &
   VariantProps<typeof badgeVariants>
 
+/** ステータスやタグ表示に使う小型ラベル。 */
 function Badge({ className, variant, ...props }: BadgeProps) {
   return (
     <div className={cn(badgeVariants({ variant }), className)} {...props} />

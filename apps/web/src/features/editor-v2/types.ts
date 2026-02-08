@@ -1,5 +1,6 @@
 import type { QeParameters, Structure } from '@/lib/types'
 
+/** エディタワークスペースで管理するファイル状態。 */
 export type WorkspaceFile = {
   id: string
   name: string
@@ -17,4 +18,5 @@ export type WorkspaceFile = {
   }
 }
 
+/** ツールパネルの表示モード。 */
 export type ToolMode = 'transfer' | 'supercell' | 'vibration'
