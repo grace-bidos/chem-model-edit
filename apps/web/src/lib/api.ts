@@ -33,6 +33,7 @@ export const parseQeInput = api.parseQeInput
 export const createStructureFromQe = api.createStructureFromQe
 export const getStructure = api.getStructure
 export const exportQeInput = api.exportQeInput
+export const exportStructureCif = api.exportStructureCif
 export const deltaTransplant = api.deltaTransplant
 export const buildSupercell = api.buildSupercell
 export const parseZpeInput = api.parseZpeInput

@@ -51,6 +51,19 @@ def test_create_structure_returns_structure_id():
     assert data["structure"]["atoms"][0]["symbol"] == "H"
 
 
+def test_export_structure_cif_without_store_side_effect():
+    parsed = CLIENT.post("/api/structures/parse", json={"content": QE_INPUT})
+    assert parsed.status_code == 200
+    structure = parsed.json()["structure"]
+
+    response = CLIENT.post("/api/structures/cif", json={"structure": structure})
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("chemical/x-cif")
+    text = response.text
+    assert "data_image0" in text
+    assert "_atom_site_fract_x" in text
+
+
 def test_parse_qe_invalid():
     response = CLIENT.post("/api/structures/parse", json={"content": "invalid"})
     assert response.status_code == 400

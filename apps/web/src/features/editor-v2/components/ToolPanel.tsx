@@ -41,17 +41,18 @@ import {
 import { Switch } from '@/components/ui/switch'
 import {
   createEnrollToken,
-  createStructureFromQe,
   createZpeJob,
   deltaTransplant,
   downloadZpeFile,
   exportQeInput,
+  exportStructureCif,
   fetchQueueTargets,
   fetchZpeResult,
   fetchZpeStatus,
   getStructure,
   loginAccount,
   logoutAccount,
+  parseQeInput,
   parseZpeInput,
   registerAccount,
   selectQueueTarget,
@@ -1531,6 +1532,16 @@ function TransferToolPanel({
   }, [sourceId])
 
   useEffect(() => {
+    if (!transferSummary?.cifUrl.startsWith('blob:')) {
+      return
+    }
+    const url = transferSummary.cifUrl
+    return () => {
+      URL.revokeObjectURL(url)
+    }
+  }, [transferSummary?.cifUrl])
+
+  useEffect(() => {
     setViewerError(null)
   }, [transferSummary?.cifUrl])
 
@@ -1633,16 +1644,20 @@ function TransferToolPanel({
         if (applyTokenRef.current !== token) {
           return
         }
-        const {
-          structure: nextStructure,
-          structure_id: structureId,
-        } = await createStructureFromQe(content)
+        const nextStructure = await parseQeInput(content)
         if (applyTokenRef.current !== token) {
           return
         }
+        const previewCif = await exportStructureCif(nextStructure)
+        if (applyTokenRef.current !== token) {
+          return
+        }
+        const cifBlobUrl = URL.createObjectURL(
+          new Blob([previewCif], { type: 'chemical/x-cif' }),
+        )
         setTransferSummary({
           structure: nextStructure,
-          cifUrl: structureViewUrl(structureId, { format: 'cif' }),
+          cifUrl: cifBlobUrl,
           sourceAtoms,
           targetAtoms,
           transferredAtoms: null,
@@ -1673,16 +1688,16 @@ function TransferToolPanel({
       if (applyTokenRef.current !== token) {
         return
       }
-      const {
-        structure: previewStructure,
-        structure_id: structureId,
-      } = await createStructureFromQe(content)
+      const previewCif = await exportStructureCif(nextStructure)
       if (applyTokenRef.current !== token) {
         return
       }
+      const cifBlobUrl = URL.createObjectURL(
+        new Blob([previewCif], { type: 'chemical/x-cif' }),
+      )
       setTransferSummary({
-        structure: previewStructure,
-        cifUrl: structureViewUrl(structureId, { format: 'cif' }),
+        structure: nextStructure,
+        cifUrl: cifBlobUrl,
         sourceAtoms,
         targetAtoms,
         transferredAtoms,
