@@ -1801,6 +1801,45 @@
         ]
       }
     },
+    "/api/structures/cif": {
+      "post": {
+        "operationId": "export_structure_cif_api_structures_cif_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StructureExportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Structure Cif",
+        "tags": [
+          "structures"
+        ]
+      }
+    },
     "/api/structures/export": {
       "post": {
         "operationId": "export_structure_api_structures_export_post",

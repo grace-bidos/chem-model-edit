@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query, Response
+from ase import Atoms as ASEAtoms
 
 from app.schemas.structures import (
     StructureCreateRequest,
@@ -11,6 +12,8 @@ from app.schemas.structures import (
     StructureParseRequest,
     StructureParseResponse,
 )
+from app.schemas.common import Structure
+from services.cif import atoms_to_cif
 from services.export import export_qe_in
 from services.parse import parse_qe_in, structure_from_ase
 from services.structures import (
@@ -20,6 +23,22 @@ from services.structures import (
 )
 
 router = APIRouter(prefix="/api/structures", tags=["structures"])
+
+
+def _ase_from_structure(structure: Structure) -> ASEAtoms:
+    if not structure.atoms:
+        raise ValueError("原子が空です。")
+    symbols = [atom.symbol for atom in structure.atoms]
+    positions = [(atom.x, atom.y, atom.z) for atom in structure.atoms]
+    if structure.lattice is None:
+        return ASEAtoms(symbols=symbols, positions=positions)
+    lattice = structure.lattice
+    cell = [
+        (lattice.a.x, lattice.a.y, lattice.a.z),
+        (lattice.b.x, lattice.b.y, lattice.b.z),
+        (lattice.c.x, lattice.c.y, lattice.c.z),
+    ]
+    return ASEAtoms(symbols=symbols, positions=positions, cell=cell, pbc=True)
 
 
 @router.post("/parse", response_model=StructureParseResponse)
@@ -77,3 +96,15 @@ async def export_structure(
 ) -> StructureExportResponse:
     content = export_qe_in(request.structure)
     return StructureExportResponse(content=content)
+
+
+@router.post("/cif")
+async def export_structure_cif(
+    request: StructureExportRequest,
+) -> Response:
+    try:
+        atoms = _ase_from_structure(request.structure)
+        cif_text = atoms_to_cif(atoms)
+    except Exception as exc:
+        raise ValueError("CIFへの変換に失敗しました。") from exc
+    return Response(content=cif_text, media_type="chemical/x-cif")

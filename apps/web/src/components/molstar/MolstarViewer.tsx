@@ -5,14 +5,12 @@ import { cn } from '@/lib/utils'
 
 type MolstarViewerStructure = {
   id: string
-  pdbText?: string
   cifUrl?: string
   opacity?: number
   visible?: boolean
 }
 
 type MolstarViewerProps = {
-  pdbText?: string
   cifUrl?: string
   structures?: Array<MolstarViewerStructure>
   onError?: (message: string) => void
@@ -29,23 +27,7 @@ type MolstarHelpers = {
   Bond: any
 }
 
-const hashString = (value: string) => {
-  let hash = 0
-  for (let i = 0; i < value.length; i += 1) {
-    hash = (hash << 5) - hash + value.charCodeAt(i)
-    hash |= 0
-  }
-  return hash.toString(16)
-}
-
-const signatureForText = (value: string) => {
-  const head = value.slice(0, 64)
-  const tail = value.slice(-64)
-  return `${value.length}:${hashString(value)}:${head}:${tail}`
-}
-
 export default function MolstarViewer({
-  pdbText,
   cifUrl,
   structures,
   onError,
@@ -78,11 +60,8 @@ export default function MolstarViewer({
     if (cifUrl) {
       return [{ id: 'single', cifUrl, opacity: 1, visible: true }]
     }
-    if (pdbText) {
-      return [{ id: 'single', pdbText, opacity: 1, visible: true }]
-    }
     return []
-  }, [cifUrl, pdbText, structures])
+  }, [cifUrl, structures])
 
   const signature = useMemo(() => {
     if (normalizedStructures.length === 0) {
@@ -94,9 +73,7 @@ export default function MolstarViewer({
         const visible = structure.visible ?? true
         const payloadSignature = structure.cifUrl
           ? `cif:${structure.cifUrl}`
-          : structure.pdbText
-            ? `pdb:${signatureForText(structure.pdbText)}`
-            : 'empty'
+          : 'empty'
         return `${structure.id}|${opacity}|${visible}|${payloadSignature}`
       })
       .join('::')
@@ -204,7 +181,6 @@ export default function MolstarViewer({
         }
         try {
           let data = null
-          let format: 'pdb' | 'cif' = 'pdb'
           if (item.cifUrl) {
             const response = await fetch(item.cifUrl, {
               signal: controller.signal,
@@ -225,13 +201,6 @@ export default function MolstarViewer({
               { data: text },
               { state: { isGhost: true } },
             )
-            format = 'cif'
-          } else if (item.pdbText) {
-            data = await plugin.builders.data.rawData(
-              { data: item.pdbText },
-              { state: { isGhost: true } },
-            )
-            format = 'pdb'
           }
 
           if (!data) {
@@ -241,7 +210,7 @@ export default function MolstarViewer({
 
           const trajectory = await plugin.builders.structure.parseTrajectory(
             data,
-            format,
+            'cif',
           )
           if (isCancelled()) {
             break

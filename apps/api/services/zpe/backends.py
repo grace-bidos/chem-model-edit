@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, Dict, cast
+from typing import Any, Dict
 from uuid import uuid4
 
 from app.schemas.zpe import ZPEJobRequest
@@ -36,7 +36,9 @@ def enqueue_zpe_job(payload: Dict[str, Any], *, queue_name: str | None = None) -
             job_timeout=settings.job_timeout_seconds,
             result_ttl=settings.result_ttl_seconds,
         )
-        job_id = cast(str, job.id)
+        job_id = job.id
+        if not isinstance(job_id, str) or not job_id:
+            raise RuntimeError("RQ enqueue returned an invalid job id")
         store.set_status(job_id, "queued")
         return job_id
     if settings.compute_mode == "remote-http":

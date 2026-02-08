@@ -5,7 +5,6 @@ export type WorkspaceFile = {
   name: string
   kind: 'in' | 'out'
   label: string
-  pdbText?: string
   cifUrl?: string
   structureId?: string
   structure?: Structure
