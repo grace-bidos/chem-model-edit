@@ -171,7 +171,7 @@ def _shifted_positions_for_tile(
     ]
 
 
-def _count_overlap_linear(
+def _has_overlap_linear(
     *, existing_positions: list[Vec3], new_pos: Vec3, tolerance_sq: float
 ) -> bool:
     """新規原子が既存原子と重なるかを線形探索で判定する．
@@ -277,7 +277,7 @@ def build_supercell_from_grid(
             )
             for symbol, new_pos in shifted_atoms:
                 if check_overlap:
-                    if _count_overlap_linear(
+                    if _has_overlap_linear(
                         existing_positions=positions,
                         new_pos=new_pos,
                         tolerance_sq=tolerance_sq,
