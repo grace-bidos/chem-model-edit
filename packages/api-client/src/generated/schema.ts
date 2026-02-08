@@ -89,23 +89,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/lattices/convert": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Convert Lattice */
-        post: operations["convert_lattice_api_lattices_convert_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/structures": {
         parameters: {
             query?: never;
@@ -191,23 +174,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/supercells": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Supercell */
-        post: operations["supercell_api_supercells_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/supercells/builds": {
         parameters: {
             query?: never;
@@ -219,23 +185,6 @@ export interface paths {
         put?: never;
         /** Supercell Build */
         post: operations["supercell_build_api_supercells_builds_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/supercells/tiled": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Supercell Tiled */
-        post: operations["supercell_tiled_api_supercells_tiled_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -704,43 +653,6 @@ export interface components {
             b: components["schemas"]["Vector3"];
             c: components["schemas"]["Vector3"];
         };
-        /** LatticeConvertRequest */
-        LatticeConvertRequest: {
-            /**
-             * From
-             * @enum {string}
-             */
-            from: "vectors" | "params";
-            lattice?: components["schemas"]["Lattice"] | null;
-            params?: components["schemas"]["LatticeParams"] | null;
-            /**
-             * Unit
-             * @default angstrom
-             */
-            unit: string;
-        };
-        /** LatticeConvertResponse */
-        LatticeConvertResponse: {
-            lattice: components["schemas"]["Lattice"];
-            params: components["schemas"]["LatticeParams"];
-            /** Unit */
-            unit: string;
-        };
-        /** LatticeParams */
-        LatticeParams: {
-            /** A */
-            a: number;
-            /** Alpha */
-            alpha: number;
-            /** B */
-            b: number;
-            /** Beta */
-            beta: number;
-            /** C */
-            c: number;
-            /** Gamma */
-            gamma: number;
-        };
         /** OpsFlagsRequest */
         OpsFlagsRequest: {
             /** Dequeue Enabled */
@@ -958,48 +870,6 @@ export interface components {
              * @enum {string}
              */
             row: "a" | "b";
-        };
-        /** SupercellMeta */
-        SupercellMeta: {
-            /** Layers */
-            layers: number;
-            /** Na */
-            na: number;
-            /** Nb */
-            nb: number;
-            /**
-             * Overlap Count
-             * @default 0
-             */
-            overlap_count: number;
-        };
-        /** SupercellRequest */
-        SupercellRequest: {
-            lattice: components["schemas"]["Lattice"];
-            /** Sequence */
-            sequence: string;
-            structure_a: components["schemas"]["Structure-Input"];
-            structure_b: components["schemas"]["Structure-Input"];
-        };
-        /** SupercellResponse */
-        SupercellResponse: {
-            meta: components["schemas"]["SupercellMeta"];
-            structure: components["schemas"]["Structure-Output"];
-        };
-        /** TiledSupercellRequest */
-        TiledSupercellRequest: {
-            /**
-             * Check Overlap
-             * @default false
-             */
-            check_overlap: boolean;
-            lattice: components["schemas"]["Lattice"];
-            /** Overlap Tolerance */
-            overlap_tolerance?: number | null;
-            /** Pattern */
-            pattern: string[][];
-            structure_a: components["schemas"]["Structure-Input"];
-            structure_b: components["schemas"]["Structure-Input"];
         };
         /** ValidationError */
         ValidationError: {
@@ -1264,39 +1134,6 @@ export interface operations {
             };
         };
     };
-    convert_lattice_api_lattices_convert_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LatticeConvertRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LatticeConvertResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     create_structure_api_structures_post: {
         parameters: {
             query?: never;
@@ -1460,39 +1297,6 @@ export interface operations {
             };
         };
     };
-    supercell_api_supercells_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SupercellRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SupercellResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     supercell_build_api_supercells_builds_post: {
         parameters: {
             query?: never;
@@ -1513,39 +1317,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SupercellBuildResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    supercell_tiled_api_supercells_tiled_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TiledSupercellRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SupercellResponse"];
                 };
             };
             /** @description Validation Error */

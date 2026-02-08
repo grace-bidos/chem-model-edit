@@ -9,21 +9,9 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as TransplantRouteImport } from './routes/transplant'
-import { Route as SupercellRouteImport } from './routes/supercell'
 import { Route as EditorRouteImport } from './routes/editor'
 import { Route as IndexRouteImport } from './routes/index'
 
-const TransplantRoute = TransplantRouteImport.update({
-  id: '/transplant',
-  path: '/transplant',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SupercellRoute = SupercellRouteImport.update({
-  id: '/supercell',
-  path: '/supercell',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const EditorRoute = EditorRouteImport.update({
   id: '/editor',
   path: '/editor',
@@ -38,53 +26,31 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/editor': typeof EditorRoute
-  '/supercell': typeof SupercellRoute
-  '/transplant': typeof TransplantRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/editor': typeof EditorRoute
-  '/supercell': typeof SupercellRoute
-  '/transplant': typeof TransplantRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/editor': typeof EditorRoute
-  '/supercell': typeof SupercellRoute
-  '/transplant': typeof TransplantRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/editor' | '/supercell' | '/transplant'
+  fullPaths: '/' | '/editor'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/editor' | '/supercell' | '/transplant'
-  id: '__root__' | '/' | '/editor' | '/supercell' | '/transplant'
+  to: '/' | '/editor'
+  id: '__root__' | '/' | '/editor'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   EditorRoute: typeof EditorRoute
-  SupercellRoute: typeof SupercellRoute
-  TransplantRoute: typeof TransplantRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/transplant': {
-      id: '/transplant'
-      path: '/transplant'
-      fullPath: '/transplant'
-      preLoaderRoute: typeof TransplantRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/supercell': {
-      id: '/supercell'
-      path: '/supercell'
-      fullPath: '/supercell'
-      preLoaderRoute: typeof SupercellRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/editor': {
       id: '/editor'
       path: '/editor'
@@ -105,8 +71,6 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   EditorRoute: EditorRoute,
-  SupercellRoute: SupercellRoute,
-  TransplantRoute: TransplantRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

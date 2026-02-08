@@ -5,23 +5,7 @@ from typing import List, Literal, Optional
 from pydantic import Field, model_validator
 
 from .base import ApiModel
-from .common import Lattice, Structure
-
-
-class SupercellRequest(ApiModel):
-    structure_a: Structure
-    structure_b: Structure
-    sequence: str
-    lattice: Lattice
-
-
-class TiledSupercellRequest(ApiModel):
-    structure_a: Structure
-    structure_b: Structure
-    pattern: List[List[str]]
-    lattice: Lattice
-    check_overlap: bool = False
-    overlap_tolerance: Optional[float] = None
+from .common import Structure
 
 
 class SupercellGridAxis(ApiModel):
@@ -83,15 +67,3 @@ class SupercellBuildResponse(ApiModel):
     structure_id: str
     structure: Optional[Structure] = None
     meta: SupercellBuildMeta
-
-
-class SupercellMeta(ApiModel):
-    na: int
-    nb: int
-    layers: int
-    overlap_count: int = 0
-
-
-class SupercellResponse(ApiModel):
-    structure: Structure
-    meta: SupercellMeta

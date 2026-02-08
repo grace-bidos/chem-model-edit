@@ -7,9 +7,6 @@ import type {
   DeltaTransplantResponse,
   EnrollTokenRequest,
   EnrollTokenResponse,
-  Lattice,
-  LatticeConvertRequest,
-  LatticeParams,
   Structure,
   StructureCreateResponse,
   StructureExportRequest,
@@ -17,9 +14,6 @@ import type {
   StructureParseRequest,
   SupercellBuildRequest,
   SupercellBuildResponse,
-  SupercellRequest,
-  SupercellResponse,
-  TiledSupercellRequest,
   ZPEJobRequest,
   ZPEJobResponse,
   ZPEJobStatus,
@@ -50,11 +44,7 @@ export type ApiClient = {
   getStructure: (structure_id: string) => Promise<StructureGetResponse>
   exportQeInput: (structure: Structure) => Promise<string>
   deltaTransplant: (params: DeltaTransplantRequest) => Promise<string>
-  generateSupercell: (params: SupercellRequest) => Promise<SupercellResponse>
-  generateTiledSupercell: (params: TiledSupercellRequest) => Promise<SupercellResponse>
   buildSupercell: (params: SupercellBuildRequest) => Promise<SupercellBuildResponse>
-  latticeVectorsToParams: (params: { lattice: Lattice; unit: string }) => Promise<{ lattice: Lattice; params: LatticeParams; unit: string }>
-  latticeParamsToVectors: (params: { params: LatticeParams; unit: string }) => Promise<{ lattice: Lattice; params: LatticeParams; unit: string }>
   parseZpeInput: (content: string, structure_id?: string | null) => Promise<ZPEParseResponse>
   registerAccount: (params: AuthRegisterRequest) => Promise<AuthSession>
   loginAccount: (params: AuthLoginRequest) => Promise<AuthSession>
@@ -131,53 +121,11 @@ export const createApiClient = (options: ApiClientOptions): ApiClient => {
       return data.content
     },
 
-    async generateSupercell(params) {
-      return requestJson<SupercellResponse>({
-        path: '/supercells',
-        method: 'POST',
-        body: params,
-      })
-    },
-
-    async generateTiledSupercell(params) {
-      return requestJson<SupercellResponse>({
-        path: '/supercells/tiled',
-        method: 'POST',
-        body: params,
-      })
-    },
-
     async buildSupercell(params) {
       return requestJson<SupercellBuildResponse>({
         path: '/supercells/builds',
         method: 'POST',
         body: params,
-      })
-    },
-
-    async latticeVectorsToParams(params) {
-      const body: LatticeConvertRequest = {
-        from: 'vectors',
-        lattice: params.lattice,
-        unit: params.unit,
-      }
-      return requestJson<{ lattice: Lattice; params: LatticeParams; unit: string }>({
-        path: '/lattices/convert',
-        method: 'POST',
-        body,
-      })
-    },
-
-    async latticeParamsToVectors(params) {
-      const body: LatticeConvertRequest = {
-        from: 'params',
-        params: params.params,
-        unit: params.unit,
-      }
-      return requestJson<{ lattice: Lattice; params: LatticeParams; unit: string }>({
-        path: '/lattices/convert',
-        method: 'POST',
-        body,
       })
     },
 
