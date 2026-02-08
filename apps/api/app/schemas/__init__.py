@@ -8,7 +8,6 @@ from .auth import (
 )
 from .common import Atom, Lattice, LatticeParams, Pagination, QeParameters, Structure
 from .errors import ErrorResponse
-from .lattice import LatticeConvertRequest, LatticeConvertResponse
 from .structures import (
     StructureCreateRequest,
     StructureCreateResponse,
@@ -26,10 +25,6 @@ from .supercell import (
     SupercellBuildResponse,
     SupercellGrid,
     SupercellGridAxis,
-    SupercellMeta,
-    SupercellRequest,
-    SupercellResponse,
-    TiledSupercellRequest,
 )
 from .transforms import DeltaTransplantRequest, DeltaTransplantResponse
 from .zpe import (
@@ -80,8 +75,6 @@ __all__ = [
     "StructureParseResponse",
     "DeltaTransplantRequest",
     "DeltaTransplantResponse",
-    "LatticeConvertRequest",
-    "LatticeConvertResponse",
     "SupercellBuildMeta",
     "SupercellBuildOptions",
     "SupercellBuildOutput",
@@ -89,10 +82,6 @@ __all__ = [
     "SupercellBuildResponse",
     "SupercellGrid",
     "SupercellGridAxis",
-    "SupercellMeta",
-    "SupercellRequest",
-    "SupercellResponse",
-    "TiledSupercellRequest",
     "ComputeFailedRequest",
     "ComputeFailedResponse",
     "ComputeLeaseResponse",

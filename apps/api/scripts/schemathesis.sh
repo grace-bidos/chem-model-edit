@@ -44,4 +44,4 @@ fi
 schemathesis run "${SCHEMA_URL}" \
   --url "${BASE_URL}" \
   --checks=not_a_server_error \
-  --include-path-regex '^/api/(health|structures/parse|structures|structures/[^/]+|structures/[^/]+/view|structures/export|transforms/delta-transplant|supercells|supercells/tiled|supercells/builds|lattices/convert)$'
+  --include-path-regex '^/api/(health|structures/parse|structures|structures/[^/]+|structures/[^/]+/view|structures/export|transforms/delta-transplant|supercells/builds)$'

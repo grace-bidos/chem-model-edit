@@ -14,7 +14,6 @@ export type {
   SupercellBuildResponse,
   SupercellGrid,
   SupercellGridAxis,
-  SupercellMeta,
   Vector3,
   ZPEJobRequest,
   ZPEJobResponse,

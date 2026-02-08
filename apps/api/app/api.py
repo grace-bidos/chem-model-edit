@@ -17,7 +17,6 @@ from app.errors import (
 from app.middleware import add_request_context
 import app.routers.auth as auth_router
 import app.routers.health as health_router
-import app.routers.lattices as lattices_router
 import app.routers.structures as structures_router
 import app.routers.supercells as supercells_router
 import app.routers.transforms as transforms_router
@@ -72,7 +71,6 @@ def create_app() -> FastAPI:
     app.include_router(auth_router.router)
     app.include_router(structures_router.router)
     app.include_router(transforms_router.router)
-    app.include_router(lattices_router.router)
     app.include_router(supercells_router.router)
     app.include_router(zpe_router.router)
 

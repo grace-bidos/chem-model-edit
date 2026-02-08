@@ -4,6 +4,40 @@
  */
 
 export interface paths {
+    "/api/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Health */
+        get: operations["health_api_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register */
+        post: operations["register_api_auth_register_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/login": {
         parameters: {
             query?: never;
@@ -55,7 +89,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/auth/register": {
+    "/api/structures/parse": {
         parameters: {
             query?: never;
             header?: never;
@@ -64,42 +98,8 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Register */
-        post: operations["register_api_auth_register_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Health */
-        get: operations["health_api_health_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/lattices/convert": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Convert Lattice */
-        post: operations["convert_lattice_api_lattices_convert_post"];
+        /** Parse Structure */
+        post: operations["parse_structure_api_structures_parse_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -117,40 +117,6 @@ export interface paths {
         put?: never;
         /** Create Structure */
         post: operations["create_structure_api_structures_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/structures/export": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Export Structure */
-        post: operations["export_structure_api_structures_export_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/structures/parse": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Parse Structure */
-        post: operations["parse_structure_api_structures_parse_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -191,7 +157,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/supercells": {
+    "/api/structures/export": {
         parameters: {
             query?: never;
             header?: never;
@@ -200,42 +166,8 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Supercell */
-        post: operations["supercell_api_supercells_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/supercells/builds": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Supercell Build */
-        post: operations["supercell_build_api_supercells_builds_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/supercells/tiled": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Supercell Tiled */
-        post: operations["supercell_tiled_api_supercells_tiled_post"];
+        /** Export Structure */
+        post: operations["export_structure_api_structures_export_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -259,22 +191,106 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/zpe/admin/ops": {
+    "/api/supercells/builds": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Zpe Ops Flags */
-        get: operations["zpe_ops_flags_api_zpe_admin_ops_get"];
+        get?: never;
+        put?: never;
+        /** Supercell Build */
+        post: operations["supercell_build_api_supercells_builds_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/zpe/parse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Zpe Parse */
+        post: operations["zpe_parse_api_zpe_parse_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/zpe/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Zpe Jobs */
+        post: operations["zpe_jobs_api_zpe_jobs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/zpe/jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Zpe Job Status */
+        get: operations["zpe_job_status_api_zpe_jobs__job_id__get"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        /** Zpe Ops Flags Update */
-        patch: operations["zpe_ops_flags_update_api_zpe_admin_ops_patch"];
+        patch?: never;
+        trace?: never;
+    };
+    "/api/zpe/jobs/{job_id}/result": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Zpe Job Result */
+        get: operations["zpe_job_result_api_zpe_jobs__job_id__result_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/zpe/jobs/{job_id}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Zpe Job Files */
+        get: operations["zpe_job_files_api_zpe_jobs__job_id__files_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/zpe/compute/enroll-tokens": {
@@ -288,57 +304,6 @@ export interface paths {
         put?: never;
         /** Zpe Compute Enroll Token */
         post: operations["zpe_compute_enroll_token_api_zpe_compute_enroll_tokens_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/zpe/compute/jobs/lease": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Zpe Compute Lease */
-        post: operations["zpe_compute_lease_api_zpe_compute_jobs_lease_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/zpe/compute/jobs/{job_id}/failed": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Zpe Compute Failed */
-        post: operations["zpe_compute_failed_api_zpe_compute_jobs__job_id__failed_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/zpe/compute/jobs/{job_id}/result": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Zpe Compute Result */
-        post: operations["zpe_compute_result_api_zpe_compute_jobs__job_id__result_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -379,7 +344,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/zpe/jobs": {
+    "/api/zpe/compute/jobs/lease": {
         parameters: {
             query?: never;
             header?: never;
@@ -388,66 +353,15 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Zpe Jobs */
-        post: operations["zpe_jobs_api_zpe_jobs_post"];
+        /** Zpe Compute Lease */
+        post: operations["zpe_compute_lease_api_zpe_compute_jobs_lease_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/zpe/jobs/{job_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Zpe Job Status */
-        get: operations["zpe_job_status_api_zpe_jobs__job_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/zpe/jobs/{job_id}/files": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Zpe Job Files */
-        get: operations["zpe_job_files_api_zpe_jobs__job_id__files_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/zpe/jobs/{job_id}/result": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Zpe Job Result */
-        get: operations["zpe_job_result_api_zpe_jobs__job_id__result_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/zpe/parse": {
+    "/api/zpe/compute/jobs/{job_id}/result": {
         parameters: {
             query?: never;
             header?: never;
@@ -456,8 +370,25 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Zpe Parse */
-        post: operations["zpe_parse_api_zpe_parse_post"];
+        /** Zpe Compute Result */
+        post: operations["zpe_compute_result_api_zpe_compute_jobs__job_id__result_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/zpe/compute/jobs/{job_id}/failed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Zpe Compute Failed */
+        post: operations["zpe_compute_failed_api_zpe_compute_jobs__job_id__failed_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -498,6 +429,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/zpe/admin/ops": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Zpe Ops Flags */
+        get: operations["zpe_ops_flags_api_zpe_admin_ops_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Zpe Ops Flags Update */
+        patch: operations["zpe_ops_flags_update_api_zpe_admin_ops_patch"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -530,9 +479,9 @@ export interface components {
         };
         /** AuthMe */
         AuthMe: {
+            user: components["schemas"]["AuthUser"];
             /** Expires At */
             expires_at: string;
-            user: components["schemas"]["AuthUser"];
         };
         /** AuthRegisterRequest */
         AuthRegisterRequest: {
@@ -543,29 +492,29 @@ export interface components {
         };
         /** AuthSession */
         AuthSession: {
-            /** Expires At */
-            expires_at: string;
             /** Token */
             token: string;
+            /** Expires At */
+            expires_at: string;
             user: components["schemas"]["AuthUser"];
         };
         /** AuthUser */
         AuthUser: {
-            /** Created At */
-            created_at: string;
-            /** Email */
-            email: string;
             /** Id */
             id: string;
+            /** Email */
+            email: string;
+            /** Created At */
+            created_at: string;
         };
         /** ComputeFailedRequest */
         ComputeFailedRequest: {
+            /** Lease Id */
+            lease_id: string;
             /** Error Code */
             error_code: string;
             /** Error Message */
             error_message: string;
-            /** Lease Id */
-            lease_id: string;
             /** Traceback */
             traceback?: string | null;
         };
@@ -585,6 +534,10 @@ export interface components {
         ComputeLeaseResponse: {
             /** Job Id */
             job_id: string;
+            /** Payload */
+            payload: {
+                [key: string]: unknown;
+            };
             /** Lease Id */
             lease_id: string;
             /** Lease Ttl Seconds */
@@ -593,68 +546,64 @@ export interface components {
             meta?: {
                 [key: string]: unknown;
             };
-            /** Payload */
-            payload: {
-                [key: string]: unknown;
-            };
         };
         /** ComputeRegisterRequest */
         ComputeRegisterRequest: {
-            /** Meta */
-            meta?: {
-                [key: string]: unknown;
-            };
+            /** Token */
+            token: string;
             /** Name */
             name?: string | null;
             /** Queue Name */
             queue_name?: string | null;
-            /** Token */
-            token: string;
+            /** Meta */
+            meta?: {
+                [key: string]: unknown;
+            };
         };
         /** ComputeRegisterResponse */
         ComputeRegisterResponse: {
             /** Id */
             id: string;
-            /** Name */
-            name?: string | null;
             /** Registered At */
             registered_at: string;
+            /** Name */
+            name?: string | null;
+            /** Worker Token */
+            worker_token: string;
             /** Token Expires At */
             token_expires_at: string;
             /** Token Ttl Seconds */
             token_ttl_seconds: number;
-            /** Worker Token */
-            worker_token: string;
         };
         /** ComputeResultRequest */
         ComputeResultRequest: {
-            /** Freqs Csv */
-            freqs_csv: string;
             /** Lease Id */
             lease_id: string;
-            /** Meta */
-            meta?: {
-                [key: string]: unknown;
-            };
             /** Result */
             result: {
                 [key: string]: unknown;
             };
             /** Summary Text */
             summary_text: string;
+            /** Freqs Csv */
+            freqs_csv: string;
+            /** Meta */
+            meta?: {
+                [key: string]: unknown;
+            };
         };
         /** ComputeResultResponse */
         ComputeResultResponse: {
-            /**
-             * Idempotent
-             * @default false
-             */
-            idempotent: boolean;
             /**
              * Ok
              * @default true
              */
             ok: boolean;
+            /**
+             * Idempotent
+             * @default false
+             */
+            idempotent: boolean;
         };
         /** ComputeRevokeResponse */
         ComputeRevokeResponse: {
@@ -663,12 +612,12 @@ export interface components {
         };
         /** DeltaTransplantRequest */
         DeltaTransplantRequest: {
-            /** Large In */
-            large_in: string;
             /** Small In */
             small_in: string;
             /** Small Out */
             small_out: string;
+            /** Large In */
+            large_in: string;
         };
         /** DeltaTransplantResponse */
         DeltaTransplantResponse: {
@@ -677,21 +626,21 @@ export interface components {
         };
         /** EnrollTokenRequest */
         EnrollTokenRequest: {
-            /** Label */
-            label?: string | null;
             /** Ttl Seconds */
             ttl_seconds?: number | null;
+            /** Label */
+            label?: string | null;
         };
         /** EnrollTokenResponse */
         EnrollTokenResponse: {
-            /** Expires At */
-            expires_at: string;
-            /** Label */
-            label?: string | null;
             /** Token */
             token: string;
+            /** Expires At */
+            expires_at: string;
             /** Ttl Seconds */
             ttl_seconds: number;
+            /** Label */
+            label?: string | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -704,74 +653,37 @@ export interface components {
             b: components["schemas"]["Vector3"];
             c: components["schemas"]["Vector3"];
         };
-        /** LatticeConvertRequest */
-        LatticeConvertRequest: {
-            /**
-             * From
-             * @enum {string}
-             */
-            from: "vectors" | "params";
-            lattice?: components["schemas"]["Lattice"] | null;
-            params?: components["schemas"]["LatticeParams"] | null;
-            /**
-             * Unit
-             * @default angstrom
-             */
-            unit: string;
-        };
-        /** LatticeConvertResponse */
-        LatticeConvertResponse: {
-            lattice: components["schemas"]["Lattice"];
-            params: components["schemas"]["LatticeParams"];
-            /** Unit */
-            unit: string;
-        };
-        /** LatticeParams */
-        LatticeParams: {
-            /** A */
-            a: number;
-            /** Alpha */
-            alpha: number;
-            /** B */
-            b: number;
-            /** Beta */
-            beta: number;
-            /** C */
-            c: number;
-            /** Gamma */
-            gamma: number;
-        };
         /** OpsFlagsRequest */
         OpsFlagsRequest: {
-            /** Dequeue Enabled */
-            dequeue_enabled?: boolean | null;
             /** Submission Enabled */
             submission_enabled?: boolean | null;
+            /** Dequeue Enabled */
+            dequeue_enabled?: boolean | null;
         };
         /** OpsFlagsResponse */
         OpsFlagsResponse: {
-            /** Dequeue Enabled */
-            dequeue_enabled: boolean;
             /** Submission Enabled */
             submission_enabled: boolean;
+            /** Dequeue Enabled */
+            dequeue_enabled: boolean;
         };
         /** Pagination */
         Pagination: {
+            /** Total */
+            total: number;
             /** Limit */
             limit: number;
             /** Offset */
             offset: number;
-            /** Total */
-            total: number;
         };
         /** QeParameters */
         QeParameters: {
-            /** Cell */
-            cell?: {
-                [key: string]: unknown;
-            };
             /** Control */
             control?: {
+                [key: string]: unknown;
+            };
+            /** System */
+            system?: {
                 [key: string]: unknown;
             };
             /** Electrons */
@@ -782,39 +694,39 @@ export interface components {
             ions?: {
                 [key: string]: unknown;
             };
-            /** Kpoints */
-            kpoints?: {
+            /** Cell */
+            cell?: {
                 [key: string]: unknown;
-            } | null;
+            };
             /** Pseudopotentials */
             pseudopotentials?: {
                 [key: string]: string;
             };
-            /** System */
-            system?: {
+            /** Kpoints */
+            kpoints?: {
                 [key: string]: unknown;
-            };
+            } | null;
         };
         /** QueueTarget */
         QueueTarget: {
             /** Id */
             id: string;
-            /** Name */
-            name?: string | null;
             /** Queue Name */
             queue_name: string;
-            /** Registered At */
-            registered_at: string;
             /** Server Id */
             server_id: string;
+            /** Registered At */
+            registered_at: string;
+            /** Name */
+            name?: string | null;
         };
         /** QueueTargetListResponse */
         QueueTargetListResponse: {
+            /** Targets */
+            targets: components["schemas"]["QueueTarget"][];
             /** Active Target Id */
             active_target_id?: string | null;
             pagination: components["schemas"]["Pagination"];
-            /** Targets */
-            targets: components["schemas"]["QueueTarget"][];
         };
         /** QueueTargetSelectResponse */
         QueueTargetSelectResponse: {
@@ -842,20 +754,20 @@ export interface components {
         };
         /** StructureCreateResponse */
         StructureCreateResponse: {
+            /** Structure Id */
+            structure_id: string;
+            structure: components["schemas"]["Structure-Output"];
+            /** Source */
+            source: string;
             params?: components["schemas"]["QeParameters"] | null;
             /** Raw Input */
             raw_input?: string | null;
-            /** Source */
-            source: string;
-            structure: components["schemas"]["Structure-Output"];
-            /** Structure Id */
-            structure_id: string;
         };
         /** StructureExportRequest */
         StructureExportRequest: {
+            structure: components["schemas"]["Structure-Input"];
             /** Format */
             format?: string | null;
-            structure: components["schemas"]["Structure-Input"];
         };
         /** StructureExportResponse */
         StructureExportResponse: {
@@ -864,12 +776,12 @@ export interface components {
         };
         /** StructureGetResponse */
         StructureGetResponse: {
+            structure: components["schemas"]["Structure-Output"];
             params?: components["schemas"]["QeParameters"] | null;
             /** Raw Input */
             raw_input?: string | null;
             /** Source */
             source?: string | null;
-            structure: components["schemas"]["Structure-Output"];
         };
         /** StructureParseRequest */
         StructureParseRequest: {
@@ -884,18 +796,18 @@ export interface components {
         };
         /** SupercellBuildMeta */
         SupercellBuildMeta: {
-            /** Base Structure Id */
-            base_structure_id: string;
-            /** Cols */
-            cols: number;
-            /** Overlap Count */
-            overlap_count?: number | null;
             /** Rows */
             rows: number;
-            /** Structure Ids Used */
-            structure_ids_used: string[];
+            /** Cols */
+            cols: number;
             /** Tile Count */
             tile_count: number;
+            /** Overlap Count */
+            overlap_count?: number | null;
+            /** Base Structure Id */
+            base_structure_id: string;
+            /** Structure Ids Used */
+            structure_ids_used: string[];
         };
         /** SupercellBuildOptions */
         SupercellBuildOptions: {
@@ -931,75 +843,33 @@ export interface components {
         };
         /** SupercellBuildResponse */
         SupercellBuildResponse: {
-            meta: components["schemas"]["SupercellBuildMeta"];
-            structure?: components["schemas"]["Structure-Output"] | null;
             /** Structure Id */
             structure_id: string;
+            structure?: components["schemas"]["Structure-Output"] | null;
+            meta: components["schemas"]["SupercellBuildMeta"];
         };
         /** SupercellGrid */
         SupercellGrid: {
-            axis?: components["schemas"]["SupercellGridAxis"] | null;
-            /** Cols */
-            cols: number;
             /** Rows */
             rows: number;
+            /** Cols */
+            cols: number;
             /** Tiles */
             tiles: string[][];
+            axis?: components["schemas"]["SupercellGridAxis"] | null;
         };
         /** SupercellGridAxis */
         SupercellGridAxis: {
-            /**
-             * Col
-             * @enum {string}
-             */
-            col: "a" | "b";
             /**
              * Row
              * @enum {string}
              */
             row: "a" | "b";
-        };
-        /** SupercellMeta */
-        SupercellMeta: {
-            /** Layers */
-            layers: number;
-            /** Na */
-            na: number;
-            /** Nb */
-            nb: number;
             /**
-             * Overlap Count
-             * @default 0
+             * Col
+             * @enum {string}
              */
-            overlap_count: number;
-        };
-        /** SupercellRequest */
-        SupercellRequest: {
-            lattice: components["schemas"]["Lattice"];
-            /** Sequence */
-            sequence: string;
-            structure_a: components["schemas"]["Structure-Input"];
-            structure_b: components["schemas"]["Structure-Input"];
-        };
-        /** SupercellResponse */
-        SupercellResponse: {
-            meta: components["schemas"]["SupercellMeta"];
-            structure: components["schemas"]["Structure-Output"];
-        };
-        /** TiledSupercellRequest */
-        TiledSupercellRequest: {
-            /**
-             * Check Overlap
-             * @default false
-             */
-            check_overlap: boolean;
-            lattice: components["schemas"]["Lattice"];
-            /** Overlap Tolerance */
-            overlap_tolerance?: number | null;
-            /** Pattern */
-            pattern: string[][];
-            structure_a: components["schemas"]["Structure-Input"];
-            structure_b: components["schemas"]["Structure-Input"];
+            col: "a" | "b";
         };
         /** ValidationError */
         ValidationError: {
@@ -1021,25 +891,25 @@ export interface components {
         };
         /** ZPEJobRequest */
         ZPEJobRequest: {
+            /** Content */
+            content: string;
+            /** Mobile Indices */
+            mobile_indices: number[];
+            /**
+             * Use Environ
+             * @default false
+             */
+            use_environ: boolean;
+            /** Input Dir */
+            input_dir?: string | null;
             /**
              * Calc Mode
              * @default continue
              * @enum {string}
              */
             calc_mode: "new" | "continue";
-            /** Content */
-            content: string;
-            /** Input Dir */
-            input_dir?: string | null;
-            /** Mobile Indices */
-            mobile_indices: number[];
             /** Structure Id */
             structure_id?: string | null;
-            /**
-             * Use Environ
-             * @default false
-             */
-            use_environ: boolean;
         };
         /** ZPEJobResponse */
         ZPEJobResponse: {
@@ -1052,10 +922,10 @@ export interface components {
         };
         /** ZPEJobStatus */
         ZPEJobStatus: {
-            /** Detail */
-            detail?: string | null;
             /** Status */
             status: string;
+            /** Detail */
+            detail?: string | null;
             /** Updated At */
             updated_at?: string | null;
         };
@@ -1068,64 +938,64 @@ export interface components {
         };
         /** ZPEParseResponse */
         ZPEParseResponse: {
+            structure: components["schemas"]["Structure-Output"];
+            /** Fixed Indices */
+            fixed_indices: number[];
             /** Atomic Species */
             atomic_species?: {
                 [key: string]: string;
             };
-            /** Fixed Indices */
-            fixed_indices: number[];
             /** Kpoints */
             kpoints?: [
                 number,
                 number,
                 number
             ] | null;
-            structure: components["schemas"]["Structure-Output"];
         };
         /** ZPEResult */
         ZPEResult: {
-            /** Cache Checked */
-            cache_checked: number;
-            /** Cache Deleted */
-            cache_deleted: number;
-            /** Calc End Time */
-            calc_end_time: string;
-            /** Calc Start Time */
-            calc_start_time: string;
-            /** Delta */
-            delta: number;
-            /** Ecutrho */
-            ecutrho?: number | null;
-            /** Ecutwfc */
-            ecutwfc?: number | null;
-            /** Elapsed Seconds */
-            elapsed_seconds: number;
-            /** Fixed Indices */
-            fixed_indices: number[];
             /** Freqs Cm */
             freqs_cm: number[];
+            /** Zpe Ev */
+            zpe_ev: number;
+            /** S Vib Jmol K */
+            s_vib_jmol_k: number;
+            /** Mobile Indices */
+            mobile_indices: number[];
+            /** Fixed Indices */
+            fixed_indices: number[];
             /** Kpoints */
             kpoints: [
                 number,
                 number,
                 number
             ];
+            /** Delta */
+            delta: number;
             /** Low Cut Cm */
             low_cut_cm: number;
-            /** Mobile Indices */
-            mobile_indices: number[];
-            /** Pseudo Dir */
-            pseudo_dir: string;
-            /** Qe Input */
-            qe_input: string;
-            /** S Vib Jmol K */
-            s_vib_jmol_k: number;
             /** Temperature */
             temperature: number;
             /** Use Environ */
             use_environ: boolean;
-            /** Zpe Ev */
-            zpe_ev: number;
+            /** Qe Input */
+            qe_input: string;
+            /** Pseudo Dir */
+            pseudo_dir: string;
+            /** Calc Start Time */
+            calc_start_time: string;
+            /** Calc End Time */
+            calc_end_time: string;
+            /** Elapsed Seconds */
+            elapsed_seconds: number;
+            /** Cache Checked */
+            cache_checked: number;
+            /** Cache Deleted */
+            cache_deleted: number;
+            /** Ecutwfc */
+            ecutwfc?: number | null;
+            /** Ecutrho */
+            ecutrho?: number | null;
         };
     };
     responses: never;
@@ -1136,6 +1006,61 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    health_api_health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+        };
+    };
+    register_api_auth_register_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuthRegisterRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthSession"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     login_api_auth_login_post: {
         parameters: {
             query?: never;
@@ -1209,7 +1134,7 @@ export interface operations {
             };
         };
     };
-    register_api_auth_register_post: {
+    parse_structure_api_structures_parse_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -1218,7 +1143,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AuthRegisterRequest"];
+                "application/json": components["schemas"]["StructureParseRequest"];
             };
         };
         responses: {
@@ -1228,62 +1153,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AuthSession"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    health_api_health_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
-                };
-            };
-        };
-    };
-    convert_lattice_api_lattices_convert_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LatticeConvertRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LatticeConvertResponse"];
+                    "application/json": components["schemas"]["StructureParseResponse"];
                 };
             };
             /** @description Validation Error */
@@ -1317,72 +1187,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StructureCreateResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    export_structure_api_structures_export_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StructureExportRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StructureExportResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    parse_structure_api_structures_parse_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StructureParseRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StructureParseResponse"];
                 };
             };
             /** @description Validation Error */
@@ -1460,7 +1264,7 @@ export interface operations {
             };
         };
     };
-    supercell_api_supercells_post: {
+    export_structure_api_structures_export_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -1469,7 +1273,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["SupercellRequest"];
+                "application/json": components["schemas"]["StructureExportRequest"];
             };
         };
         responses: {
@@ -1479,73 +1283,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SupercellResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    supercell_build_api_supercells_builds_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SupercellBuildRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SupercellBuildResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    supercell_tiled_api_supercells_tiled_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TiledSupercellRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SupercellResponse"];
+                    "application/json": components["schemas"]["StructureExportResponse"];
                 };
             };
             /** @description Validation Error */
@@ -1592,27 +1330,7 @@ export interface operations {
             };
         };
     };
-    zpe_ops_flags_api_zpe_admin_ops_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OpsFlagsResponse"];
-                };
-            };
-        };
-    };
-    zpe_ops_flags_update_api_zpe_admin_ops_patch: {
+    supercell_build_api_supercells_builds_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -1621,7 +1339,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["OpsFlagsRequest"];
+                "application/json": components["schemas"]["SupercellBuildRequest"];
             };
         };
         responses: {
@@ -1631,7 +1349,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["OpsFlagsResponse"];
+                    "application/json": components["schemas"]["SupercellBuildResponse"];
                 };
             };
             /** @description Validation Error */
@@ -1645,7 +1363,7 @@ export interface operations {
             };
         };
     };
-    zpe_compute_enroll_token_api_zpe_compute_enroll_tokens_post: {
+    zpe_parse_api_zpe_parse_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -1654,7 +1372,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["EnrollTokenRequest"];
+                "application/json": components["schemas"]["ZPEParseRequest"];
             };
         };
         responses: {
@@ -1664,161 +1382,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EnrollTokenResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    zpe_compute_lease_api_zpe_compute_jobs_lease_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ComputeLeaseResponse"];
-                };
-            };
-        };
-    };
-    zpe_compute_failed_api_zpe_compute_jobs__job_id__failed_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                job_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ComputeFailedRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ComputeFailedResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    zpe_compute_result_api_zpe_compute_jobs__job_id__result_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                job_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ComputeResultRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ComputeResultResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    zpe_compute_register_api_zpe_compute_servers_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ComputeRegisterRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ComputeRegisterResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    zpe_compute_revoke_api_zpe_compute_servers__server_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                server_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ComputeRevokeResponse"];
+                    "application/json": components["schemas"]["ZPEParseResponse"];
                 };
             };
             /** @description Validation Error */
@@ -1896,6 +1460,37 @@ export interface operations {
             };
         };
     };
+    zpe_job_result_api_zpe_jobs__job_id__result_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZPEJobResultResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     zpe_job_files_api_zpe_jobs__job_id__files_get: {
         parameters: {
             query: {
@@ -1929,16 +1524,18 @@ export interface operations {
             };
         };
     };
-    zpe_job_result_api_zpe_jobs__job_id__result_get: {
+    zpe_compute_enroll_token_api_zpe_compute_enroll_tokens_post: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                job_id: string;
-            };
+            path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnrollTokenRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -1946,7 +1543,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ZPEJobResultResponse"];
+                    "application/json": components["schemas"]["EnrollTokenResponse"];
                 };
             };
             /** @description Validation Error */
@@ -1960,7 +1557,7 @@ export interface operations {
             };
         };
     };
-    zpe_parse_api_zpe_parse_post: {
+    zpe_compute_register_api_zpe_compute_servers_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -1969,7 +1566,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ZPEParseRequest"];
+                "application/json": components["schemas"]["ComputeRegisterRequest"];
             };
         };
         responses: {
@@ -1979,7 +1576,128 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ZPEParseResponse"];
+                    "application/json": components["schemas"]["ComputeRegisterResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    zpe_compute_revoke_api_zpe_compute_servers__server_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeRevokeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    zpe_compute_lease_api_zpe_compute_jobs_lease_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeLeaseResponse"];
+                };
+            };
+        };
+    };
+    zpe_compute_result_api_zpe_compute_jobs__job_id__result_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComputeResultRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeResultResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    zpe_compute_failed_api_zpe_compute_jobs__job_id__failed_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComputeFailedRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeFailedResponse"];
                 };
             };
             /** @description Validation Error */
@@ -2043,6 +1761,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["QueueTargetSelectResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    zpe_ops_flags_api_zpe_admin_ops_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpsFlagsResponse"];
+                };
+            };
+        };
+    };
+    zpe_ops_flags_update_api_zpe_admin_ops_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpsFlagsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpsFlagsResponse"];
                 };
             };
             /** @description Validation Error */
