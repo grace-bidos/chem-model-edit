@@ -304,16 +304,16 @@ def build_supercell_from_grid(
                     new_positions=shifted_positions,
                     tolerance_sq=tolerance_sq,
                 )
+                if existing_positions.shape[0] == 0:
+                    existing_positions = shifted_positions.copy()
+                else:
+                    existing_positions = cast(
+                        FloatArray,
+                        np.concatenate((existing_positions, shifted_positions), axis=0),
+                    )
 
             symbols.extend(tile_symbols)
             position_chunks.append(shifted_positions)
-            if existing_positions.shape[0] == 0:
-                existing_positions = shifted_positions.copy()
-            else:
-                existing_positions = cast(
-                    FloatArray,
-                    np.concatenate((existing_positions, shifted_positions), axis=0),
-                )
 
     out_cell = _compute_output_cell(
         base_cell=base_cell,
