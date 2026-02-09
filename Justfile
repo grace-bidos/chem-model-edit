@@ -228,21 +228,27 @@ story-catalog-check:
   #!/usr/bin/env bash
   set -euo pipefail
   url="http://127.0.0.1:6006"
+  if lsof -ti tcp:6006 -sTCP:LISTEN >/dev/null 2>&1; then
+    echo "port 6006 is already in use; stop the existing process before running story-catalog-check." >&2
+    exit 1
+  fi
   cleanup() {
     if [[ -n "${storybook_pid:-}" ]]; then
       kill "$storybook_pid" 2>/dev/null || true
       wait "$storybook_pid" 2>/dev/null || true
-    fi
-    pids="$(lsof -ti tcp:6006 -sTCP:LISTEN 2>/dev/null || true)"
-    if [[ -n "$pids" ]]; then
-      kill $pids 2>/dev/null || true
     fi
   }
   trap cleanup EXIT
   pnpm -C apps/web storybook --port 6006 >/tmp/storybook.log 2>&1 &
   storybook_pid=$!
   for i in {1..60}; do
-    if curl -sf "$url" >/dev/null; then
+    if ! kill -0 "$storybook_pid" 2>/dev/null; then
+      echo "Storybook process exited before readiness check." >&2
+      echo "--- storybook log ---" >&2
+      cat /tmp/storybook.log >&2
+      exit 1
+    fi
+    if curl -sf "$url/iframe.html" | grep -qi "storybook"; then
       echo "Storybook is ready at $url"
       exit 0
     fi
