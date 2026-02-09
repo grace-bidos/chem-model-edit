@@ -21,6 +21,7 @@ __pycache__
 .mypy_cache
 .pytest_cache
 .hypothesis
+.coverage
 .uv-cache
 .uv-tmp
 

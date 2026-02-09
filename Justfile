@@ -100,6 +100,57 @@ api-mypy:
   uv run mypy .
   popd >/dev/null
 
+api-openapi-export:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  PYTHONPATH=apps/api uv run --project apps/api python apps/api/scripts/export_openapi.py
+
+api-openapi-generate:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  just api-openapi-export
+  mkdir -p docs/api
+  rm -rf docs/api/openapi-html docs/api/openapi-markdown
+  docker run --rm \
+    --user "$(id -u):$(id -g)" \
+    -v "$PWD:/local" \
+    openapitools/openapi-generator-cli:v7.16.0 generate \
+    -i /local/packages/api-client/openapi/openapi.json \
+    -g html2 \
+    -o /local/docs/api/openapi-html
+  docker run --rm \
+    --user "$(id -u):$(id -g)" \
+    -v "$PWD:/local" \
+    openapitools/openapi-generator-cli:v7.16.0 generate \
+    -i /local/packages/api-client/openapi/openapi.json \
+    -g markdown \
+    -o /local/docs/api/openapi-markdown
+  echo "generated: docs/api/openapi-html/index.html"
+  echo "generated: docs/api/openapi-markdown/README.md"
+
+api-pyreverse:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  mkdir -p docs/graphs
+  pushd apps/api >/dev/null
+  uv run pyreverse -o dot -p api app services
+  popd >/dev/null
+  mv -f apps/api/classes_api.dot docs/graphs/api-classes.dot
+  mv -f apps/api/packages_api.dot docs/graphs/api-packages.dot
+  dot -Tsvg docs/graphs/api-classes.dot -o docs/graphs/api-classes.svg
+  dot -Tsvg docs/graphs/api-packages.dot -o docs/graphs/api-packages.svg
+  echo "generated: docs/graphs/api-classes.svg"
+  echo "generated: docs/graphs/api-packages.svg"
+
+api-cov:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pushd apps/api >/dev/null
+  uv run pytest --cov=app --cov=services --cov-report=term-missing --cov-report=html:htmlcov --cov-report=xml:coverage.xml
+  popd >/dev/null
+  echo "generated: apps/api/htmlcov/index.html"
+  echo "generated: apps/api/coverage.xml"
+
 web-format:
   #!/usr/bin/env bash
   set -euo pipefail
@@ -140,6 +191,62 @@ chromatic:
   set -euo pipefail
   pnpm -C apps/web chromatic
 
+story-gen name dir export_style='named' export_name='' title_prefix='':
+  #!/usr/bin/env bash
+  set -euo pipefail
+  name="{{name}}"
+  dir="{{dir}}"
+  export_style="{{export_style}}"
+  export_name="{{export_name}}"
+  title_prefix="{{title_prefix}}"
+  args=(story new --name "$name" --dir "$dir" --exportStyle "$export_style")
+  if [[ -n "$export_name" ]]; then
+    args+=(--exportName "$export_name")
+  fi
+  if [[ -n "$title_prefix" ]]; then
+    args+=(--titlePrefix "$title_prefix")
+  fi
+  pnpm exec hygen "${args[@]}"
+
+story-gen-ui-batch:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  ./scripts/storybook/generate-ui-stories.sh
+
+story-gen-editor-v2-batch:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  ./scripts/storybook/generate-editor-v2-stories.sh
+
+story-catalog-check:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  url="http://127.0.0.1:6006"
+  cleanup() {
+    if [[ -n "${storybook_pid:-}" ]]; then
+      kill "$storybook_pid" 2>/dev/null || true
+      wait "$storybook_pid" 2>/dev/null || true
+    fi
+    pids="$(lsof -ti tcp:6006 -sTCP:LISTEN 2>/dev/null || true)"
+    if [[ -n "$pids" ]]; then
+      kill $pids 2>/dev/null || true
+    fi
+  }
+  trap cleanup EXIT
+  pnpm -C apps/web storybook --port 6006 >/tmp/storybook.log 2>&1 &
+  storybook_pid=$!
+  for i in {1..60}; do
+    if curl -sf "$url" >/dev/null; then
+      echo "Storybook is ready at $url"
+      exit 0
+    fi
+    sleep 1
+  done
+  echo "Storybook did not become ready within timeout." >&2
+  echo "--- storybook log ---" >&2
+  cat /tmp/storybook.log >&2
+  exit 1
+
 nx:
   #!/usr/bin/env bash
   set -euo pipefail
@@ -149,6 +256,67 @@ nx-graph:
   #!/usr/bin/env bash
   set -euo pipefail
   pnpm exec nx graph
+
+graph-nx:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  mkdir -p docs/graphs
+  NX_DAEMON=false NX_ISOLATE_PLUGINS=false pnpm exec nx graph --file docs/graphs/nx-project-graph.html --open=false
+  echo "generated: docs/graphs/nx-project-graph.html"
+
+graph-web-deps:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  mkdir -p docs/graphs
+  pnpm exec depcruise --config .dependency-cruiser.cjs --include-only "^apps/web/src" --output-type dot --output-to docs/graphs/web-dependency-graph.dot apps/web/src
+  pnpm exec depcruise --config .dependency-cruiser.cjs --include-only "^apps/web/src" --output-type mermaid --output-to docs/graphs/web-dependency-graph.mmd apps/web/src
+  pnpm exec depcruise --config .dependency-cruiser.cjs --include-only "^apps/web/src" --output-type json --output-to docs/graphs/web-dependency-graph.json apps/web/src
+  if command -v dot >/dev/null 2>&1; then
+    dot -Tsvg docs/graphs/web-dependency-graph.dot -o docs/graphs/web-dependency-graph.svg
+    echo "generated: docs/graphs/web-dependency-graph.svg"
+  else
+    echo "skip svg export: graphviz 'dot' not found"
+  fi
+  echo "generated: docs/graphs/web-dependency-graph.dot"
+  echo "generated: docs/graphs/web-dependency-graph.mmd"
+  echo "generated: docs/graphs/web-dependency-graph.json"
+
+graph-editor-v2-madge:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  mkdir -p docs/graphs
+  madge_bin="./node_modules/.bin/madge"
+  src_dir="apps/web/src/features/editor-v2/components"
+  exclude_pattern="(\\.stories\\.|\\.test\\.|\\.a11y\\.test\\.|\\.fastcheck\\.test\\.)"
+  "$madge_bin" "$src_dir" \
+    --extensions ts,tsx \
+    --ts-config apps/web/tsconfig.json \
+    --exclude "$exclude_pattern" \
+    --json > docs/graphs/editor-v2-madge.json
+  "$madge_bin" "$src_dir" \
+    --extensions ts,tsx \
+    --ts-config apps/web/tsconfig.json \
+    --exclude "$exclude_pattern" \
+    --dot > docs/graphs/editor-v2-madge.dot
+  "$madge_bin" "$src_dir" \
+    --extensions ts,tsx \
+    --ts-config apps/web/tsconfig.json \
+    --exclude "$exclude_pattern" \
+    --circular \
+    --json > docs/graphs/editor-v2-madge.circular.json
+  if command -v dot >/dev/null 2>&1; then
+    "$madge_bin" "$src_dir" \
+      --extensions ts,tsx \
+      --ts-config apps/web/tsconfig.json \
+      --exclude "$exclude_pattern" \
+      --image docs/graphs/editor-v2-madge.svg
+    echo "generated: docs/graphs/editor-v2-madge.svg"
+  else
+    echo "skip svg export: graphviz 'dot' not found"
+  fi
+  echo "generated: docs/graphs/editor-v2-madge.json"
+  echo "generated: docs/graphs/editor-v2-madge.dot"
+  echo "generated: docs/graphs/editor-v2-madge.circular.json"
 
 nx-storybook:
   #!/usr/bin/env bash
