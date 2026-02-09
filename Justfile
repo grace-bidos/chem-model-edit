@@ -137,10 +137,16 @@ api-pyreverse:
   popd >/dev/null
   mv -f apps/api/classes_api.dot docs/graphs/api-classes.dot
   mv -f apps/api/packages_api.dot docs/graphs/api-packages.dot
-  dot -Tsvg docs/graphs/api-classes.dot -o docs/graphs/api-classes.svg
-  dot -Tsvg docs/graphs/api-packages.dot -o docs/graphs/api-packages.svg
-  echo "generated: docs/graphs/api-classes.svg"
-  echo "generated: docs/graphs/api-packages.svg"
+  if command -v dot >/dev/null 2>&1; then
+    dot -Tsvg docs/graphs/api-classes.dot -o docs/graphs/api-classes.svg
+    dot -Tsvg docs/graphs/api-packages.dot -o docs/graphs/api-packages.svg
+    echo "generated: docs/graphs/api-classes.svg"
+    echo "generated: docs/graphs/api-packages.svg"
+  else
+    echo "skip svg export: graphviz 'dot' not found"
+  fi
+  echo "generated: docs/graphs/api-classes.dot"
+  echo "generated: docs/graphs/api-packages.dot"
 
 api-cov:
   #!/usr/bin/env bash

@@ -34,7 +34,7 @@ for file_path in "$target_dir"/*.tsx; do
     continue
   fi
 
-  export_name="$(echo "$base_name" | sed -E 's/(^|[-_])([a-z])/\U\2/g')"
+  export_name="$(echo "$base_name" | awk -F'[-_]' '{for(i=1;i<=NF;i++){$i=toupper(substr($i,1,1)) substr($i,2)}}1' OFS='')"
 
   (
     cd "$root_dir"

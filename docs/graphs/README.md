@@ -1,6 +1,6 @@
 # Graph Visualization
 
-報告書向けに、プロジェクト構造を次の2系統で可視化する。
+報告書向けに、プロジェクト構造を次の4系統で可視化する。
 
 - Nx graph: ワークスペース内のプロジェクト依存
 - dependency-cruiser: `apps/web/src` 内のモジュール依存
