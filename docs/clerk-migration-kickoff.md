@@ -10,5 +10,5 @@ This document links the planning artifacts for the one-shot Clerk migration epic
 - Planning tasks: `specs/007-clerk-auth-zpe-relax/tasks.md`
 
 Policy:
-- Use child-issue scoped small PRs to keep CodeRabbit review turnaround fast.
+- Use child-issue-scoped small PRs to keep CodeRabbit review turnaround fast.
 - Reflect architecture-impact feedback in both spec and plan docs.

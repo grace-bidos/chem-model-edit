@@ -13,7 +13,7 @@ and keeps the current Redis-based worker architecture while adding minimal `qe.r
 - Clerk JWT verified by API through JWKS
 - Allowlist-based user policy
 - dev-bypass only for local/CI
-- Implementation delivered through child-issue scoped small PRs
+- Implementation delivered through child-issue-scoped small PRs
 
 ## Technical Context
 - Frontend: TanStack Start (`apps/web`)
