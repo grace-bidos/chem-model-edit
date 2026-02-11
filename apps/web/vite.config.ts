@@ -1,3 +1,4 @@
+import { URL, fileURLToPath } from 'node:url'
 import { cloudflare } from '@cloudflare/vite-plugin'
 import { devtools } from '@tanstack/devtools-vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
@@ -29,6 +30,11 @@ const config = defineConfig(({ mode }) => {
 
   return {
     plugins,
+    resolve: {
+      alias: {
+        '@': fileURLToPath(new URL('./src', import.meta.url)),
+      },
+    },
     optimizeDeps: {
       include: ['dockview', 'dockview-react', 'dockview-core'],
     },
