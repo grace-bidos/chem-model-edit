@@ -30,4 +30,19 @@ else
   echo "uv not found. Install uv to set up Python deps." >&2
 fi
 
+if ! command -v just >/dev/null 2>&1; then
+  if [[ "${SETUP_INSTALL_JUST:-}" == "1" ]]; then
+    echo "==> Optional: install just"
+    if command -v cargo >/dev/null 2>&1; then
+      cargo install just
+    else
+      echo "cargo not found. Skip auto install of just." >&2
+      echo "Install just manually if needed (e.g. cargo install just)." >&2
+    fi
+  else
+    echo "just not found (optional)."
+    echo "To auto-install via cargo: SETUP_INSTALL_JUST=1 ./scripts/setup-dev.sh"
+  fi
+fi
+
 echo "Setup done."

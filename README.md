@@ -4,103 +4,91 @@ English | [Japanese](./README.ja.md)
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/grace-bidos/chem-model-edit)
 
-Note: the Japanese README is a short summary; this English version is the canonical reference.
-
 Web app for editing and visualizing chemical structures (Quantum ESPRESSO `.in`).
 
-## Project goal
-Build a web-based workflow to view, edit, compare, and share QE `.in` structures.
-For the detailed scope and acceptance criteria, see `specs/001-chem-model-webapp/spec.md`.
+Goal: build a browser workflow to view, edit, compare, and share QE `.in` structures.
+Detailed scope and acceptance criteria: `specs/001-chem-model-webapp/spec.md`.
 
-## Scope (per spec)
-- Parse QE `.in` files (starting with species + coordinates; lattice support is incremental).
-- 3D visualization with Mol* (ball-and-stick by default).
-- Table-based editing that stays in sync with 3D view.
-- Multi-structure workflows such as transfer/compare (planned).
-- Export to QE `.in` and shareable single HTML (planned).
+## Quickstart
+Run from repository root.
 
-## Repository layout
-- `apps/web`: TanStack Start web app (frontend).
-- `apps/api`: FastAPI backend.
-- `packages/shared`: Shared types.
-- `specs/`: Spec/plan/task documents.
-- `samples/qe-in`: Sample QE `.in` inputs.
-- `ref-legacy`: Legacy reference implementation.
-
-## Prerequisites
-- Git
-- Node.js (Corepack) + pnpm 10.27.0
-- Python >= 3.13 + uv
-- Optional: just
-
-## Setup
-See `docs/setup.md` for the full setup guide.
-For ZPE compute-plane (worker) setup, see `docs/zpe-worker-setup.md`.
 ```bash
 git clone git@github.com:Grac11111aq/chem-model-edit.git
 cd chem-model-edit
 
-corepack enable
-corepack prepare pnpm@10.27.0 --activate
-pnpm install
-# approve @parcel/watcher when prompted
-pnpm approve-builds
+./scripts/setup-dev.sh
+just dev
 ```
 
-## Development
-All commands below run from the repo root unless noted.
-Note: in sandboxed environments (e.g., Codex CLI), run `uv sync` and `just` with elevation.
+`just` is recommended for daily development (`just dev`, `just test`, `just typecheck`), but optional.
 
-### Web
+Install `just` manually:
 ```bash
-pnpm dev
-# or
+# Requires Rust/Cargo environment
+cargo install just
+
+# Linux (snap)
+sudo snap install --classic just
+```
+
+No `just`? start components separately:
+```bash
+pnpm -C apps/web dev
+cd apps/api && uv run uvicorn main:app --reload --port 8000
+```
+
+If you want to auto-install `just` via `cargo` during setup:
+```bash
+SETUP_INSTALL_JUST=1 ./scripts/setup-dev.sh
+just dev
+```
+
+- `./scripts/setup-dev.sh` installs pnpm deps, approves build scripts, and runs `uv sync` for API.
+- `just` is optional.
+- `just dev` starts Web + API together.
+  - Default ports via `just`: `WEB_PORT=3001`, `API_PORT=8000`.
+  - If a port is in use, `just dev` auto-selects a free port and prints it.
+
+Full setup details: `docs/setup.md`  
+ZPE worker setup: `docs/zpe-worker-setup.md`
+
+## Run Components Separately (alternative)
+All commands below run from repository root unless noted.
+
+### Web only
+```bash
 pnpm -C apps/web dev
 ```
-Vite uses port 3000 by default (unless overridden).
+Default port is `3000` for direct Vite dev.
 
-### API
+### API only
 ```bash
 cd apps/api
 uv sync
 uv run uvicorn main:app --reload --port 8000
 ```
 
-### Web + API together
-If you have `just` installed, it starts both and auto-selects free ports:
-```bash
-just deps
-just dev
-```
-You can override ports:
+### Override ports for `just dev`
 ```bash
 WEB_PORT=3001 API_PORT=8000 just dev
 ```
 
 ## Quality checks
-### Web
-```bash
-pnpm typecheck
-pnpm lint
-pnpm test
-```
-
-### API
-```bash
-cd apps/api
-uv run pytest
-uv run mypy .
-```
-
-### Just recipes
 ```bash
 just style      # web: prettier + eslint, api: ruff
-just test       # web: vitest, api: pytest
 just typecheck  # web: tsc, api: mypy
+just test       # web: vitest, api: pytest
+just ci         # nx run-many -t lint,typecheck,test,knip
 ```
 
-## Specs and samples
-- Spec/Plan/Tasks: `specs/001-chem-model-webapp/`
-- Sample inputs: `samples/qe-in/`
+## Repository layout
+- `apps/web`: TanStack Start web app (frontend)
+- `apps/api`: FastAPI backend
+- `packages/api-client`: shared API client package
+- `packages/shared`: shared types
+- `docs`: setup and operations docs
+- `specs`: spec/plan/task documents
+- `samples/qe-in`: sample QE `.in` inputs
 
-ZPE計算の実装はこちら: [ref-legacy/ZPEGUI9.py](ref-legacy/ZPEGUI9.py)
+## Notes (sandboxed environments)
+- In sandboxed environments (for example, Codex CLI), `uv sync` or `just` may require elevated execution due to filesystem constraints (`EXDEV`).

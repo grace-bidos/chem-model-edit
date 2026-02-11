@@ -2,100 +2,91 @@
 
 [English](./README.md) | 日本語
 
-Quantum ESPRESSO `.in` の構造を可視化・編集するWebアプリ。  
-※日本語版は要点のみです。詳細/最新は英語版を参照してください。
+Quantum ESPRESSO `.in` の構造を可視化・編集するWebアプリ。
 
-## 目的 / ゴール
-- QE `.in` 構造の view / edit / compare / share をブラウザで完結させる。
-- 詳細なスコープと受け入れ条件は `specs/001-chem-model-webapp/spec.md` を参照。
+ゴール: QE `.in` 構造の view / edit / compare / share をブラウザで完結させる。  
+詳細なスコープと受け入れ条件: `specs/001-chem-model-webapp/spec.md`
 
-## スコープ（Specに基づく）
-- QE `.in` の読み込み（まずは species + coordinates から）。
-- Mol* による 3D visualization（デフォルトは ball-and-stick）。
-- テーブル編集と 3D 表示の同期。
-- 複数構造の transfer / compare（planned）。
-- QE `.in` 出力と shareable single HTML（planned）。
+## クイックスタート
+コマンドは repo root で実行します。
 
-## リポジトリ構成
-- `apps/web`: TanStack Start web app（frontend）。
-- `apps/api`: FastAPI backend。
-- `packages/shared`: Shared types。
-- `specs/`: Spec/plan/task。
-- `samples/qe-in`: QE `.in` サンプル。
-- `ref-legacy`: 旧実装（参照用）。
-
-## 前提
-- Git
-- Node.js (Corepack) + pnpm 10.27.0
-- Python >= 3.13 + uv
-- Optional: just
-
-## セットアップ
-詳細は `docs/setup.ja.md` を参照。
-ZPE の compute-plane（worker）セットアップは `docs/zpe-worker-setup.ja.md` を参照。
 ```bash
 git clone git@github.com:Grac11111aq/chem-model-edit.git
 cd chem-model-edit
 
-corepack enable
-corepack prepare pnpm@10.27.0 --activate
-pnpm install
-# @parcel/watcher を承認
-pnpm approve-builds
+./scripts/setup-dev.sh
+just dev
 ```
 
-## 開発
-※以下のコマンドは、特記がない限り repo root から実行します。
-※サンドボックス環境（例: Codex CLI）では `uv sync` と `just` は昇格実行が必要です。
+`just` は日常開発（`just dev`, `just test`, `just typecheck`）に推奨ですが、必須ではありません。
 
-### Web
+`just` の手動インストール:
 ```bash
-pnpm dev
-# or
+# Rust/Cargo 環境が必要
+cargo install just
+
+# Linux (snap)
+sudo snap install --classic just
+```
+
+`just` がない場合は個別起動:
+```bash
+pnpm -C apps/web dev
+cd apps/api && uv run uvicorn main:app --reload --port 8000
+```
+
+セットアップ中に `cargo` 経由で `just` を自動導入したい場合:
+```bash
+SETUP_INSTALL_JUST=1 ./scripts/setup-dev.sh
+just dev
+```
+
+- `./scripts/setup-dev.sh` は pnpm依存導入、build script承認、APIの `uv sync` を実行します。
+- `just` は任意です。
+- `just dev` は Web + API を同時起動します。
+  - `just` 既定ポート: `WEB_PORT=3001`, `API_PORT=8000`
+  - 使用中ポートがある場合は空きポートへ自動変更し、ログに表示します。
+
+詳細セットアップ: `docs/setup.ja.md`  
+ZPE worker セットアップ: `docs/zpe-worker-setup.ja.md`
+
+## 個別起動（代替手順）
+以下のコマンドは repo root で実行（特記除く）。
+
+### Web のみ
+```bash
 pnpm -C apps/web dev
 ```
-Vite のデフォルトは 3000（上書きがない場合）。
+直接 Vite 起動時の既定ポートは `3000`。
 
-### API
+### API のみ
 ```bash
 cd apps/api
 uv sync
 uv run uvicorn main:app --reload --port 8000
 ```
 
-### Web + API 同時起動
-`just` がある場合は両方を起動し、空きポートを自動選択します。
-```bash
-just deps
-just dev
-```
-ポート指定:
+### `just dev` のポート上書き
 ```bash
 WEB_PORT=3001 API_PORT=8000 just dev
 ```
 
 ## 品質チェック
-### Web
-```bash
-pnpm typecheck
-pnpm lint
-pnpm test
-```
-
-### API
-```bash
-cd apps/api
-uv run pytest
-uv run mypy .
-```
-
-### Just レシピ
 ```bash
 just style      # web: prettier + eslint, api: ruff
-just test       # web: vitest, api: pytest
 just typecheck  # web: tsc, api: mypy
+just test       # web: vitest, api: pytest
+just ci         # nx run-many -t lint,typecheck,test,knip
 ```
 
-## 参考
-- Spec/Plan/Tasks: `specs/001-chem-model-webapp/`
-- サンプル入力: `samples/qe-in/`
+## リポジトリ構成
+- `apps/web`: TanStack Start web app（frontend）
+- `apps/api`: FastAPI backend
+- `packages/api-client`: APIクライアント共有パッケージ
+- `packages/shared`: shared types
+- `docs`: セットアップ/運用ドキュメント
+- `specs`: Spec/Plan/Task
+- `samples/qe-in`: QE `.in` サンプル入力
+
+## 補足（サンドボックス環境）
+- Codex CLI などのサンドボックスでは、ファイルシステム制約（`EXDEV`）により `uv sync` / `just` 実行で昇格が必要な場合があります。
