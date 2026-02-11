@@ -17,6 +17,15 @@ This playbook converts review wait time into delivery time by using stacked PRs 
 5. Rebase/update PR-B onto latest `main` (or onto merged A equivalent).
 6. Repeat for PR-C, PR-D.
 
+## Merge Gate (Mandatory)
+
+Do not merge product-impacting PRs when required checks are red or incomplete.
+
+- Product-impacting means API/auth/worker/runtime behavior changes.
+- Required checks are `CI / api`, `CI / web`, and `CI / contract`.
+- If CodeRabbit is marked required in the PR template, wait for review output (or explicitly document why unavailable) before merge.
+- If checks are flaky, re-run or fix within the same PR cycle. Do not defer known red checks to `main`.
+
 ## Start-Next-Task Gate (while waiting)
 
 Start next task if all are true:
@@ -31,6 +40,16 @@ Start next task if all are true:
 - Batch fixes and push once per review cycle.
 - Use one follow-up comment summarizing all addressed items.
 - If no review appears after 30 minutes, post `@coderabbitai review`.
+
+## Post-Merge Recovery Protocol
+
+If a product PR is merged with failing checks by mistake:
+
+1. Open a recovery issue immediately.
+2. Submit a hotfix PR to make `main` green first.
+3. Backfill CodeRabbit review requests on the merged PR(s).
+4. Create follow-up PRs for must-fix findings.
+5. Update branch protection/rules if the merge was not blocked automatically.
 
 ## CodeRabbit Required vs Optional
 
