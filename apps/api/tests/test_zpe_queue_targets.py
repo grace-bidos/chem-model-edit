@@ -87,7 +87,7 @@ def test_queue_target_list_and_select(monkeypatch):
 
 
 def test_queue_target_visibility_is_scoped_by_user(monkeypatch):
-    fake = _patch_redis(monkeypatch)
+    _patch_redis(monkeypatch)
     client = TestClient(main.app)
     owner_headers = {
         "X-Dev-User-Id": "user-owner",
