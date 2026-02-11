@@ -1,17 +1,26 @@
 import { createApiClient } from '@chem-model/api-client'
 
-import { getAuthToken, type LegacyAuthSession } from './auth'
-
 import type { ApiRequest } from '@chem-model/api-client'
 import { requestApi } from '@/server/api'
 
+type TokenProvider = () => Promise<string | null>
+
+let tokenProvider: TokenProvider | null = null
+
+export function setApiTokenProvider(provider: TokenProvider | null) {
+  tokenProvider = provider
+}
+
 const request = async <T>(params: ApiRequest): Promise<T> => {
-  return (await requestApi({ data: params })) as T
+  const token =
+    params.token === undefined
+      ? (await tokenProvider?.()) ?? undefined
+      : params.token
+  return (await requestApi({ data: { ...params, token } })) as T
 }
 
 const api = createApiClient({
   request,
-  getToken: () => getAuthToken() ?? undefined,
 })
 
 // API_BASE should be a host root or already end with "/api" (no "/api/v1" style path).
@@ -59,45 +68,6 @@ export const fetchZpeStatus = api.fetchZpeStatus
 export const fetchZpeResult = api.fetchZpeResult
 /** ZPE ジョブ出力ファイルをダウンロードする。 */
 export const downloadZpeFile = api.downloadZpeFile
-
-type LegacyAuthRequest = {
-  email: string
-  password: string
-}
-
-/** Legacy auth endpoints are removed and kept only as temporary shim until Clerk UI migration. */
-export async function registerAccount(
-  params: LegacyAuthRequest,
-): Promise<LegacyAuthSession> {
-  return request({
-    path: '/auth/register',
-    method: 'POST',
-    body: params,
-    responseType: 'json',
-  })
-}
-
-/** Legacy auth endpoints are removed and kept only as temporary shim until Clerk UI migration. */
-export async function loginAccount(
-  params: LegacyAuthRequest,
-): Promise<LegacyAuthSession> {
-  return request({
-    path: '/auth/login',
-    method: 'POST',
-    body: params,
-    responseType: 'json',
-  })
-}
-
-/** Legacy auth endpoints are removed and kept only as temporary shim until Clerk UI migration. */
-export async function logoutAccount(): Promise<void> {
-  await request({
-    path: '/auth/logout',
-    method: 'POST',
-    token: getAuthToken(),
-    responseType: 'json',
-  })
-}
 
 /** 構造 ID から公開表示用 URL を組み立てる。 */
 export function structureViewUrl(

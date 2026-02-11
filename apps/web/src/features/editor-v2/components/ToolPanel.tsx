@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  SignInButton,
+  useAuth,
+  useUser,
+} from '@clerk/clerk-react'
+import {
   Activity,
   AlertTriangle,
   CheckCircle2,
@@ -49,15 +54,11 @@ import {
   fetchZpeResult,
   fetchZpeStatus,
   getStructure,
-  loginAccount,
-  logoutAccount,
   parseZpeInput,
-  registerAccount,
   selectQueueTarget,
   structureViewUrl,
 } from '@/lib/api'
-import type { LegacyAuthSession } from '@/lib/auth'
-import { clearSession, getStoredSession, storeSession } from '@/lib/auth'
+import { clearSession } from '@/lib/auth'
 import { cn } from '@/lib/utils'
 
 interface ToolPanelProps {
@@ -186,12 +187,6 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
   const [useEnviron, setUseEnviron] = useState(false)
   const [calcMode, setCalcMode] = useState<'new' | 'continue'>('continue')
   const [inputDir, setInputDir] = useState('')
-  const [session, setSession] = useState<LegacyAuthSession | null>(null)
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
-  const [authEmail, setAuthEmail] = useState('')
-  const [authPassword, setAuthPassword] = useState('')
-  const [authError, setAuthError] = useState<string | null>(null)
-  const [authBusy, setAuthBusy] = useState(false)
   const [queueTargets, setQueueTargets] = useState<Array<ZPEQueueTarget>>([])
   const [activeTargetId, setActiveTargetId] = useState<string | null>(null)
   const [targetsError, setTargetsError] = useState<string | null>(null)
@@ -206,52 +201,41 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
   const [enrollBusy, setEnrollBusy] = useState(false)
   const [tokenCopied, setTokenCopied] = useState(false)
   const parseTokenRef = useRef(0)
-  const sessionTokenRef = useRef<string | null>(null)
-
-  useEffect(() => {
-    setSession(getStoredSession())
-  }, [])
-
-  useEffect(() => {
-    sessionTokenRef.current = session?.token ?? null
-  }, [session])
+  const { isSignedIn, signOut } = useAuth()
+  const { user } = useUser()
 
   const refreshTargets = useCallback(async () => {
-    if (!session) {
+    if (!isSignedIn) {
       return
     }
-    const tokenSnapshot = session.token
     setTargetsBusy(true)
     setTargetsError(null)
     try {
       const payload = await fetchQueueTargets()
-      if (sessionTokenRef.current !== tokenSnapshot) {
-        return
-      }
       setQueueTargets(payload.targets)
       setActiveTargetId(payload.active_target_id ?? null)
     } catch (err) {
-      if (sessionTokenRef.current !== tokenSnapshot) {
-        return
-      }
       setTargetsError(
         err instanceof Error ? err.message : 'Failed to load compute targets.',
       )
     } finally {
-      if (sessionTokenRef.current === tokenSnapshot) {
-        setTargetsBusy(false)
-      }
+      setTargetsBusy(false)
     }
-  }, [session])
+  }, [isSignedIn])
 
   useEffect(() => {
-    if (!session) {
+    if (!isSignedIn) {
       setQueueTargets([])
       setActiveTargetId(null)
       return
     }
     void refreshTargets()
-  }, [refreshTargets, session])
+  }, [isSignedIn, refreshTargets])
+
+  useEffect(() => {
+    // Remove deprecated local auth session when Clerk auth is active.
+    clearSession()
+  }, [])
 
   const activeTarget = useMemo(
     () => queueTargets.find((target) => target.id === activeTargetId),
@@ -477,51 +461,15 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
     selectedFile?.structureId,
   ])
 
-  const handleAuthSubmit = async () => {
-    if (!authEmail.trim() || !authPassword) {
-      setAuthError('Email and password are required.')
-      return
-    }
-    setAuthBusy(true)
-    setAuthError(null)
-    try {
-      const payload =
-        authMode === 'login'
-          ? await loginAccount({
-              email: authEmail.trim(),
-              password: authPassword,
-            })
-          : await registerAccount({
-              email: authEmail.trim(),
-              password: authPassword,
-            })
-      storeSession(payload)
-      setSession(payload)
-      setAuthPassword('')
-      setEnrollToken(null)
-    } catch (err) {
-      setAuthError(
-        err instanceof Error ? err.message : 'Authentication failed.',
-      )
-    } finally {
-      setAuthBusy(false)
-    }
-  }
-
   const handleLogout = async () => {
-    setAuthBusy(true)
     try {
-      await logoutAccount()
+      await signOut()
     } catch (_err) {
-      // ignore logout errors
-    } finally {
-      clearSession()
-      setSession(null)
-      setQueueTargets([])
-      setActiveTargetId(null)
-      setEnrollToken(null)
-      setAuthBusy(false)
+      // ignore sign-out errors
     }
+    setQueueTargets([])
+    setActiveTargetId(null)
+    setEnrollToken(null)
   }
 
   const handleSelectTarget = async (targetId: string) => {
@@ -581,7 +529,7 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
       setRunError('QE input is missing. Re-import the .in file.')
       return
     }
-    if (!session) {
+    if (!isSignedIn) {
       setRunError('Sign in to run ZPE.')
       return
     }
@@ -621,7 +569,7 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
   }
 
   const handleDownload = async (kind: 'summary' | 'freqs') => {
-    if (!session) {
+    if (!isSignedIn) {
       setRunError('Sign in to download results.')
       return
     }
@@ -734,7 +682,7 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
     hasStructure &&
     hasParseMeta &&
     mobileIndices.size > 0 &&
-    Boolean(session) &&
+    Boolean(isSignedIn) &&
     Boolean(activeTargetId)
 
   return (
@@ -893,72 +841,25 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
               variant="outline"
               className="rounded-full border-slate-200 px-2 text-[10px] uppercase tracking-wide text-slate-500"
             >
-              {session ? 'signed in' : 'guest'}
+              {isSignedIn ? 'signed in' : 'guest'}
             </Badge>
           </div>
           <div className="mt-3 space-y-3 text-xs text-slate-600">
-            {!session ? (
+            {!isSignedIn ? (
               <div className="space-y-2">
-                <div className="flex gap-2">
+                <SignInButton mode="modal">
                   <Button
                     type="button"
-                    variant={authMode === 'login' ? 'default' : 'outline'}
                     size="sm"
-                    className="h-7 px-2 text-[11px]"
-                    onClick={() => {
-                      setAuthMode('login')
-                      setAuthError(null)
-                    }}
+                    className="h-8 w-full text-xs font-semibold"
                   >
-                    Sign in
+                    Sign in with Clerk
                   </Button>
-                  <Button
-                    type="button"
-                    variant={authMode === 'register' ? 'default' : 'outline'}
-                    size="sm"
-                    className="h-7 px-2 text-[11px]"
-                    onClick={() => {
-                      setAuthMode('register')
-                      setAuthError(null)
-                    }}
-                  >
-                    Create
-                  </Button>
-                </div>
-                <div className="grid gap-2">
-                  <Input
-                    value={authEmail}
-                    onChange={(event) => setAuthEmail(event.target.value)}
-                    placeholder="Email"
-                    type="email"
-                    className="h-8 text-xs"
-                  />
-                  <Input
-                    value={authPassword}
-                    onChange={(event) => setAuthPassword(event.target.value)}
-                    placeholder="Password (min 8 chars)"
-                    type="password"
-                    className="h-8 text-xs"
-                  />
-                </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  className="h-8 w-full text-xs font-semibold"
-                  onClick={handleAuthSubmit}
-                  disabled={authBusy}
-                >
-                  {authBusy
-                    ? 'Working...'
-                    : authMode === 'login'
-                      ? 'Sign in'
-                      : 'Create account'}
-                </Button>
-                {authError ? (
-                  <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-600">
-                    {authError}
-                  </div>
-                ) : null}
+                </SignInButton>
+                <p className="text-[11px] text-slate-500">
+                  Local auth is removed. Use Clerk sign-in to access compute
+                  APIs.
+                </p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -967,10 +868,9 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
                     Signed in
                   </p>
                   <p className="mt-1 font-medium text-slate-700">
-                    {session.user.email}
-                  </p>
-                  <p className="mt-1 text-[10px] text-slate-400">
-                    expires {session.expires_at}
+                    {user?.primaryEmailAddress?.emailAddress ??
+                      user?.emailAddresses.at(0)?.emailAddress ??
+                      user?.id}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -990,7 +890,6 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
                     size="sm"
                     className="h-7 px-2 text-[11px]"
                     onClick={handleLogout}
-                    disabled={authBusy}
                   >
                     Sign out
                   </Button>
@@ -1002,7 +901,7 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
               <p className="text-[10px] uppercase tracking-[0.3em] text-slate-400">
                 Compute queue
               </p>
-              {!session ? (
+              {!isSignedIn ? (
                 <p className="mt-2 text-[11px] text-slate-400">
                   Sign in to register and select your compute targets.
                 </p>
@@ -1316,7 +1215,7 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
               <Play className="h-4 w-4" />
               {isSubmitting ? 'Submitting...' : 'Run ZPE'}
             </Button>
-            {!session ? (
+            {!isSignedIn ? (
               <p className="text-[11px] text-slate-400">
                 Sign in to enable remote compute.
               </p>
