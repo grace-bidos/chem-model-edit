@@ -228,7 +228,7 @@ export default function EditorV2Page() {
         id: panelId,
         title: TOOL_NAV.find((tool) => tool.id === mode)?.label ?? mode,
         component: 'tool',
-        params: { mode, structures: files },
+        params: { mode, files, structures: files },
       })
       bumpDockviewVersion()
       return true
@@ -341,6 +341,7 @@ export default function EditorV2Page() {
         api,
       }: IDockviewPanelProps<{
         mode?: ToolMode
+        files?: Array<WorkspaceFile>
         structures?: Array<WorkspaceFile>
       }>) => {
         const mode = params.mode
@@ -360,11 +361,12 @@ export default function EditorV2Page() {
             </div>
           )
         }
-        const structures = params.structures ?? []
+        const panelFiles = params.files ?? files
+        const structures = params.structures ?? panelFiles
         return (
           <ToolPanel
             mode={mode}
-            files={files}
+            files={panelFiles}
             onClose={() => api.close()}
             variant="dock"
             showClose={false}
@@ -528,7 +530,7 @@ export default function EditorV2Page() {
     TOOL_NAV.forEach((tool) => {
       const panel = api.getPanel(toolPanelId(tool.id))
       if (panel) {
-        panel.api.updateParameters({ mode: tool.id, structures: files })
+        panel.api.updateParameters({ mode: tool.id, files, structures: files })
       }
     })
   }, [files])
