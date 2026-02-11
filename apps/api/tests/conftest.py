@@ -9,8 +9,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-import app.deps as deps
-from services.authn.settings import AuthnSettings
+import app.deps as deps  # noqa: E402
+from services.authn.settings import AuthnSettings  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
