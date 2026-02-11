@@ -1,0 +1,35 @@
+name: Epic
+description: Parent issue for cross-PR delivery tracking
+title: "Epic: "
+labels:
+  - epic
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What business or technical goal this epic delivers.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: In-scope / out-of-scope items.
+    validations:
+      required: true
+  - type: textarea
+    id: child_issues
+    attributes:
+      label: Child Issues
+      description: Track with Markdown task list and issue links.
+      value: |
+        - [ ] #<child-1>
+        - [ ] #<child-2>
+  - type: textarea
+    id: dod
+    attributes:
+      label: Definition of Done
+      description: Concrete completion criteria for this epic.
+    validations:
+      required: true
