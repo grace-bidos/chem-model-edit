@@ -393,8 +393,14 @@ git-main-sync:
   #!/usr/bin/env bash
   set -euo pipefail
   git fetch origin --prune
-  git branch -f main origin/main
-  echo "main synced to origin/main"
+  current_branch="$(git rev-parse --abbrev-ref HEAD)"
+  if [[ "$current_branch" != "main" ]]; then
+    echo "git-main-sync must run from main branch (current: $current_branch)" >&2
+    echo "hint: git switch main" >&2
+    exit 1
+  fi
+  git merge --ff-only origin/main
+  echo "main fast-forwarded to origin/main"
 
 git-wt-start branch name='':
   #!/usr/bin/env bash
@@ -406,8 +412,7 @@ git-wt-start branch name='':
   fi
   path=".worktrees/$name"
   git fetch origin --prune
-  git branch -f main origin/main
-  git worktree add "$path" -b "$branch" main
+  git worktree add "$path" -b "$branch" origin/main
   echo "created worktree: $path ($branch)"
 
 git-wt-clean path branch='':
@@ -420,6 +425,16 @@ git-wt-clean path branch='':
   if [[ -n "$branch" ]]; then
     git branch -d "$branch"
   fi
-  git fetch origin --prune
-  git branch -f main origin/main
   echo "cleaned worktree: $path"
+
+git-main-realign:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  git fetch origin --prune
+  if git worktree list | grep -qE '\[main\]$'; then
+    echo "main is currently checked out in a worktree; cannot force realign safely." >&2
+    echo "hint: remove/switch that worktree, then rerun git-main-realign" >&2
+    exit 1
+  fi
+  git branch -f main origin/main
+  echo "main branch pointer realigned to origin/main"
