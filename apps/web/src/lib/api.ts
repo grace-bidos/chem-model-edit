@@ -1,6 +1,6 @@
 import { createApiClient } from '@chem-model/api-client'
 
-import { getAuthToken } from './auth'
+import { getAuthToken, type LegacyAuthSession } from './auth'
 
 import type { ApiRequest } from '@chem-model/api-client'
 import { requestApi } from '@/server/api'
@@ -45,14 +45,6 @@ export const deltaTransplant = api.deltaTransplant
 export const buildSupercell = api.buildSupercell
 /** ZPE 入力を解析する。 */
 export const parseZpeInput = api.parseZpeInput
-/** 新規ユーザーを登録する。 */
-export const registerAccount = api.registerAccount
-/** ユーザーをログインさせる。 */
-export const loginAccount = api.loginAccount
-/** 現在の認証ユーザー情報を取得する。 */
-export const fetchAuthMe = api.fetchAuthMe
-/** 現在のセッションをログアウトする。 */
-export const logoutAccount = api.logoutAccount
 /** 計算リソース登録用トークンを発行する。 */
 export const createEnrollToken = api.createEnrollToken
 /** 利用可能なキューターゲット一覧を取得する。 */
@@ -67,6 +59,45 @@ export const fetchZpeStatus = api.fetchZpeStatus
 export const fetchZpeResult = api.fetchZpeResult
 /** ZPE ジョブ出力ファイルをダウンロードする。 */
 export const downloadZpeFile = api.downloadZpeFile
+
+type LegacyAuthRequest = {
+  email: string
+  password: string
+}
+
+/** Legacy auth endpoints are removed and kept only as temporary shim until Clerk UI migration. */
+export async function registerAccount(
+  params: LegacyAuthRequest,
+): Promise<LegacyAuthSession> {
+  return request({
+    path: '/auth/register',
+    method: 'POST',
+    body: params,
+    responseType: 'json',
+  })
+}
+
+/** Legacy auth endpoints are removed and kept only as temporary shim until Clerk UI migration. */
+export async function loginAccount(
+  params: LegacyAuthRequest,
+): Promise<LegacyAuthSession> {
+  return request({
+    path: '/auth/login',
+    method: 'POST',
+    body: params,
+    responseType: 'json',
+  })
+}
+
+/** Legacy auth endpoints are removed and kept only as temporary shim until Clerk UI migration. */
+export async function logoutAccount(): Promise<void> {
+  await request({
+    path: '/auth/logout',
+    method: 'POST',
+    token: getAuthToken(),
+    responseType: 'json',
+  })
+}
 
 /** 構造 ID から公開表示用 URL を組み立てる。 */
 export function structureViewUrl(

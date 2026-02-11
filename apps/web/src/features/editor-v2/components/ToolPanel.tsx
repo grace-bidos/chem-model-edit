@@ -18,7 +18,6 @@ import { SupercellTool } from './SupercellTool'
 
 import type { ToolMode, WorkspaceFile } from '../types'
 import type {
-  AuthSession,
   Structure,
   SupercellBuildMeta,
   ZPEJobStatus,
@@ -57,6 +56,7 @@ import {
   selectQueueTarget,
   structureViewUrl,
 } from '@/lib/api'
+import type { LegacyAuthSession } from '@/lib/auth'
 import { clearSession, getStoredSession, storeSession } from '@/lib/auth'
 import { cn } from '@/lib/utils'
 
@@ -186,7 +186,7 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
   const [useEnviron, setUseEnviron] = useState(false)
   const [calcMode, setCalcMode] = useState<'new' | 'continue'>('continue')
   const [inputDir, setInputDir] = useState('')
-  const [session, setSession] = useState<AuthSession | null>(null)
+  const [session, setSession] = useState<LegacyAuthSession | null>(null)
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
   const [authEmail, setAuthEmail] = useState('')
   const [authPassword, setAuthPassword] = useState('')

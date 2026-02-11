@@ -5,8 +5,6 @@ from fastapi.testclient import TestClient
 
 import main
 import app.routers.zpe as zpe_router
-from services import auth as auth_service
-from services.auth.store import AuthStore
 from services.zpe import backends as zpe_backends
 from services.zpe import enroll as zpe_enroll
 from services.zpe import job_meta as zpe_job_meta
@@ -55,17 +53,11 @@ def _patch_redis(monkeypatch):
 def _setup_user_and_target(
     client: TestClient, monkeypatch, fake
 ) -> tuple[dict[str, str], str]:
-    store = AuthStore(fake)
-    monkeypatch.setattr(auth_service, "get_auth_store", lambda: store)
-
-    response = client.post(
-        "/api/auth/register",
-        json={"email": "user@example.com", "password": "password123"},
-    )
-    payload = response.json()
-    token = payload["token"]
-    user_id = payload["user"]["id"]
-    headers = {"Authorization": f"Bearer {token}"}
+    user_id = "dev-user-1"
+    headers = {
+        "X-Dev-User-Id": user_id,
+        "X-Dev-User-Email": "dev-user@example.com",
+    }
 
     enroll = client.post(
         "/api/zpe/compute/enroll-tokens",

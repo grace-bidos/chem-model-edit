@@ -1,9 +1,19 @@
-import type { AuthSession } from './types'
+export type LegacyAuthUser = {
+  id: string
+  email: string
+  created_at: string
+}
+
+export type LegacyAuthSession = {
+  token: string
+  expires_at: string
+  user: LegacyAuthUser
+}
 
 const SESSION_KEY = 'chem-model-auth-session'
 
 /** ローカルストレージから認証セッションを取得する。 */
-export function getStoredSession(): AuthSession | null {
+export function getStoredSession(): LegacyAuthSession | null {
   if (typeof window === 'undefined') {
     return null
   }
@@ -12,14 +22,14 @@ export function getStoredSession(): AuthSession | null {
     return null
   }
   try {
-    return JSON.parse(raw) as AuthSession
+    return JSON.parse(raw) as LegacyAuthSession
   } catch (_err) {
     return null
   }
 }
 
 /** 認証セッションをローカルストレージへ保存する。 */
-export function storeSession(session: AuthSession) {
+export function storeSession(session: LegacyAuthSession) {
   if (typeof window === 'undefined') {
     return
   }

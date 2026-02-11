@@ -4,8 +4,6 @@ import fakeredis
 from fastapi.testclient import TestClient
 
 import main
-from services import auth as auth_service
-from services.auth.store import AuthStore
 from services.zpe import enroll as zpe_enroll
 from services.zpe import job_owner as zpe_job_owner
 from services.zpe import queue as zpe_queue
@@ -26,14 +24,10 @@ def _patch_redis(monkeypatch):
 
 
 def _auth_headers(client: TestClient, monkeypatch, fake) -> dict[str, str]:
-    store = AuthStore(fake)
-    monkeypatch.setattr(auth_service, "get_auth_store", lambda: store)
-    response = client.post(
-        "/api/auth/register",
-        json={"email": "user@example.com", "password": "password123"},
-    )
-    token = response.json()["token"]
-    return {"Authorization": f"Bearer {token}"}
+    return {
+        "X-Dev-User-Id": "dev-user-1",
+        "X-Dev-User-Email": "dev-user@example.com",
+    }
 
 
 def _register_target(
