@@ -1,5 +1,9 @@
 # Task List: User Auth + Queue Target for ZPE Remote Compute
 
+> [!WARNING]
+> Superseded by `specs/007-clerk-auth-zpe-relax/tasks.md` (Epic #151, created on 2026-02-11).
+> Compatibility policy: task execution should move to the 007 task set; this file is retained only as a historical baseline.
+
 **Input**: `specs/004-zpe-user-queue-auth/spec.md` / `specs/004-zpe-user-queue-auth/plan.md`
 
 ## PR-1: Spec/Plan

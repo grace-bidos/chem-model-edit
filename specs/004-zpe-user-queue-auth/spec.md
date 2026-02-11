@@ -1,5 +1,9 @@
 # Feature Specification: User Auth + Queue Target for ZPE Remote Compute
 
+> [!WARNING]
+> Superseded by `specs/007-clerk-auth-zpe-relax/spec.md` (Epic #151, created on 2026-02-11).
+> Compatibility policy: this document remains as historical context for Issue #66, but new changes must follow the one-shot Clerk migration spec.
+
 **Feature Branch**: `[stack/issue66-spec]`  
 **Created**: 2026-01-28  
 **Status**: Draft  

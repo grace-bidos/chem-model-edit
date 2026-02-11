@@ -1,5 +1,9 @@
 # Implementation Plan: User Auth + Queue Target for ZPE Remote Compute
 
+> [!WARNING]
+> Superseded by `specs/007-clerk-auth-zpe-relax/plan.md` (Epic #151, created on 2026-02-11).
+> Compatibility policy: this plan is preserved for traceability; new implementation planning must follow the Clerk one-shot migration plan.
+
 **Branch**: `[stack/issue66-spec]` | **Date**: 2026-01-28 | **Spec**: `specs/004-zpe-user-queue-auth/spec.md`
 **Input**: Issue #66 and spec above
 
