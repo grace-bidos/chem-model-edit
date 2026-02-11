@@ -1,4 +1,5 @@
 import { Suspense, lazy } from 'react'
+import { ClerkProvider } from '@clerk/clerk-react'
 import {
   HeadContent,
   Outlet,
@@ -7,6 +8,7 @@ import {
 } from '@tanstack/react-router'
 
 import Header from '../components/Header'
+import { ClerkTokenBridge } from '../lib/clerk-token-bridge'
 import '../styles.css'
 
 import type { ReactNode } from 'react'
@@ -17,6 +19,9 @@ const runtimeApiBase = import.meta.env.SSR
     import.meta.env.VITE_API_BASE ??
     'http://localhost:8000')
   : null
+
+const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+const clerkKey = clerkPublishableKey ?? 'pk_test_missing'
 
 const RouterDevtoolsPanel = import.meta.env.DEV
   ? lazy(() =>
@@ -40,8 +45,14 @@ export const Route = createRootRoute({
 })
 
 function RootLayout() {
-  return (
-    <RootDocument>
+  const appShell = (
+    <>
+      <ClerkTokenBridge />
+      {!clerkPublishableKey ? (
+        <div className="border-b border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          VITE_CLERK_PUBLISHABLE_KEY is not set. Clerk auth will not be usable.
+        </div>
+      ) : null}
       <Header />
       <Outlet />
       {Devtools && RouterDevtoolsPanel ? (
@@ -59,6 +70,12 @@ function RootLayout() {
           />
         </Suspense>
       ) : null}
+    </>
+  )
+
+  return (
+    <RootDocument>
+      <ClerkProvider publishableKey={clerkKey}>{appShell}</ClerkProvider>
     </RootDocument>
   )
 }
