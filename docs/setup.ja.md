@@ -9,20 +9,32 @@ ZPE の compute-plane（worker）セットアップは `docs/zpe-worker-setup.ja
 - Node.js（Corepack 有効化）
 - pnpm 10.27.0
 - Python >= 3.13（`uv` を推奨）
-- 任意: `just`（`just dev` を使う場合）
+- 任意: `just`（Web+API 同時起動の `just dev` を使う場合）
+
+`just` は `just dev` / `just test` / `just typecheck` などの日常開発コマンドで推奨ですが、任意です。
 
 `just` を入れる場合:
-- Rust/Cargo があるなら: `cargo install just`
+- Cargo 経由（Rust/Cargo 環境が必要）: `cargo install just`
+- Linux の snap 経由: `sudo snap install --classic just`
 - もしくは OS のパッケージマネージャ
 
-## クイックスタート（スクリプト）
+## 推奨導線
+推奨の入口は `./scripts/setup-dev.sh` です。
+
 ```bash
 ./scripts/setup-dev.sh
 ```
+
+このセットアップで実行される内容:
+- `corepack enable` + `corepack prepare pnpm@10.27.0 --activate`
+- `pnpm install`
+- `pnpm approve-builds`（`@parcel/watcher` を承認）
+- `uv python install 3.13` と `apps/api` での `uv sync`
+
 補足:
-- `pnpm approve-builds` が走るので、`@parcel/watcher` を承認してください。
 - `pnpm approve-builds` により `pnpm-workspace.yaml` が更新されます。
-- `SETUP_SKIP_APPROVE=1` を指定すると承認手順をスキップできます。
+- `SETUP_SKIP_APPROVE=1` を指定すると `pnpm approve-builds` をスキップできます。
+- `SETUP_INSTALL_JUST=1` を指定すると、`cargo` がある場合のみ `just` を自動導入します（Rust/Cargo 環境が必要）。
 
 ## 手動セットアップ
 ```bash
@@ -41,38 +53,42 @@ uv sync
 ```
 
 ## 起動
+### Web + API 同時起動（推奨）
+```bash
+just dev
+```
+
+`just dev` の実行には `just` の導入が必要です。
+
+`just dev` のポート挙動:
+- 既定値は `WEB_PORT=3001` と `API_PORT=8000`
+- 既に使用中なら空きポートを自動選択してログに表示
+
+明示的にポート指定する場合:
+```bash
+WEB_PORT=4000 API_PORT=9000 just dev
+```
+
+### 個別起動（代替手順）
 ```bash
 # Web
-pnpm -C apps/web dev --port 3000
+pnpm -C apps/web dev
 
 # API
 cd apps/api
 uv run uvicorn main:app --reload --port 8000
 ```
-
-同時起動（`just` が必要）:
-```bash
-just deps
-just dev
-```
+Web を Vite で直接起動する場合の既定ポートは `3000` です。
 
 ## 品質チェック
 ```bash
-pnpm -C apps/web typecheck
-pnpm -C apps/web lint
-pnpm -C apps/web test
-
-cd apps/api
-uv run pytest
-uv run mypy .
+just style
+just typecheck
+just test
+just ci
 ```
 
-Just レシピ:
-```bash
-just style      # web: prettier + eslint, api: ruff
-just test       # web: vitest, api: pytest
-just typecheck  # web: tsc, api: mypy
-```
+レシピの詳細は `just --list` と `Justfile` を参照してください。
 
 ## トラブルシュート
 - サンドボックス環境（例: Codex CLI）では `uv sync` が `EXDEV`（cross-device rename）で失敗する場合があります。

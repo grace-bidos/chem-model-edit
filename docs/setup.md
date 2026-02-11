@@ -9,20 +9,32 @@ For the ZPE compute-plane (worker) setup, see `docs/zpe-worker-setup.md`.
 - Node.js with Corepack enabled
 - pnpm 10.27.0
 - Python >= 3.13 (use `uv`)
-- Optional: `just` (recommended for `just dev`)
+- Optional: `just` (`just dev` for Web+API together)
+
+`just` is recommended (but optional) for daily development commands like `just dev`, `just test`, and `just typecheck`.
 
 If you want `just`:
-- With Rust/Cargo installed: `cargo install just`
+- Via Cargo (requires Rust/Cargo environment): `cargo install just`
+- On Linux via snap: `sudo snap install --classic just`
 - Or via your OS package manager
 
-## Quick start (script)
+## Recommended path
+`./scripts/setup-dev.sh` is the recommended entrypoint.
+
 ```bash
 ./scripts/setup-dev.sh
 ```
+
+What this setup does:
+- Runs `corepack enable` + `corepack prepare pnpm@10.27.0 --activate`
+- Runs `pnpm install`
+- Runs `pnpm approve-builds` (approve `@parcel/watcher`)
+- Runs `uv python install 3.13` and `uv sync` in `apps/api`
+
 Notes:
-- The script runs `pnpm approve-builds` and asks you to approve `@parcel/watcher`.
-- `pnpm approve-builds` will update `pnpm-workspace.yaml`.
-- Set `SETUP_SKIP_APPROVE=1` to skip the approval step.
+- `pnpm approve-builds` updates `pnpm-workspace.yaml`.
+- Set `SETUP_SKIP_APPROVE=1` to skip `pnpm approve-builds`.
+- Set `SETUP_INSTALL_JUST=1` to auto-install `just` via `cargo` (requires Rust/Cargo, and only runs if `cargo` exists).
 
 ## Manual setup
 ```bash
@@ -41,38 +53,42 @@ uv sync
 ```
 
 ## Run
+### Start both Web and API (recommended)
+```bash
+just dev
+```
+
+`just dev` requires `just` to be installed.
+
+Port behavior for `just dev`:
+- Default values are `WEB_PORT=3001` and `API_PORT=8000`.
+- If a port is already in use, `just dev` automatically selects a free port and prints it.
+
+Override ports explicitly:
+```bash
+WEB_PORT=4000 API_PORT=9000 just dev
+```
+
+### Start components separately (alternative)
 ```bash
 # Web
-pnpm -C apps/web dev --port 3000
+pnpm -C apps/web dev
 
 # API
 cd apps/api
 uv run uvicorn main:app --reload --port 8000
 ```
-
-Run both together (requires `just`):
-```bash
-just deps
-just dev
-```
+When Web is started directly with Vite, the default port is `3000`.
 
 ## Quality checks
 ```bash
-pnpm -C apps/web typecheck
-pnpm -C apps/web lint
-pnpm -C apps/web test
-
-cd apps/api
-uv run pytest
-uv run mypy .
+just style
+just typecheck
+just test
+just ci
 ```
 
-Just recipes:
-```bash
-just style      # web: prettier + eslint, api: ruff
-just test       # web: vitest, api: pytest
-just typecheck  # web: tsc, api: mypy
-```
+Recipe details: `just --list` and `Justfile`.
 
 ## Troubleshooting
 - In sandboxed environments (for example, Codex CLI), run `uv sync` with elevation.
