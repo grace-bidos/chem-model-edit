@@ -65,6 +65,7 @@ def _run_mock_job(payload: Dict[str, Any], store: ResultStore) -> str:
 
     now = _now_iso()
     result: Dict[str, Any] = {
+        "calc_type": request.calc_type,
         "freqs_cm": normalize_frequencies(freqs_cm),
         "zpe_ev": zpe_ev,
         "s_vib_jmol_k": s_vib_jmol_k,

@@ -1164,6 +1164,15 @@
             "title": "Calc Mode",
             "type": "string"
           },
+          "calc_type": {
+            "default": "qe.zpe.v1",
+            "enum": [
+              "qe.zpe.v1",
+              "qe.relax.v1"
+            ],
+            "title": "Calc Type",
+            "type": "string"
+          },
           "content": {
             "title": "Content",
             "type": "string"
@@ -1367,6 +1376,15 @@
           },
           "calc_start_time": {
             "title": "Calc Start Time",
+            "type": "string"
+          },
+          "calc_type": {
+            "default": "qe.zpe.v1",
+            "enum": [
+              "qe.zpe.v1",
+              "qe.relax.v1"
+            ],
+            "title": "Calc Type",
             "type": "string"
           },
           "delta": {

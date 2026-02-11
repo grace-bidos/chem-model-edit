@@ -21,6 +21,7 @@ class ZPEParseResponse(ApiModel):
 
 
 class ZPEJobRequest(ApiModel):
+    calc_type: Literal["qe.zpe.v1", "qe.relax.v1"] = "qe.zpe.v1"
     content: str
     mobile_indices: List[int]
     use_environ: bool = False
@@ -40,6 +41,7 @@ class ZPEJobStatus(ApiModel):
 
 
 class ZPEResult(ApiModel):
+    calc_type: Literal["qe.zpe.v1", "qe.relax.v1"] = "qe.zpe.v1"
     freqs_cm: List[float]
     zpe_ev: float
     s_vib_jmol_k: float
