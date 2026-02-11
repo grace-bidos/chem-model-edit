@@ -6,6 +6,7 @@ from typing import Tuple
 from fastapi import HTTPException, Request
 
 from services import auth as auth_service
+from services.authn import UserIdentity, get_authn_settings, verify_clerk_token
 from services.auth.store import AuthSession, AuthUser
 from services.zpe.job_owner import get_job_owner_store
 from services.zpe.settings import get_zpe_settings
@@ -34,8 +35,41 @@ def require_user_session(request: Request) -> Tuple[AuthUser, AuthSession]:
     return user, session
 
 
-def require_job_owner(request: Request, job_id: str) -> AuthUser:
+def _require_dev_bypass_identity(request: Request) -> UserIdentity:
+    settings = get_authn_settings()
+    user_id = request.headers.get(settings.dev_bypass_user_id_header)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="unauthorized")
+    email = request.headers.get(settings.dev_bypass_email_header)
+    allowed = settings.allowed_email_set()
+    if allowed and (not email or email.lower() not in allowed):
+        raise HTTPException(status_code=403, detail="forbidden")
+    return UserIdentity(user_id=user_id, email=email)
+
+
+def require_user_identity(request: Request) -> UserIdentity:
+    mode = get_authn_settings().mode
+    if mode == "dev-bypass":
+        return _require_dev_bypass_identity(request)
+    if mode == "clerk":
+        token = _extract_bearer_token(request)
+        if not token:
+            raise HTTPException(status_code=401, detail="unauthorized")
+        try:
+            return verify_clerk_token(token)
+        except PermissionError as exc:
+            detail = str(exc) or "unauthorized"
+            status = 403 if "allowlist" in detail else 401
+            raise HTTPException(
+                status_code=status,
+                detail="forbidden" if status == 403 else "unauthorized",
+            ) from exc
     user, _session = require_user_session(request)
+    return UserIdentity(user_id=user.user_id, email=user.email)
+
+
+def require_job_owner(request: Request, job_id: str) -> UserIdentity:
+    user = require_user_identity(request)
     owner_store = get_job_owner_store()
     owner_id = owner_store.get_owner(job_id)
     if not owner_id:

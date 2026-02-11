@@ -11,7 +11,7 @@ from app.deps import (
     has_admin_access,
     require_admin,
     require_job_owner,
-    require_user_session,
+    require_user_identity,
     require_worker,
 )
 from app.middleware import get_request_id
@@ -112,7 +112,7 @@ async def zpe_parse(request: ZPEParseRequest) -> ZPEParseResponse:
 
 @router.post("/jobs", response_model=ZPEJobResponse)
 async def zpe_jobs(request: ZPEJobRequest, raw: Request) -> ZPEJobResponse:
-    user, _session = require_user_session(raw)
+    user = require_user_identity(raw)
     request_id = get_request_id(raw)
     flags = get_ops_flags()
     if not flags.submission_enabled:
@@ -255,7 +255,7 @@ async def zpe_compute_enroll_token(
 ) -> EnrollTokenResponse:
     owner_id = None
     if not has_admin_access(raw):
-        user, _session = require_user_session(raw)
+        user = require_user_identity(raw)
         owner_id = user.user_id
     if request.ttl_seconds is not None and request.ttl_seconds <= 0:
         raise HTTPException(status_code=400, detail="ttl_seconds must be >= 1")
@@ -472,7 +472,7 @@ async def list_queue_targets(
     limit: int = Query(50, ge=1),
     offset: int = Query(0, ge=0),
 ) -> QueueTargetListResponse:
-    user, _session = require_user_session(raw)
+    user = require_user_identity(raw)
     target_store = get_queue_target_store()
     targets = target_store.list_targets(user.user_id)
     total = len(targets)
@@ -500,7 +500,7 @@ async def select_queue_target(
     target_id: str,
     raw: Request,
 ) -> QueueTargetSelectResponse:
-    user, _session = require_user_session(raw)
+    user = require_user_identity(raw)
     target_store = get_queue_target_store()
     try:
         target_store.ensure_target_owner(user.user_id, target_id)
