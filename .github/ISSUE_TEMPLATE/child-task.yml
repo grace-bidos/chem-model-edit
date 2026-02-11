@@ -1,0 +1,36 @@
+name: Child Task
+description: Scoped implementation task under an epic
+title: "<area>: "
+labels:
+  - task
+body:
+  - type: input
+    id: parent
+    attributes:
+      label: Parent Epic
+      description: Parent issue number (e.g. #123)
+      placeholder: "#123"
+    validations:
+      required: true
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective
+      description: What this issue must deliver.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      value: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: Other issues/PRs this task depends on.
+      placeholder: "#124, #125"
