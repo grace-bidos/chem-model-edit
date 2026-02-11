@@ -109,6 +109,7 @@ def _compute_mock_artifacts(
 
     now = datetime.now(timezone.utc).isoformat()
     result: Dict[str, Any] = {
+        "calc_type": request.calc_type,
         "freqs_cm": normalize_frequencies(freqs_cm),
         "zpe_ev": zpe_ev,
         "s_vib_jmol_k": s_vib_jmol_k,
@@ -269,6 +270,7 @@ def compute_zpe_artifacts(payload: Dict[str, Any], *, job_id: str) -> ZPECompute
     checked_files = int(checked_raw) if isinstance(checked_raw, (int, float)) else 0
     deleted_files = int(deleted_raw) if isinstance(deleted_raw, (int, float)) else 0
     result: Dict[str, Any] = {
+        "calc_type": request.calc_type,
         "freqs_cm": normalize_frequencies(freqs_cm),
         "zpe_ev": zpe_ev,
         "s_vib_jmol_k": s_vib_jmol_k,

@@ -551,6 +551,7 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
     setJobResult(null)
     try {
       const response = await createZpeJob({
+        calc_type: 'qe.zpe.v1',
         content: selectedFile.qeInput,
         mobile_indices: Array.from(mobileIndices).sort((a, b) => a - b),
         use_environ: useEnviron,

@@ -801,6 +801,12 @@ export interface components {
              * @enum {string}
              */
             calc_mode: "new" | "continue";
+            /**
+             * Calc Type
+             * @default qe.zpe.v1
+             * @enum {string}
+             */
+            calc_type: "qe.zpe.v1" | "qe.relax.v1";
             /** Content */
             content: string;
             /** Input Dir */
@@ -866,6 +872,12 @@ export interface components {
             calc_end_time: string;
             /** Calc Start Time */
             calc_start_time: string;
+            /**
+             * Calc Type
+             * @default qe.zpe.v1
+             * @enum {string}
+             */
+            calc_type: "qe.zpe.v1" | "qe.relax.v1";
             /** Delta */
             delta: number;
             /** Ecutrho */

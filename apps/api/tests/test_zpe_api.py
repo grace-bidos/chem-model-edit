@@ -230,3 +230,40 @@ def test_zpe_owner_enforcement_blocks_non_owner(monkeypatch):
         headers=other_headers,
     )
     assert file_forbidden.status_code == 403
+
+
+def test_qe_relax_v1_enqueue_run_and_result(monkeypatch):
+    fake = _patch_redis(monkeypatch)
+    store = RedisResultStore(redis=fake)
+    settings = ZPESettings(compute_mode="mock", result_store="redis")
+
+    monkeypatch.setattr(zpe_backends, "get_result_store", lambda: store)
+    monkeypatch.setattr(zpe_backends, "get_zpe_settings", lambda: settings)
+    monkeypatch.setattr(zpe_router, "get_result_store", lambda: store)
+
+    client = TestClient(main.app)
+    headers, _user_id = _setup_user_and_target(client, monkeypatch, fake)
+    response = client.post(
+        "/api/zpe/jobs",
+        json={
+            "calc_type": "qe.relax.v1",
+            "content": QE_INPUT,
+            "mobile_indices": [0],
+            "use_environ": False,
+            "input_dir": None,
+            "calc_mode": "continue",
+        },
+        headers=headers,
+    )
+    assert response.status_code == 200
+    job_id = response.json()["id"]
+
+    status = client.get(f"/api/zpe/jobs/{job_id}", headers=headers)
+    assert status.status_code == 200
+    assert status.json()["status"] == "finished"
+
+    result = client.get(f"/api/zpe/jobs/{job_id}/result", headers=headers)
+    assert result.status_code == 200
+    payload = result.json()["result"]
+    assert payload["calc_type"] == "qe.relax.v1"
+    assert isinstance(payload["freqs_cm"], list)
