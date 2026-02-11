@@ -51,12 +51,15 @@ def _patch_redis(monkeypatch):
 
 
 def _setup_user_and_target(
-    client: TestClient, monkeypatch, fake
+    client: TestClient,
+    monkeypatch,
+    fake,
+    *,
+    user_id: str = "dev-user-1",
 ) -> tuple[dict[str, str], str]:
-    user_id = "dev-user-1"
     headers = {
         "X-Dev-User-Id": user_id,
-        "X-Dev-User-Email": "dev-user@example.com",
+        "X-Dev-User-Email": f"{user_id}@example.com",
     }
 
     enroll = client.post(
@@ -179,3 +182,51 @@ def test_zpe_submission_disabled(monkeypatch):
         headers=headers,
     )
     assert response.status_code == 503
+
+
+def test_zpe_owner_enforcement_blocks_non_owner(monkeypatch):
+    fake = _patch_redis(monkeypatch)
+    store = RedisResultStore(redis=fake)
+    settings = ZPESettings(compute_mode="mock", result_store="redis")
+
+    monkeypatch.setattr(zpe_backends, "get_result_store", lambda: store)
+    monkeypatch.setattr(zpe_backends, "get_zpe_settings", lambda: settings)
+    monkeypatch.setattr(zpe_router, "get_result_store", lambda: store)
+
+    client = TestClient(main.app)
+    owner_headers, _owner_id = _setup_user_and_target(
+        client, monkeypatch, fake, user_id="user-owner"
+    )
+    other_headers = {
+        "X-Dev-User-Id": "user-other",
+        "X-Dev-User-Email": "user-other@example.com",
+    }
+
+    response = client.post(
+        "/api/zpe/jobs",
+        json={
+            "content": QE_INPUT,
+            "mobile_indices": [0],
+            "use_environ": False,
+            "input_dir": None,
+            "calc_mode": "continue",
+        },
+        headers=owner_headers,
+    )
+    assert response.status_code == 200
+    job_id = response.json()["id"]
+
+    status_forbidden = client.get(f"/api/zpe/jobs/{job_id}", headers=other_headers)
+    assert status_forbidden.status_code == 403
+
+    result_forbidden = client.get(
+        f"/api/zpe/jobs/{job_id}/result", headers=other_headers
+    )
+    assert result_forbidden.status_code == 403
+
+    file_forbidden = client.get(
+        f"/api/zpe/jobs/{job_id}/files",
+        params={"kind": "summary"},
+        headers=other_headers,
+    )
+    assert file_forbidden.status_code == 403

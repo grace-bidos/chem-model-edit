@@ -84,3 +84,31 @@ def test_queue_target_list_and_select(monkeypatch):
 
     listing = client.get("/api/zpe/targets", headers=headers)
     assert listing.json()["active_target_id"] == second_id
+
+
+def test_queue_target_visibility_is_scoped_by_user(monkeypatch):
+    fake = _patch_redis(monkeypatch)
+    client = TestClient(main.app)
+    owner_headers = {
+        "X-Dev-User-Id": "user-owner",
+        "X-Dev-User-Email": "user-owner@example.com",
+    }
+    other_headers = {
+        "X-Dev-User-Id": "user-other",
+        "X-Dev-User-Email": "user-other@example.com",
+    }
+
+    owner_target_id = _register_target(client, owner_headers, "zpe-owner")
+
+    owner_listing = client.get("/api/zpe/targets", headers=owner_headers)
+    assert owner_listing.status_code == 200
+    assert len(owner_listing.json()["targets"]) == 1
+
+    other_listing = client.get("/api/zpe/targets", headers=other_headers)
+    assert other_listing.status_code == 200
+    assert other_listing.json()["targets"] == []
+
+    forbidden_select = client.put(
+        f"/api/zpe/targets/{owner_target_id}/active", headers=other_headers
+    )
+    assert forbidden_select.status_code == 404
