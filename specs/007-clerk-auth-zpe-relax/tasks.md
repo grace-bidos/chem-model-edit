@@ -37,3 +37,8 @@
 
 ## Optional Research
 - [ ] T760 [P] (#158) Produce orchestration comparison memo in `investigations/`
+
+## PR Transparency Rule (Definition of Done Addendum)
+- [ ] Every implementation PR must include both `Temporary Behavior` and `Final Behavior` sections.
+- [ ] If temporary behavior exists, PR must link a concrete follow-up issue/PR before merge.
+- [ ] Child issue cannot be closed until temporary behavior is removed or explicitly accepted in the parent epic.

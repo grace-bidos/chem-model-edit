@@ -11,15 +11,19 @@
 - [ ] Local checks passed
 - [ ] Added/updated tests where needed
 
-## Temporary Behavior (if any)
-- N/A
+## Temporary Behavior
+- [ ] None
+- [ ] Present (describe clearly below)
+- Description:
 
 ## Final Behavior
 - 
 
 ## Follow-up Issue/PR (if any)
-- N/A
+- [ ] None
+- [ ] Required (link issue/PR)
+- Link:
 
 ## CodeRabbit Policy
-- [ ] Required
-- [ ] Optional (process/docs-only change)
+- [ ] Required (product/API/auth/worker behavior changed)
+- [ ] Optional (process/docs/template/script-only change)
