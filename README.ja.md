@@ -11,7 +11,7 @@ Quantum ESPRESSO `.in` の構造を可視化・編集するWebアプリ。
 コマンドは repo root で実行します。
 
 ```bash
-git clone git@github.com:Grac11111aq/chem-model-edit.git
+git clone git@github.com:grace-bidos/chem-model-edit.git
 cd chem-model-edit
 
 ./scripts/setup-dev.sh
