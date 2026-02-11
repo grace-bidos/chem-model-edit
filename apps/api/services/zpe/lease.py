@@ -56,7 +56,7 @@ def lease_next_job(worker_id: str) -> Optional[Lease]:
     script = (
         "local job_id = redis.call('RPOP', KEYS[1])\n"
         "if not job_id then return nil end\n"
-        "local lease_key = ARGV[5] .. job_id\n"
+        "local lease_key = ARGV[6] .. job_id\n"
         "redis.call('HSET', lease_key, 'worker_id', ARGV[1], 'lease_id', ARGV[2], 'expires_at', ARGV[3])\n"
         "redis.call('EXPIRE', lease_key, ARGV[4])\n"
         "redis.call('ZADD', KEYS[2], ARGV[5], job_id)\n"
