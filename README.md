@@ -17,7 +17,6 @@ git clone git@github.com:Grac11111aq/chem-model-edit.git
 cd chem-model-edit
 
 ./scripts/setup-dev.sh
-just dev
 ```
 
 `just` is recommended for daily development (`just dev`, `just test`, `just typecheck`), but optional.
@@ -70,7 +69,7 @@ uv run uvicorn main:app --reload --port 8000
 
 ### Override ports for `just dev`
 ```bash
-WEB_PORT=3001 API_PORT=8000 just dev
+WEB_PORT=4000 API_PORT=9000 just dev
 ```
 
 ## Quality checks

@@ -66,13 +66,13 @@ Port behavior for `just dev`:
 
 Override ports explicitly:
 ```bash
-WEB_PORT=3001 API_PORT=8000 just dev
+WEB_PORT=4000 API_PORT=9000 just dev
 ```
 
 ### Start components separately (alternative)
 ```bash
 # Web
-pnpm -C apps/web dev --port 3000
+pnpm -C apps/web dev
 
 # API
 cd apps/api

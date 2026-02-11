@@ -15,7 +15,6 @@ git clone git@github.com:Grac11111aq/chem-model-edit.git
 cd chem-model-edit
 
 ./scripts/setup-dev.sh
-just dev
 ```
 
 `just` は日常開発（`just dev`, `just test`, `just typecheck`）に推奨ですが、必須ではありません。
@@ -68,7 +67,7 @@ uv run uvicorn main:app --reload --port 8000
 
 ### `just dev` のポート上書き
 ```bash
-WEB_PORT=3001 API_PORT=8000 just dev
+WEB_PORT=4000 API_PORT=9000 just dev
 ```
 
 ## 品質チェック

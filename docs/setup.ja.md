@@ -66,13 +66,13 @@ just dev
 
 明示的にポート指定する場合:
 ```bash
-WEB_PORT=3001 API_PORT=8000 just dev
+WEB_PORT=4000 API_PORT=9000 just dev
 ```
 
 ### 個別起動（代替手順）
 ```bash
 # Web
-pnpm -C apps/web dev --port 3000
+pnpm -C apps/web dev
 
 # API
 cd apps/api
