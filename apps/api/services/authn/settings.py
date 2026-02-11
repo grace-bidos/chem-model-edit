@@ -13,7 +13,7 @@ class AuthnSettings(BaseSettings):
         extra="ignore",
     )
 
-    mode: Literal["legacy", "clerk", "dev-bypass"] = "legacy"
+    mode: Literal["clerk", "dev-bypass"] = "clerk"
     clerk_issuer: str | None = None
     clerk_audience: str | None = None
     allowed_emails: str | None = None

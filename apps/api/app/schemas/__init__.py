@@ -1,11 +1,3 @@
-from .auth import (
-    AuthLoginRequest,
-    AuthLogoutResponse,
-    AuthMe,
-    AuthRegisterRequest,
-    AuthSession,
-    AuthUser,
-)
 from .common import Atom, Lattice, LatticeParams, Pagination, QeParameters, Structure
 from .errors import ErrorResponse
 from .structures import (
@@ -60,12 +52,6 @@ __all__ = [
     "QeParameters",
     "Structure",
     "ErrorResponse",
-    "AuthLoginRequest",
-    "AuthLogoutResponse",
-    "AuthMe",
-    "AuthRegisterRequest",
-    "AuthSession",
-    "AuthUser",
     "StructureCreateRequest",
     "StructureCreateResponse",
     "StructureExportRequest",

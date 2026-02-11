@@ -1,9 +1,6 @@
 /** API クライアントが提供する共有ドメイン型を再エクスポートする。 */
 export type {
   Atom,
-  AuthMe,
-  AuthSession,
-  AuthUser,
   Lattice,
   QeParameters,
   Structure,

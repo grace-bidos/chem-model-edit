@@ -15,7 +15,6 @@ from app.errors import (
     value_error_handler,
 )
 from app.middleware import add_request_context
-import app.routers.auth as auth_router
 import app.routers.health as health_router
 import app.routers.structures as structures_router
 import app.routers.supercells as supercells_router
@@ -69,7 +68,6 @@ def create_app() -> FastAPI:
     app.add_exception_handler(RedisError, redis_error_handler)
 
     app.include_router(health_router.router)
-    app.include_router(auth_router.router)
     app.include_router(structures_router.router)
     app.include_router(transforms_router.router)
     app.include_router(supercells_router.router)

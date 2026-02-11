@@ -1,8 +1,4 @@
 import type {
-  AuthLoginRequest,
-  AuthMe,
-  AuthRegisterRequest,
-  AuthSession,
   DeltaTransplantRequest,
   DeltaTransplantResponse,
   EnrollTokenRequest,
@@ -47,10 +43,6 @@ export type ApiClient = {
   deltaTransplant: (params: DeltaTransplantRequest) => Promise<string>
   buildSupercell: (params: SupercellBuildRequest) => Promise<SupercellBuildResponse>
   parseZpeInput: (content: string, structure_id?: string | null) => Promise<ZPEParseResponse>
-  registerAccount: (params: AuthRegisterRequest) => Promise<AuthSession>
-  loginAccount: (params: AuthLoginRequest) => Promise<AuthSession>
-  fetchAuthMe: () => Promise<AuthMe>
-  logoutAccount: () => Promise<void>
   createEnrollToken: (params?: EnrollTokenRequest) => Promise<EnrollTokenResponse>
   fetchQueueTargets: (params?: { limit?: number; offset?: number }) => Promise<ZPEQueueTargetList>
   selectQueueTarget: (target_id: string) => Promise<ZPEQueueTargetSelectResponse>
@@ -148,37 +140,6 @@ export const createApiClient = (options: ApiClientOptions): ApiClient => {
         path: '/zpe/parse',
         method: 'POST',
         body: payload,
-      })
-    },
-
-    async registerAccount(params) {
-      return requestJson<AuthSession>({
-        path: '/auth/register',
-        method: 'POST',
-        body: params,
-      })
-    },
-
-    async loginAccount(params) {
-      return requestJson<AuthSession>({
-        path: '/auth/login',
-        method: 'POST',
-        body: params,
-      })
-    },
-
-    async fetchAuthMe() {
-      return requestJson<AuthMe>({
-        path: '/auth/me',
-        token: withToken(),
-      })
-    },
-
-    async logoutAccount() {
-      await requestJson({
-        path: '/auth/logout',
-        method: 'POST',
-        token: withToken(),
       })
     },
 
