@@ -31,6 +31,7 @@ _LEASE_INDEX = "zpe:lease:index"
 _RETRY_PREFIX = "zpe:retry_count:"
 _DELAY_ZSET = "zpe:delay"
 _DLQ = "zpe:dlq"
+_FAILURE_SUBMIT_PREFIX = "zpe:failure_submit:"
 _RELAY_DISPATCH_PREFIX = "zpe:convex:relay:dispatch:"
 _RELAY_SEQUENCE_FIELD = "relay_sequence"
 
@@ -258,7 +259,23 @@ def submit_failure(
     status_key = f"{_STATUS_PREFIX}{job_id}"
     lease_key = f"{_LEASE_PREFIX}{job_id}"
     retry_key = f"{_RETRY_PREFIX}{job_id}"
+    submit_key = f"{_FAILURE_SUBMIT_PREFIX}{job_id}:{lease_id}"
     ttl = settings.result_ttl_seconds
+
+    existing = _decode_map(cast(dict[bytes, bytes], redis.hgetall(submit_key)))
+    if existing:
+        if existing.get("worker_id") != worker_id:
+            raise PermissionError("lease mismatch")
+        if (
+            existing.get("error_code") != error_code
+            or existing.get("error_message") != error_message
+            or existing.get("traceback", "") != (traceback or "")
+        ):
+            raise ValueError("failure already submitted with different payload")
+        return FailureOutcome(
+            requeued=existing.get("requeued") == "1",
+            retry_count=int(existing.get("retry_count", "0")),
+        )
 
     for _ in range(3):
         pipe = redis.pipeline()
@@ -307,6 +324,18 @@ def submit_failure(
                 pipe.expire(retry_key, ttl)
                 pipe.delete(lease_key)
                 pipe.zrem(_LEASE_INDEX, job_id)
+                pipe.hset(
+                    submit_key,
+                    mapping={
+                        "worker_id": worker_id,
+                        "error_code": error_code,
+                        "error_message": error_message,
+                        "traceback": traceback or "",
+                        "retry_count": str(retry_count),
+                        "requeued": "1",
+                    },
+                )
+                pipe.expire(submit_key, ttl)
                 response = cast(list[Any], pipe.execute())
                 sequence = int(response[3])
                 _dispatch_runtime_state_transition(
@@ -333,6 +362,18 @@ def submit_failure(
             pipe.expire(retry_key, ttl)
             pipe.delete(lease_key)
             pipe.zrem(_LEASE_INDEX, job_id)
+            pipe.hset(
+                submit_key,
+                mapping={
+                    "worker_id": worker_id,
+                    "error_code": error_code,
+                    "error_message": error_message,
+                    "traceback": traceback or "",
+                    "retry_count": str(retry_count),
+                    "requeued": "0",
+                },
+            )
+            pipe.expire(submit_key, ttl)
             response = cast(list[Any], pipe.execute())
             sequence = int(response[3])
             _dispatch_runtime_state_transition(
