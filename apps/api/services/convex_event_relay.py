@@ -5,7 +5,7 @@ from datetime import datetime
 from hashlib import sha256
 from typing import Any, Protocol
 
-from apps.api.services.zpe.job_state import JobState
+from services.zpe.job_state import JobState
 
 
 @dataclass(frozen=True)

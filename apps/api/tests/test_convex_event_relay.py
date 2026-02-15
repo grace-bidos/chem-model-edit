@@ -3,13 +3,13 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, cast
 
-from apps.api.services.convex_event_relay import (
+from services.convex_event_relay import (
     AiidaJobEvent,
     ConvexJobProjection,
     build_convex_projection,
     compute_event_idempotency_key,
 )
-from apps.api.services.zpe.job_state import JobState
+from services.zpe.job_state import JobState
 
 
 def make_event(**kwargs: Any) -> AiidaJobEvent:
