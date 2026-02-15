@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 import main
 from app import deps as app_deps
 from services.zpe import enroll as zpe_enroll
+from services.zpe import ops_flags as zpe_ops_flags
 from services.zpe import result_store as zpe_store
 from services.zpe import worker_auth as zpe_worker_auth
 from services.zpe.settings import ZPESettings
@@ -16,6 +17,7 @@ def _patch_redis(monkeypatch):
     monkeypatch.setattr(zpe_store, "get_redis_connection", lambda: fake)
     monkeypatch.setattr(zpe_enroll, "get_redis_connection", lambda: fake)
     monkeypatch.setattr(zpe_worker_auth, "get_redis_connection", lambda: fake)
+    monkeypatch.setattr(zpe_ops_flags, "get_redis_connection", lambda: fake)
     return fake
 
 

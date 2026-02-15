@@ -428,6 +428,32 @@
             ],
             "title": "Dequeue Enabled"
           },
+          "legacy_worker_endpoints_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Legacy Worker Endpoints Enabled"
+          },
+          "result_read_source": {
+            "anyOf": [
+              {
+                "enum": [
+                  "redis",
+                  "projection"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result Read Source"
+          },
           "submission_enabled": {
             "anyOf": [
               {
@@ -438,6 +464,21 @@
               }
             ],
             "title": "Submission Enabled"
+          },
+          "submission_route": {
+            "anyOf": [
+              {
+                "enum": [
+                  "redis-worker",
+                  "next-gen"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submission Route"
           }
         },
         "title": "OpsFlagsRequest",
@@ -450,14 +491,37 @@
             "title": "Dequeue Enabled",
             "type": "boolean"
           },
+          "legacy_worker_endpoints_enabled": {
+            "title": "Legacy Worker Endpoints Enabled",
+            "type": "boolean"
+          },
+          "result_read_source": {
+            "enum": [
+              "redis",
+              "projection"
+            ],
+            "title": "Result Read Source",
+            "type": "string"
+          },
           "submission_enabled": {
             "title": "Submission Enabled",
             "type": "boolean"
+          },
+          "submission_route": {
+            "enum": [
+              "redis-worker",
+              "next-gen"
+            ],
+            "title": "Submission Route",
+            "type": "string"
           }
         },
         "required": [
           "submission_enabled",
-          "dequeue_enabled"
+          "dequeue_enabled",
+          "submission_route",
+          "result_read_source",
+          "legacy_worker_endpoints_enabled"
         ],
         "title": "OpsFlagsResponse",
         "type": "object"
