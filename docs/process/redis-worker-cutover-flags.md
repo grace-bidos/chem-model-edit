@@ -42,6 +42,7 @@ Defaults preserve current behavior and are backward compatible.
 
 5. **Cleanup**
    - Remove disabled legacy endpoints in `GRA-22` once migration verification is complete.
+   - Use `docs/process/redis-worker-retirement-plan.md` as the final removal checklist.
 
 ## Guardrails
 
