@@ -10,7 +10,10 @@
     "deploy": "pnpm -C apps/web run deploy",
     "typecheck": "pnpm -C apps/web typecheck",
     "lint": "pnpm -C apps/web lint",
+    "lint:md": "markdownlint",
     "format": "pnpm -C apps/web format",
+    "format:md": "prettier --write",
+    "check:md": "prettier --check",
     "test": "pnpm -C apps/web test",
     "test:ui": "pnpm -C apps/web test:ui"
   },
@@ -21,6 +24,8 @@
     "hygen": "^6.2.11",
     "knip": "^5.82.1",
     "madge": "^8.0.0",
-    "nx": "^22.4.4"
+    "markdownlint-cli": "^0.47.0",
+    "nx": "^22.4.4",
+    "prettier": "^3.7.4"
   }
 }
