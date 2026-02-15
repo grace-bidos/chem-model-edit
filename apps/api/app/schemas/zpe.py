@@ -6,7 +6,9 @@ from pydantic import Field
 
 from .base import ApiModel
 from .common import Pagination, Structure
-from services.zpe.job_state import JobState
+
+
+JobState = Literal["queued", "started", "finished", "failed"]
 
 
 class ZPEParseRequest(ApiModel):
