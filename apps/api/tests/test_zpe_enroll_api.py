@@ -11,6 +11,8 @@ from services.zpe import result_store as zpe_store
 from services.zpe import worker_auth as zpe_worker_auth
 from services.zpe.settings import ZPESettings
 
+TENANT_HEADERS = {"X-Tenant-Id": "tenant-enroll-tests"}
+
 
 def _patch_redis(monkeypatch):
     fake = fakeredis.FakeRedis()
@@ -28,14 +30,16 @@ def test_zpe_enroll_token_api(monkeypatch):
 
     client = TestClient(main.app)
     response = client.post(
-        "/api/zpe/compute/enroll-tokens", json={"ttl_seconds": 60}
+        "/api/zpe/compute/enroll-tokens",
+        json={"ttl_seconds": 60},
+        headers=TENANT_HEADERS,
     )
     assert response.status_code == 401
 
     response = client.post(
         "/api/zpe/compute/enroll-tokens",
         json={"ttl_seconds": 60, "label": "lab"},
-        headers={"Authorization": "Bearer secret"},
+        headers={**TENANT_HEADERS, "Authorization": "Bearer secret"},
     )
     assert response.status_code == 200
     token = response.json()["token"]
