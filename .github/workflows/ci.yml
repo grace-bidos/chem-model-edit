@@ -7,7 +7,45 @@ on:
       - main
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      web: ${{ steps.filter.outputs.web == 'true' || steps.filter.outputs.ci == 'true' }}
+      api: ${{ steps.filter.outputs.api == 'true' || steps.filter.outputs.ci == 'true' }}
+      contract: ${{ steps.filter.outputs.contract == 'true' || steps.filter.outputs.ci == 'true' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Detect code changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            ci:
+              - '.github/workflows/ci.yml'
+            web:
+              - 'apps/web/**'
+              - 'packages/shared/**'
+              - 'packages/api-client/**'
+              - 'nx.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+            api:
+              - 'apps/api/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+            contract:
+              - 'apps/api/**'
+              - 'packages/api-client/**'
+              - 'apps/api/scripts/export_openapi.py'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'pyproject.toml'
+              - 'uv.lock'
+
   web:
+    needs: changes
+    if: ${{ github.event_name == 'push' || needs.changes.outputs.web == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -40,6 +78,8 @@ jobs:
         run: pnpm exec nx run shared:knip
 
   api:
+    needs: changes
+    if: ${{ github.event_name == 'push' || needs.changes.outputs.api == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -67,6 +107,8 @@ jobs:
         working-directory: apps/api
 
   contract:
+    needs: changes
+    if: ${{ github.event_name == 'push' || needs.changes.outputs.contract == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
