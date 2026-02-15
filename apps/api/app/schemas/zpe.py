@@ -87,6 +87,7 @@ class ComputeRegisterRequest(ApiModel):
     name: Optional[str] = None
     queue_name: Optional[str] = None
     meta: Dict[str, Any] = Field(default_factory=dict)
+    activate_target: bool = Field(default=False)
 
 
 class ComputeRegisterResponse(ApiModel):
