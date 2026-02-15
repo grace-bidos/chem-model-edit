@@ -12,6 +12,9 @@ Prefer the PR auto-loop for routine operations; use manual steps as fallback.
 ## Commands
 
 ```bash
+# 0) Optional one-shot readiness summary
+scripts/gh/pr_readiness.py <PR_NUMBER_OR_URL>
+
 # 1) Preferred: automated review/check/merge loop
 scripts/gh/pr-autoloop.py <PR_NUMBER> --watch --merge-when-ready --merge-method merge
 
@@ -24,6 +27,12 @@ scripts/git/cleanup_worktree.sh .worktrees/<name> <branch>
 # 4) Sync local main
 git fetch origin --prune
 git -C "$(git rev-parse --show-toplevel)" merge --ff-only origin/main
+```
+
+If checks are failing and you need quick context, tail failed-step logs:
+
+```bash
+scripts/gh/ci_log_tail.sh <PR_NUMBER_OR_URL> --lines 200
 ```
 
 ## Dry-run
