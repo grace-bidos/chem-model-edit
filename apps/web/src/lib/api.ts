@@ -1,7 +1,8 @@
 import { createApiClient } from '@chem-model/api-client'
 
-import type { ApiRequest } from '@chem-model/api-client'
+import type { ApiRequest, ZPEJobStatus } from '@chem-model/api-client'
 import { requestApi } from '@/server/api'
+import { fetchAggregatedZpeJobStatus } from '@/server/zpe-aggregation'
 
 type TokenProvider = () => Promise<string | null>
 
@@ -63,7 +64,15 @@ export const selectQueueTarget = api.selectQueueTarget
 /** ZPE ジョブを作成する。 */
 export const createZpeJob = api.createZpeJob
 /** ZPE ジョブ状態を ID で取得する。 */
-export const fetchZpeStatus = api.fetchZpeStatus
+export const fetchZpeStatus = async (job_id: string): Promise<ZPEJobStatus> => {
+  const token = (await tokenProvider?.()) ?? null
+  return fetchAggregatedZpeJobStatus({
+    data: {
+      jobId: job_id,
+      token,
+    },
+  })
+}
 /** ZPE ジョブ結果を ID で取得する。 */
 export const fetchZpeResult = api.fetchZpeResult
 /** ZPE ジョブ出力ファイルをダウンロードする。 */

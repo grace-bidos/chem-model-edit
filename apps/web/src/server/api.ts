@@ -70,33 +70,39 @@ type RequestApiFn = ((options: { data: ApiRequest }) => Promise<unknown>) & {
   url: string
 }
 
+export async function requestApiInternal<T = unknown>(
+  data: ApiRequest,
+): Promise<T> {
+  const { path, method, body, token } = data
+  const responseType = data.responseType ?? 'json'
+  const resolvedMethod = method ?? 'GET'
+
+  const headers: Record<string, string> = {}
+  if (body !== undefined) {
+    headers['Content-Type'] = 'application/json'
+  }
+  if (token) {
+    headers.Authorization = `Bearer ${token}`
+  }
+
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: resolvedMethod,
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  })
+
+  if (responseType === 'text') {
+    return (await handleTextResponse(response)) as T
+  }
+
+  return handleResponse<T>(response)
+}
+
 /** サーバー側から API へプロキシする共通リクエスト関数。 */
 export const requestApi: RequestApiFn = createServerFn({
   method: 'POST',
 })
   .inputValidator((data: ApiRequest) => data)
   .handler(async ({ data }) => {
-    const { path, method, body, token } = data
-    const responseType = data.responseType ?? 'json'
-    const resolvedMethod = method ?? 'GET'
-
-    const headers: Record<string, string> = {}
-    if (body !== undefined) {
-      headers['Content-Type'] = 'application/json'
-    }
-    if (token) {
-      headers.Authorization = `Bearer ${token}`
-    }
-
-    const response = await fetch(`${API_BASE}${path}`, {
-      method: resolvedMethod,
-      headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    })
-
-    if (responseType === 'text') {
-      return handleTextResponse(response)
-    }
-
-    return handleResponse(response)
+    return requestApiInternal(data)
   })
