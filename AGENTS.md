@@ -43,12 +43,14 @@ Primary capabilities include parallel structure views, partial structure transpl
 - Do not close capability work by merge-only signal. Verify issue-level acceptance criteria first.
 
 ### Cycle assignment policy
+
 - Put child delivery issues in cycles.
-- Put parent capability issues in cycles by default so cycle throughput includes coordination and integration overhead.
-- Exception: keep a parent issue out of cycle only when it is intentionally long-running across multiple cycles and not an active coordination focus this week.
+- Keep parent capability issues out of cycles by default; use project views to track parent progress.
+- Exception: a parent issue may be put in a cycle only for explicit coordination checkpoints.
 - During cycle calibration phases, it is acceptable to intentionally over-pack current cycle scope to measure realistic weekly throughput.
 
 ### State transition policy
+
 - Child issue lifecycle:
   - `Todo/In Progress/In Review`: active delivery states.
   - `Done`: allowed when PR is merged and child issue acceptance criteria are satisfied.
@@ -58,6 +60,7 @@ Primary capabilities include parallel structure views, partial structure transpl
 - If PR description includes wording like "first slice", "follow-up required", or deferred TODO boundaries, keep the parent open and create missing child issues immediately.
 
 ### Operational issue policy
+
 - Do not create perpetual projects for ongoing environment/tooling chores.
 - Default handling for operational chores: standalone team issue (no project), with `type:*` and `size:*`; assign to cycle only when actively worked.
 - Promote operational work into a project only when it becomes a bounded, multi-issue initiative with explicit completion criteria.
