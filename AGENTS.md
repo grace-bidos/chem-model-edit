@@ -85,6 +85,8 @@ Primary capabilities include parallel structure views, partial structure transpl
 - Queue required for runtime-impacting Ask and all Show changes.
 - Queue optional for docs-only Ask/Ship items.
 - Pre-merge required checks should stay fast: lint, typecheck, unit/smoke, policy checks.
+- Merge-readiness gate (mandatory): required checks are green, unresolved review threads are zero, and head branch status is not `BEHIND` base.
+- Contract-sensitive rule: when API contract changes, commit OpenAPI spec updates and regenerated client artifacts in the same PR.
 - Heavy suites (if added later) should run post-merge.
 
 ## Tool Roles
@@ -101,6 +103,7 @@ Primary capabilities include parallel structure views, partial structure transpl
 - Use `scripts/gh/pr-autoloop.py <PR_NUMBER> --watch --merge-when-ready --merge-method merge` to run the review/check/merge loop.
 - Use `--resolve-outdated-threads` only for outdated threads; do not auto-resolve active review discussions.
 - Prefer this script over ad-hoc manual polling when handling repeated CI/review feedback cycles.
+- CodeRabbit trigger policy: request review once when PR is review-ready, then re-request only after substantive new commits and at least 15 minutes since the last request.
 - If `--delete-branch` fails because the branch is attached to an active worktree, clean it up manually after removing the worktree.
 - After a PR is merged, always sync local `main` immediately as part of the same operation set.
 - Worktree-safe sync from any worktree:
@@ -114,7 +117,12 @@ Primary capabilities include parallel structure views, partial structure transpl
 - Sub-agents own implementation, research, review-loop handling, and CI fixes for their assigned child issue and owned files.
 - Inter-agent communication (including sub-agent outputs) is English by default.
 - Parallel lane rule: one child issue maps to one lane (`issue -> branch -> worktree -> PR`); sub-agents must not edit outside their lane ownership.
-- Merge-readiness contract for sub-agent handoff: required checks are green (or blocker explicitly documented), review comments are addressed, and remaining risks/conflicts are listed.
+- Lane conflict classification and default concurrency:
+  - Low conflict lane (docs/specs/localized tests): up to 3 concurrent child lanes.
+  - Medium conflict lane (same app area, clear file ownership): up to 2 concurrent child lanes.
+  - High conflict lane (shared contracts/schemas/core runtime): 1 active lane; serialize merges.
+- Sub-agent slot budget: up to 3 planned delivery lanes plus 1 reserved hotfix lane for `main` health recovery.
+- Merge-readiness contract for sub-agent handoff: required checks are green, unresolved review threads are zero, head is not `BEHIND` base, and remaining risks/conflicts are listed.
 - Conflict handoff rule: if cross-lane conflicts are detected, stop local conflict resolution and hand off to main agent with impacted files, conflict summary, and proposed resolution options.
 - Sub-agents must not merge PRs directly. Main agent performs final merge and post-merge Linear updates.
 

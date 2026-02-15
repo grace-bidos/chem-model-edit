@@ -86,6 +86,7 @@ Required pre-merge checks (fast):
 - typecheck
 - unit/smoke
 - policy check (type/size labels or equivalent metadata)
+- merge-readiness gate: required checks green, unresolved review threads = 0, and PR head status is not `BEHIND` base
 
 Optional post-merge checks (expand later):
 
@@ -106,6 +107,8 @@ Optional post-merge checks (expand later):
 5. Review:
    - review in GitHub
    - keep fixes inside same stack branch
+   - if API contract changes, commit OpenAPI updates and regenerated client artifacts in the same PR
+   - trigger CodeRabbit once when review-ready; re-trigger only after substantive new commits and at least 15 minutes
    - include architecture/contract context in PR description when runtime boundaries change
 6. Merge:
    - merge bottom-up: land the base PR first, then proceed upward through the stack
@@ -119,7 +122,13 @@ Optional post-merge checks (expand later):
 - Main agent owns Linear planning/status/dependency management, stack order, and final merge execution.
 - Sub-agents own implementation, research, review-loop handling, and CI fixes inside assigned child-issue lanes only.
 - Inter-agent communication is English by default.
-- Merge-readiness handoff from sub-agent to main must include check status, addressed review feedback, and unresolved risks/conflicts.
+- Lane conflict classification and default concurrency:
+  - Low conflict lane (docs/specs/localized tests): up to 3 concurrent child lanes.
+  - Medium conflict lane (same app area, clear file ownership): up to 2 concurrent child lanes.
+  - High conflict lane (shared contracts/schemas/core runtime): 1 active lane; serialize merges.
+- Sub-agent slot budget: up to 3 planned delivery lanes plus 1 reserved hotfix lane for `main` health recovery.
+- Merge-readiness handoff from sub-agent to main requires required checks green, unresolved review threads = 0, and head not `BEHIND` base.
+- Handoff report must also list addressed review feedback and remaining risks/conflicts.
 - Sub-agents do not merge PRs directly.
 - If lane conflicts appear, sub-agents hand off conflict context/options to main agent for resolution direction.
 
