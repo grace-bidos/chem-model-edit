@@ -1,120 +1,97 @@
 # Codex Agent Context (chem-model-edit)
 
-## 目的 / 概要
-計算化学向けの構造可視化・編集ツールをWebアプリとして提供する。複数構造の並列表示、部分的な構造移植、比較・整列、エクスポート共有を支援する。
+## Project Summary
+Web application for computational chemistry structure visualization and editing.
+Primary capabilities include parallel structure views, partial structure transplant, compare/align, and export/share.
 
-## 技術スタック
+## Tech Stack
 - Frontend: TanStack Start (SPA) + shadcn/ui + Mol*
 - Backend: FastAPI + ASE / pymatgen
 - JS/TS: pnpm
 - Python: uv (+ ruff, mypy, pytest)
 - Tooling: Nx, Storybook, Chromatic
+- Deploy: Cloudflare Workers (web), Cloud Run (api)
 
-## デプロイ
-- Web: Cloudflare Workers
-- API: Cloud Run
+## Language and Communication
+- Report to the user in Japanese.
+- Public artifacts (GitHub PR/Issue/comments) must be written in English.
 
-## リポジトリ構成
-- `apps/web`: Webアプリ本体（TanStack Start）
-- `apps/api`: FastAPI API本体（`app/routers`, `services`, `tests`）
-- `packages/api-client`: APIクライアント共有パッケージ
-- `packages/shared`: フロント/バック共通型
-- `docs`: セットアップ手順・運用ドキュメント
-- `scripts`: 開発補助スクリプト
-- `specs`: Spec/Plan/Task
-- `samples/qe-in`: Quantum ESPRESSO `.in` サンプル
-- `samples/pdb`: PDBサンプル
-- `samples/cif`: CIFサンプル
-- `investigations`: 調査メモ
-- `ref-legacy`: 旧実装（参照用）
+## Mandatory Working Rules
+- Always create and use a dedicated git worktree before starting implementation work.
+- Keep `main` worktree for review/inspection only; do implementation in `.worktrees/<name>`.
+- Do not develop directly on `main`.
+- `uploads/` user-uploaded files may be moved/cleaned up if needed for the task.
 
-## エージェント作業方針
-- **日本語で報告**
-- GitHub の PR / Issue / コメント等、外部公開される成果物は英語で記載する
-- あらゆる作業の開始前に Git worktree を作成し、環境を分離してから作業する（並列作業のため）
-- `uploads` 配下のユーザーアップロード済みデータは、作業上必要であれば移動・整理・削除してよい
+## Planning and Delivery Model (Current)
+- Source of truth for planning/progress: **Linear**.
+- GitHub Issues are optional mirrors or external discussion threads.
+- Delivery style: **Trunk-based + Stacked PR**.
+- Branch format: `feature/identifier-title` (example: `feature/GRA-21-define-cutover-flags`).
+- One implementation issue maps to one PR layer in a stack.
 
-## 開発/検証コマンド
+### Work-item taxonomy
+- Type axis: `Ask` / `Show` / `Ship`
+  - Ask: spec/plan/architecture/DB/security-impacting decisions
+  - Show: runtime behavior or feature changes
+  - Ship: docs/tests/polish
+- Size axis: `XS` / `S` / `M` / `L`
+  - `L` must be split before merge queue entry
+
+### Merge Queue and CI gate policy
+- Queue required for runtime-impacting Ask and all Show changes.
+- Queue optional for docs-only Ask/Ship items.
+- Pre-merge required checks should stay fast: lint, typecheck, unit/smoke, policy checks.
+- Heavy suites (if added later) should run post-merge.
+
+## Tool Roles
+- Linear: project/cycle/issue planning and status.
+- Graphite (`gt`): stacked PR workflow (`create`, `submit`, `restack`, `sync`).
+- GitHub CLI (`gh`): PR review/merge/check inspection.
+- Git (`git`): low-level repository operations.
+- Jujutsu (`jj`): optional local-history helper only; do not use as primary PR/push path.
+
+## Repository Layout
+- `apps/web`: TanStack Start frontend
+- `apps/api`: FastAPI backend (`app/routers`, `services`, `tests`)
+- `packages/api-client`: shared API client
+- `packages/shared`: shared types
+- `docs`: operational and process docs
+- `specs`: spec/plan/task docs
+- `scripts`: development helper scripts
+- `samples/*`: QE/PDB/CIF samples
+- `investigations`: research notes
+- `ref-legacy`: legacy reference
+
+## Development and Verification Commands
 - Web:
   - `pnpm -C apps/web dev --port 3001`
-  - `just web`（Codexサンドボックスでは昇格実行が必要）
   - `pnpm -C apps/web typecheck`
   - `pnpm -C apps/web storybook`
   - `pnpm -C apps/web chromatic`
 - API:
-  - `just deps`（初回/依存更新時）
   - `uv run uvicorn apps.api.main:app --reload --port 8000`
   - `uv run pytest`
   - `uv run mypy .`
-- Nx:
-  - `pnpm exec nx graph`
+- Cross-project:
+  - `just style`
+  - `just test`
+  - `just typecheck`
   - `pnpm exec nx run-many -t lint,typecheck,test,knip`
-- Just:
-  - `just style`（web: prettier+eslint / api: ruff）
-  - `just test`（web: vitest / api: pytest）
-  - `just typecheck`（web: tsc / api: mypy）
-  - `just storybook`
-  - `just chromatic`
 
-## 既知の注意点
-- Mol*表示の中心は `apps/web/src/components/molstar/MolstarViewer.tsx`
-- Mol*への入力は `pdbText` / `cifUrl`（単一/複数構造）を扱う実装になっている
-- APIの主要入出力は Quantum ESPRESSO `.in` を前提にしている
-- pnpmストアは `.pnpm-store` を利用する方針（`.npmrc` で指定、`.gitignore` 済み）
-- Codexサンドボックス（workspace-write）では `uv sync` / `just` 実行時は昇格（on-request）が必要
+## Domain/Implementation Notes
+- Mol* viewer center: `apps/web/src/components/molstar/MolstarViewer.tsx`
+- Mol* inputs: `pdbText` / `cifUrl` (single and multiple structures)
+- Main API I/O assumption: Quantum ESPRESSO `.in`
+- pnpm store policy: `.pnpm-store`
 
-## ブランチ運用
-- トランクは `main` とし、作業ブランチは必ず `main` から **短命で** 切る
-- 作業ブランチごとに `git worktree` を作成し、並行作業を分離する
-- `dev` のような長命ブランチは持たない（必要なら一時的な検証用途に限定）
-- 基本は短期ブランチ → PR → **merge commit** で `main` に統合（squash/rebase は使わない）
-- `main` への直接pushは禁止（PR経由で統合）
-- レビューは必須ではない（自己マージ可）
-- CIチェックは必須ではない（任意）
-- 命名規約: `feat/`, `fix/`, `refactor/`, `chore/`, `docs/`, `spike/`, `codex/`, `ui/`, `stack/`
-- マージ後はブランチを削除（GitHubの自動削除を有効）
+## Naming Rule for API Layers
+- Distinguish layers by directory (`app/routers`, `services`).
+- Keep the same domain filename across layers (for example, `routers/supercells.py` and `services/supercells.py`).
+- Do not use singular/plural variation as a layer discriminator.
 
-## worktree運用
-- worktreeの置き場は `chem-model-edit/.worktrees/<name>` に固定する（並列ディレクトリを作らない）
-- `main` の作業ツリーはレビュー/確認専用に保ち、実作業は worktree で行う
-- 原則「ブランチ名 = worktree名」。同一ブランチで複数必要なら `<branch>@<purpose>` を使う
-- PRがマージされたら対応worktreeは削除する（`git worktree remove` → `git worktree prune`）
-- ルートの `.gitignore` に `.worktrees/` を含める
-
-## 標準Git運用フロー（推奨）
-- 0. 作業開始前に `main` を最新化する（`origin/main` に合わせる）
-- 1. `main` から短命ブランチを切って worktree を作る
-- 2. worktree 上で実装・検証（`just style`, `just typecheck`, `just test` など）
-- 3. コミットしてPR作成、`main` 向けにマージする
-- 4. マージ後に対応worktreeを削除し、不要ローカルブランチを削除する
-- 5. 最後に再度 `main` を `origin/main` に同期し、リモート追跡を prune する
-
-### 推奨コマンド
-- `just git-main-sync`:
-  - `git fetch origin --prune`
-  - `git branch -f main origin/main`
-- `just git-wt-start <branch> [name]`:
-  - 例: `just git-wt-start docs/worktree-flow-main-sync`
-  - 例: `just git-wt-start fix/cloudrun-api-contract cloudrun-contract`
-- `just git-wt-clean <worktree-path> [branch]`:
-  - 例: `just git-wt-clean .worktrees/docs-worktree-flow docs/worktree-flow-main-sync`
-  - worktree 削除 → prune → （指定時）ローカルブランチ削除まで実行
-
-### 重要な注意
-- worktreeで使用中のブランチは削除できない。先に `git worktree remove` または別ブランチへ `switch` する
-- `main` の作業ツリーで直接開発しない（レビュー/確認専用）
-- マージ後の掃除までを1セットで完了させる
-
-## 進め方のベストプラクティス
-- 変更前に影響範囲と対象ファイルを明確化
-- 破壊的変更は避け、既存実装との互換性を維持
-- 必要に応じてテスト/型チェックを実行
-- 実装結果はSpec/Plan/Taskへ反映
-- Chrome-devtools-mcpを使ってブラウザでの動作検証
-- 作業の区切りのたびにgitを利用してください
-- 編集後は型チェック，Lint, テストを行って
-
-## APIレイヤ命名規約
-- 層はディレクトリで区別する（例: `app/routers`, `services`）
-- 同一ドメイン名は層をまたいで同じファイル名を使う（例: `routers/supercells.py` と `services/supercells.py`）
-- 単数形/複数形の揺れで区別しない。判別はディレクトリ責務で行う
+## Detailed Process References
+Use these docs for full operational details instead of duplicating long instructions here:
+- `docs/process/linear-stacked-pr-operating-model.md`
+- `docs/process/coderabbit-parallel-playbook.md`
+- `docs/process/merge-and-cleanup.md`
+- `docs/process/gh-template-workflow.md`

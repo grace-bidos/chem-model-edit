@@ -1,0 +1,58 @@
+name: PR Policy
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize, ready_for_review]
+  merge_group:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  pr-metadata:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR body metadata
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.pull_request.body || "";
+            const failures = [];
+
+            const linear = body.match(/Linear Issue:\s*([A-Z]+-\d+)\s*$/im);
+            const type = body.match(/Type:\s*(Ask|Show|Ship)\s*$/im);
+            const size = body.match(/Size:\s*(XS|S|M|L)\s*$/im);
+            const queue = body.match(/Queue Policy:\s*(Required|Optional)\s*$/im);
+            const stack = body.match(/Stack:\s*(Standalone|Base|Depends on #\d+)\s*$/im);
+
+            if (!linear) failures.push("Missing `Linear Issue: <KEY-NUMBER>`");
+            if (!type) failures.push("Missing `Type: Ask | Show | Ship`");
+            if (!size) failures.push("Missing `Size: XS | S | M | L`");
+            if (!queue) failures.push("Missing `Queue Policy: Required | Optional`");
+            if (!stack) failures.push("Missing `Stack: Standalone | Base | Depends on #<PR>`");
+
+            const codeRabbitSection = body.match(/##\s*CodeRabbit Policy([\s\S]*?)(?:\n##\s+|$)/i)?.[1] || "";
+            const requiredChecked = /- \[x\] Required \(product\/API\/auth\/worker behavior changed\)/i.test(codeRabbitSection);
+            const optionalChecked = /- \[x\] Optional \(process\/docs\/template\/script-only change\)/i.test(codeRabbitSection);
+            if (!requiredChecked && !optionalChecked) {
+              failures.push("CodeRabbit Policy must select one option (`Required` or `Optional`).");
+            }
+            if (requiredChecked && optionalChecked) {
+              failures.push("CodeRabbit Policy must select only one option.");
+            }
+
+            if (size && queue) {
+              const sizeValue = size[1].toUpperCase();
+              const queueValue = queue[1].toLowerCase();
+              if (sizeValue === "L" && queueValue === "required") {
+                failures.push("`Size: L` cannot use `Queue Policy: Required`. Split into smaller PRs first.");
+              }
+            }
+
+            if (failures.length > 0) {
+              core.setFailed(`PR policy failed:\n- ${failures.join("\n- ")}`);
+            } else {
+              core.info("PR policy passed.");
+            }

@@ -1,6 +1,13 @@
 ## Summary
 - 
 
+## Work Item Metadata
+- Linear Issue:
+- Type:
+- Size:
+- Queue Policy:
+- Stack:
+
 ## Linked Issues
 - 
 
