@@ -87,3 +87,21 @@ def test_lease_endpoint_paused(monkeypatch):
         headers={"Authorization": f"Bearer {worker_token}"},
     )
     assert response.status_code == 204
+
+
+def test_lease_endpoint_legacy_worker_disabled(monkeypatch):
+    fake = _patch_redis(monkeypatch)
+    settings = ZPESettings(lease_ttl_seconds=60, result_ttl_seconds=60)
+    monkeypatch.setattr(zpe_router, "get_zpe_settings", lambda: settings)
+    monkeypatch.setattr(zpe_lease, "get_zpe_settings", lambda: settings)
+
+    token_store = zpe_worker_auth.WorkerTokenStore(redis=fake)
+    worker_token = token_store.create_token("compute-1").token
+    zpe_ops_flags.set_ops_flags(legacy_worker_endpoints_enabled=False, redis=fake)
+
+    client = TestClient(main.app)
+    response = client.post(
+        "/api/zpe/compute/jobs/lease",
+        headers={"Authorization": f"Bearer {worker_token}"},
+    )
+    assert response.status_code == 503

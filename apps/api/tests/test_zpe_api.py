@@ -184,6 +184,101 @@ def test_zpe_submission_disabled(monkeypatch):
     assert response.status_code == 503
 
 
+def test_zpe_submission_route_next_gen_unavailable(monkeypatch):
+    fake = _patch_redis(monkeypatch)
+    store = RedisResultStore(redis=fake)
+    settings = ZPESettings(compute_mode="mock", result_store="redis")
+
+    monkeypatch.setattr(zpe_backends, "get_result_store", lambda: store)
+    monkeypatch.setattr(zpe_backends, "get_zpe_settings", lambda: settings)
+    monkeypatch.setattr(zpe_router, "get_result_store", lambda: store)
+
+    client = TestClient(main.app)
+    headers, _user_id = _setup_user_and_target(client, monkeypatch, fake)
+    zpe_ops_flags.set_ops_flags(submission_route="next-gen", redis=fake)
+
+    response = client.post(
+        "/api/zpe/jobs",
+        json={
+            "content": QE_INPUT,
+            "mobile_indices": [0],
+            "use_environ": False,
+            "input_dir": None,
+            "calc_mode": "continue",
+        },
+        headers=headers,
+    )
+    assert response.status_code == 503
+
+
+def test_zpe_result_read_projection_unavailable(monkeypatch):
+    fake = _patch_redis(monkeypatch)
+    store = RedisResultStore(redis=fake)
+    monkeypatch.setattr(zpe_router, "get_result_store", lambda: store)
+
+    client = TestClient(main.app)
+    headers, user_id = _setup_user_and_target(client, monkeypatch, fake)
+    job_id = "job-projection-read"
+    zpe_job_owner.JobOwnerStore(redis=fake).set_owner(job_id, user_id)
+    store.set_status(job_id, "finished")
+    zpe_ops_flags.set_ops_flags(result_read_source="projection", redis=fake)
+
+    status = client.get(f"/api/zpe/jobs/{job_id}", headers=headers)
+    assert status.status_code == 503
+
+
+def test_admin_ops_flags_include_cutover_fields(monkeypatch):
+    _patch_redis(monkeypatch)
+    client = TestClient(main.app)
+
+    current = client.get("/api/zpe/admin/ops")
+    assert current.status_code == 200
+    payload = current.json()
+    assert payload["submission_route"] == "redis-worker"
+    assert payload["result_read_source"] == "redis"
+    assert payload["legacy_worker_endpoints_enabled"] is True
+
+    updated = client.patch(
+        "/api/zpe/admin/ops",
+        json={
+            "submission_route": "next-gen",
+            "result_read_source": "projection",
+            "legacy_worker_endpoints_enabled": False,
+        },
+    )
+    assert updated.status_code == 200
+    out = updated.json()
+    assert out["submission_route"] == "next-gen"
+    assert out["result_read_source"] == "projection"
+    assert out["legacy_worker_endpoints_enabled"] is False
+
+
+def test_admin_ops_flags_partial_update_keeps_other_values(monkeypatch):
+    _patch_redis(monkeypatch)
+    client = TestClient(main.app)
+
+    first = client.patch(
+        "/api/zpe/admin/ops",
+        json={
+            "submission_route": "next-gen",
+            "result_read_source": "projection",
+            "legacy_worker_endpoints_enabled": False,
+        },
+    )
+    assert first.status_code == 200
+
+    partial = client.patch(
+        "/api/zpe/admin/ops",
+        json={"dequeue_enabled": False},
+    )
+    assert partial.status_code == 200
+    payload = partial.json()
+    assert payload["dequeue_enabled"] is False
+    assert payload["submission_route"] == "next-gen"
+    assert payload["result_read_source"] == "projection"
+    assert payload["legacy_worker_endpoints_enabled"] is False
+
+
 def test_zpe_owner_enforcement_blocks_non_owner(monkeypatch):
     fake = _patch_redis(monkeypatch)
     store = RedisResultStore(redis=fake)

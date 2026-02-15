@@ -38,6 +38,9 @@ class ZPESettings(BaseSettings):
     worker_token_ttl_seconds: int = 604800
     submission_enabled: bool = True
     dequeue_enabled: bool = True
+    cutover_submission_route: Literal["redis-worker", "next-gen"] = "redis-worker"
+    cutover_result_read_source: Literal["redis", "projection"] = "redis"
+    legacy_worker_endpoints_enabled: bool = True
 
     pw_command: str = "pw.x"
     pw_path: Optional[str] = None
