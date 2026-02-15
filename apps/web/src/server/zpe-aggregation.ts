@@ -258,6 +258,7 @@ type UpstreamStatusRequester = (request: {
 }) => Promise<unknown>
 
 const DEFAULT_UPSTREAM_TIMEOUT_MS = 3000
+const SECONDARY_SOURCE_GRACE_MS = 25
 
 const withTimeout = <T>(
   promise: Promise<T>,
@@ -302,28 +303,86 @@ export const fetchAggregatedZpeJobStatusFromUpstreams = async ({
   const projectionPath = `/zpe/jobs/${safeJobId}/projection`
   const adapterStatusPath = `/zpe/jobs/${safeJobId}`
 
-  const [projectionResult, adapterResult] = await Promise.allSettled([
-    withTimeout(
-      requester({
-        path: projectionPath,
-        token,
-      }),
-      timeoutMs,
-      'projection',
-    ),
-    withTimeout(
-      requester({
-        path: adapterStatusPath,
-        token,
-      }),
-      timeoutMs,
-      'adapter',
-    ),
+  type Source = 'projection' | 'adapter'
+  type SourceResult =
+    | {
+        source: Source
+        status: 'fulfilled'
+        value: unknown
+      }
+    | {
+        source: Source
+        status: 'rejected'
+        reason: unknown
+      }
+  type PendingResult = {
+    status: 'pending'
+  }
+
+  const projectionPromise: Promise<SourceResult> = withTimeout(
+    requester({
+      path: projectionPath,
+      token,
+    }),
+    timeoutMs,
+    'projection',
+  ).then(
+    (value) => ({
+      source: 'projection',
+      status: 'fulfilled',
+      value,
+    }),
+    (reason: unknown) => ({
+      source: 'projection',
+      status: 'rejected',
+      reason,
+    }),
+  )
+
+  const adapterPromise: Promise<SourceResult> = withTimeout(
+    requester({
+      path: adapterStatusPath,
+      token,
+    }),
+    timeoutMs,
+    'adapter',
+  ).then(
+    (value) => ({
+      source: 'adapter',
+      status: 'fulfilled',
+      value,
+    }),
+    (reason: unknown) => ({
+      source: 'adapter',
+      status: 'rejected',
+      reason,
+    }),
+  )
+
+  const firstSettled = await Promise.race([projectionPromise, adapterPromise])
+  const secondaryPromise =
+    firstSettled.source === 'projection' ? adapterPromise : projectionPromise
+
+  const secondarySettled = await Promise.race<SourceResult | PendingResult>([
+    secondaryPromise,
+    new Promise<PendingResult>((resolve) => {
+      setTimeout(() => resolve({ status: 'pending' }), SECONDARY_SOURCE_GRACE_MS)
+    }),
   ])
 
+  const settled: Array<SourceResult> = [
+    firstSettled,
+    ...(secondarySettled.status === 'pending' ? [] : [secondarySettled]),
+  ]
+
+  const projectionResult = settled.find(
+    (result) => result.source === 'projection',
+  )
+  const adapterResult = settled.find((result) => result.source === 'adapter')
+
   if (
-    projectionResult.status === 'fulfilled' &&
-    adapterResult.status === 'fulfilled'
+    projectionResult?.status === 'fulfilled' &&
+    adapterResult?.status === 'fulfilled'
   ) {
     return normalizeAggregatedZpeJobStatusFromSources(
       projectionResult.value,
@@ -332,12 +391,19 @@ export const fetchAggregatedZpeJobStatusFromUpstreams = async ({
     )
   }
 
-  if (projectionResult.status === 'fulfilled') {
+  if (projectionResult?.status === 'fulfilled') {
     return normalizeAggregatedZpeJobStatus(projectionResult.value, jobId)
   }
 
-  if (adapterResult.status === 'fulfilled') {
+  if (adapterResult?.status === 'fulfilled') {
     return normalizeAggregatedZpeJobStatus(adapterResult.value, jobId)
+  }
+
+  if (secondarySettled.status === 'pending') {
+    const finalResult = await secondaryPromise
+    if (finalResult.status === 'fulfilled') {
+      return normalizeAggregatedZpeJobStatus(finalResult.value, jobId)
+    }
   }
 
   throw createAggregationError(
