@@ -21,11 +21,11 @@ jobs:
             const body = context.payload.pull_request.body || "";
             const failures = [];
 
-            const linear = body.match(/Linear Issue:\s*([A-Z]+-\d+)/i);
-            const type = body.match(/Type:\s*(Ask|Show|Ship)/i);
-            const size = body.match(/Size:\s*(XS|S|M|L)/i);
-            const queue = body.match(/Queue Policy:\s*(Required|Optional)/i);
-            const stack = body.match(/Stack:\s*(Standalone|Base|Depends on #\d+)/i);
+            const linear = body.match(/Linear Issue:\s*([A-Z]+-\d+)\s*$/im);
+            const type = body.match(/Type:\s*(Ask|Show|Ship)\s*$/im);
+            const size = body.match(/Size:\s*(XS|S|M|L)\s*$/im);
+            const queue = body.match(/Queue Policy:\s*(Required|Optional)\s*$/im);
+            const stack = body.match(/Stack:\s*(Standalone|Base|Depends on #\d+)\s*$/im);
 
             if (!linear) failures.push("Missing `Linear Issue: <KEY-NUMBER>`");
             if (!type) failures.push("Missing `Type: Ask | Show | Ship`");
@@ -33,8 +33,9 @@ jobs:
             if (!queue) failures.push("Missing `Queue Policy: Required | Optional`");
             if (!stack) failures.push("Missing `Stack: Standalone | Base | Depends on #<PR>`");
 
-            const requiredChecked = /- \[x\] Required/i.test(body);
-            const optionalChecked = /- \[x\] Optional/i.test(body);
+            const codeRabbitSection = body.match(/##\s*CodeRabbit Policy([\s\S]*?)(?:\n##\s+|$)/i)?.[1] || "";
+            const requiredChecked = /- \[x\] Required \(product\/API\/auth\/worker behavior changed\)/i.test(codeRabbitSection);
+            const optionalChecked = /- \[x\] Optional \(process\/docs\/template\/script-only change\)/i.test(codeRabbitSection);
             if (!requiredChecked && !optionalChecked) {
               failures.push("CodeRabbit Policy must select one option (`Required` or `Optional`).");
             }
@@ -55,7 +56,3 @@ jobs:
             } else {
               core.info("PR policy passed.");
             }
-
-      - name: Merge queue compatibility
-        if: ${{ github.event_name == 'merge_group' }}
-        run: echo "merge_group event detected; PR metadata is validated on pull_request events."

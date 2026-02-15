@@ -26,7 +26,7 @@ Primary capabilities include parallel structure views, partial structure transpl
 - Source of truth for planning/progress: **Linear**.
 - GitHub Issues are optional mirrors or external discussion threads.
 - Delivery style: **Trunk-based + Stacked PR**.
-- Branch format: `feature/identifier-title` (example: `feat/GRA-21-define-cutover-flags`).
+- Branch format: `feature/identifier-title` (example: `feature/GRA-21-define-cutover-flags`).
 - One implementation issue maps to one PR layer in a stack.
 
 ### Work-item taxonomy

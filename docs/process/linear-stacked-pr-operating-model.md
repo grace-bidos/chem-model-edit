@@ -53,7 +53,7 @@ Every implementation issue must have:
 ## 5. Branch, commit, and PR conventions
 
 - Branch format: `feature/identifier-title`.
-- Example: `feat/GRA-21-define-cutover-flags`.
+- Example: `feature/GRA-21-define-cutover-flags`.
 - Commit messages include issue key (example: `feat: add cutover flags (GRA-21)`).
 - PR title starts with issue key (example: `GRA-21: Define cutover flags and staged migration`).
 - One issue maps to one PR layer in a stack.
@@ -104,7 +104,7 @@ Optional post-merge checks (expand later):
    - review in GitHub
    - keep fixes inside same stack branch
 6. Merge:
-   - merge from lower stack to upper stack
+   - merge bottom-up: land the base PR first, then proceed upward through the stack
    - use merge queue where required
 7. Sync and continue:
    - `gt sync` and restack as needed

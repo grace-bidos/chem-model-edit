@@ -2,11 +2,11 @@
 - 
 
 ## Work Item Metadata
-- Linear Issue: 
-- Type: Ask | Show | Ship
-- Size: XS | S | M | L
-- Queue Policy: Required | Optional
-- Stack: Standalone | Base | Depends on #
+- Linear Issue:
+- Type:
+- Size:
+- Queue Policy:
+- Stack:
 
 ## Linked Issues
 - 
