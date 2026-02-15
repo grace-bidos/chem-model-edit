@@ -69,6 +69,44 @@ def test_ready_returns_503_when_managed_aiida_is_misconfigured(monkeypatch: Any)
     assert check["error"] == "misconfigured"
 
 
+def test_ready_returns_503_when_managed_aiida_base_url_is_malformed(
+    monkeypatch: Any,
+) -> None:
+    _clear_aiida_env(monkeypatch)
+    monkeypatch.setenv("AIIA_MANAGED_CHECKS_ENABLED", "true")
+    monkeypatch.setenv("AIIA_MANAGED_BASE_URL", "http://[::1")
+    client = TestClient(main.app)
+
+    response = client.get("/api/ready")
+
+    assert response.status_code == 503
+    payload = response.json()
+    check = payload["checks"]["managed_aiida_runtime"]
+    assert payload["status"] == "not_ready"
+    assert check["status"] == "failed"
+    assert check["error"] == "misconfigured"
+    assert "invalid AIIA_MANAGED_BASE_URL" in check["detail"]
+
+
+def test_health_returns_200_degraded_when_managed_aiida_base_url_is_malformed(
+    monkeypatch: Any,
+) -> None:
+    _clear_aiida_env(monkeypatch)
+    monkeypatch.setenv("AIIA_MANAGED_CHECKS_ENABLED", "true")
+    monkeypatch.setenv("AIIA_MANAGED_BASE_URL", "http://[::1")
+    client = TestClient(main.app)
+
+    response = client.get("/api/health")
+
+    assert response.status_code == 200
+    payload = response.json()
+    check = payload["checks"]["managed_aiida_runtime"]
+    assert payload["status"] == "degraded"
+    assert check["status"] == "failed"
+    assert check["error"] == "misconfigured"
+    assert "invalid AIIA_MANAGED_BASE_URL" in check["detail"]
+
+
 def test_ready_returns_503_when_managed_aiida_is_unreachable(monkeypatch: Any) -> None:
     _clear_aiida_env(monkeypatch)
     monkeypatch.setenv("AIIA_MANAGED_CHECKS_ENABLED", "true")

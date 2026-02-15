@@ -10,7 +10,7 @@ router = APIRouter(prefix="/api", tags=["health"])
 
 
 @router.get("/health")
-async def health() -> dict[str, Any]:
+def health() -> dict[str, Any]:
     aiida_check = probe_managed_aiida_runtime(check_kind="health")
     overall = "ok" if aiida_check.status in {"ok", "skipped"} else "degraded"
     return {
@@ -22,7 +22,7 @@ async def health() -> dict[str, Any]:
 
 
 @router.get("/ready")
-async def ready(response: Response) -> dict[str, Any]:
+def ready(response: Response) -> dict[str, Any]:
     aiida_check = probe_managed_aiida_runtime(check_kind="ready")
     is_ready = aiida_check.status in {"ok", "skipped"}
     if not is_ready:
