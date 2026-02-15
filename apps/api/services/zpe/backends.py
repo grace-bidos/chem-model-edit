@@ -28,6 +28,12 @@ from .slurm_policy import (
     resolve_runtime_slurm_queue,
 )
 from .thermo import calc_zpe_and_s_vib, normalize_frequencies
+from .compute_results import (
+    FailureOutcome,
+    ResultSubmitOutcome,
+    submit_failure,
+    submit_result,
+)
 
 
 def _now_iso() -> str:
@@ -60,6 +66,20 @@ class SubmitJobOutcome:
     requested_queue_name: str
     resolved_queue_name: str
     slurm_resolution: SlurmQueueResolution | None
+
+
+@dataclass(frozen=True)
+class SubmitComputeResultOutcome:
+    outcome: ResultSubmitOutcome
+    job_meta: Dict[str, Any]
+    duration_ms: int | None
+    qe_version: str | None
+
+
+@dataclass(frozen=True)
+class SubmitComputeFailureOutcome:
+    outcome: FailureOutcome
+    job_meta: Dict[str, Any]
 
 
 def _resolve_submission_queue(
@@ -169,6 +189,61 @@ def get_job_file(job_id: str, kind: str) -> str:
         return store.get_file(job_id, kind)
     except KeyError as exc:
         raise ResultArtifactMissingError("file missing after completion") from exc
+
+
+def submit_compute_result(
+    *,
+    job_id: str,
+    worker_id: str,
+    lease_id: str,
+    result: Dict[str, Any],
+    summary_text: str,
+    freqs_csv: str,
+    worker_meta: Dict[str, Any] | None = None,
+) -> SubmitComputeResultOutcome:
+    job_meta = get_job_meta_store().get_meta(job_id)
+    outcome = submit_result(
+        job_id=job_id,
+        worker_id=worker_id,
+        lease_id=lease_id,
+        result=result,
+        summary_text=summary_text,
+        freqs_csv=freqs_csv,
+    )
+    duration_ms: int | None = None
+    qe_version = worker_meta.get("qe_version") if worker_meta else None
+    if worker_meta and "computation_time_seconds" in worker_meta:
+        try:
+            duration_ms = int(float(worker_meta["computation_time_seconds"]) * 1000)
+        except (TypeError, ValueError):
+            duration_ms = None
+    return SubmitComputeResultOutcome(
+        outcome=outcome,
+        job_meta=job_meta,
+        duration_ms=duration_ms,
+        qe_version=qe_version if isinstance(qe_version, str) else None,
+    )
+
+
+def submit_compute_failure(
+    *,
+    job_id: str,
+    worker_id: str,
+    lease_id: str,
+    error_code: str,
+    error_message: str,
+    traceback: str | None = None,
+) -> SubmitComputeFailureOutcome:
+    job_meta = get_job_meta_store().get_meta(job_id)
+    outcome = submit_failure(
+        job_id=job_id,
+        worker_id=worker_id,
+        lease_id=lease_id,
+        error_code=error_code,
+        error_message=error_message,
+        traceback=traceback,
+    )
+    return SubmitComputeFailureOutcome(outcome=outcome, job_meta=job_meta)
 
 
 def enqueue_zpe_job(payload: Dict[str, Any], *, queue_name: str | None = None) -> str:

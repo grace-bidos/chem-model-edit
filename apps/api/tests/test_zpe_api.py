@@ -443,7 +443,7 @@ def test_compute_failed_endpoint_maps_invalid_transition_to_conflict(monkeypatch
     def _raise_invalid_transition(**_kwargs):
         raise ValueError("invalid job state transition: finished -> queued")
 
-    monkeypatch.setattr(zpe_router, "submit_failure", _raise_invalid_transition)
+    monkeypatch.setattr(zpe_router, "submit_compute_failure", _raise_invalid_transition)
 
     response = client.post(
         "/api/zpe/compute/jobs/job-1/failed",
