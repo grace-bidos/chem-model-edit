@@ -113,7 +113,6 @@ def test_zpe_mock_api_flow(monkeypatch):
 
     monkeypatch.setattr(zpe_backends, "get_result_store", lambda: store)
     monkeypatch.setattr(zpe_backends, "get_zpe_settings", lambda: settings)
-    monkeypatch.setattr(zpe_router, "get_result_store", lambda: store)
 
     client = TestClient(main.app)
     headers, _user_id = _setup_user_and_target(client, monkeypatch, fake)
@@ -161,7 +160,7 @@ def test_zpe_mock_api_flow(monkeypatch):
 def test_zpe_job_status_missing(monkeypatch):
     fake = _patch_redis(monkeypatch)
     store = RedisResultStore(redis=fake)
-    monkeypatch.setattr(zpe_router, "get_result_store", lambda: store)
+    monkeypatch.setattr(zpe_backends, "get_result_store", lambda: store)
     client = TestClient(main.app)
     headers, _user_id = _setup_user_and_target(client, monkeypatch, fake)
     response = client.get("/api/zpe/jobs/missing-job", headers=headers)
@@ -171,9 +170,9 @@ def test_zpe_job_status_missing(monkeypatch):
 def test_zpe_job_result_not_finished(monkeypatch):
     fake = _patch_redis(monkeypatch)
     store = RedisResultStore(redis=fake)
+    monkeypatch.setattr(zpe_backends, "get_result_store", lambda: store)
     job_id = "job-not-finished"
     store.set_status(job_id, "queued")
-    monkeypatch.setattr(zpe_router, "get_result_store", lambda: store)
 
     client = TestClient(main.app)
     headers, user_id = _setup_user_and_target(client, monkeypatch, fake)
@@ -190,7 +189,6 @@ def test_zpe_submission_disabled(monkeypatch):
 
     monkeypatch.setattr(zpe_backends, "get_result_store", lambda: store)
     monkeypatch.setattr(zpe_backends, "get_zpe_settings", lambda: settings)
-    monkeypatch.setattr(zpe_router, "get_result_store", lambda: store)
 
     client = TestClient(main.app)
     headers, _user_id = _setup_user_and_target(client, monkeypatch, fake)
@@ -210,14 +208,13 @@ def test_zpe_submission_disabled(monkeypatch):
     assert response.status_code == 503
 
 
-def test_zpe_submission_route_next_gen_unavailable(monkeypatch):
+def test_zpe_submission_route_next_gen_keeps_submit_hotpath_available(monkeypatch):
     fake = _patch_redis(monkeypatch)
     store = RedisResultStore(redis=fake)
     settings = ZPESettings(compute_mode="mock", result_store="redis")
 
     monkeypatch.setattr(zpe_backends, "get_result_store", lambda: store)
     monkeypatch.setattr(zpe_backends, "get_zpe_settings", lambda: settings)
-    monkeypatch.setattr(zpe_router, "get_result_store", lambda: store)
 
     client = TestClient(main.app)
     headers, _user_id = _setup_user_and_target(client, monkeypatch, fake)
@@ -234,7 +231,7 @@ def test_zpe_submission_route_next_gen_unavailable(monkeypatch):
         },
         headers=headers,
     )
-    assert response.status_code == 503
+    assert response.status_code == 200
 
 
 def test_zpe_submission_denies_unknown_queue_when_slurm_policy_is_deny(
@@ -253,8 +250,6 @@ def test_zpe_submission_denies_unknown_queue_when_slurm_policy_is_deny(
 
     monkeypatch.setattr(zpe_backends, "get_result_store", lambda: store)
     monkeypatch.setattr(zpe_backends, "get_zpe_settings", lambda: settings)
-    monkeypatch.setattr(zpe_router, "get_result_store", lambda: store)
-    monkeypatch.setattr(zpe_router, "get_zpe_settings", lambda: settings)
 
     client = TestClient(main.app)
     headers, _user_id = _setup_user_and_target(
@@ -295,8 +290,6 @@ def test_zpe_submission_surfaces_slurm_policy_read_error_as_503(
 
     monkeypatch.setattr(zpe_backends, "get_result_store", lambda: store)
     monkeypatch.setattr(zpe_backends, "get_zpe_settings", lambda: settings)
-    monkeypatch.setattr(zpe_router, "get_result_store", lambda: store)
-    monkeypatch.setattr(zpe_router, "get_zpe_settings", lambda: settings)
 
     client = TestClient(main.app)
     headers, _user_id = _setup_user_and_target(client, monkeypatch, fake)
@@ -337,9 +330,7 @@ def test_zpe_submission_routes_to_default_queue_with_slurm_route_default_policy(
 
     monkeypatch.setattr(zpe_backends, "get_result_store", lambda: store)
     monkeypatch.setattr(zpe_backends, "get_zpe_settings", lambda: settings)
-    monkeypatch.setattr(zpe_router, "get_result_store", lambda: store)
-    monkeypatch.setattr(zpe_router, "get_zpe_settings", lambda: settings)
-    monkeypatch.setattr(zpe_router, "enqueue_zpe_job", _capture_enqueue)
+    monkeypatch.setattr(zpe_backends, "enqueue_zpe_job", _capture_enqueue)
 
     client = TestClient(main.app)
     headers, user_id = _setup_user_and_target(
@@ -373,10 +364,10 @@ def test_zpe_submission_routes_to_default_queue_with_slurm_route_default_policy(
     assert meta["slurm_qos"] == "normal"
 
 
-def test_zpe_result_read_projection_unavailable(monkeypatch):
+def test_zpe_result_read_projection_keeps_read_hotpath_available(monkeypatch):
     fake = _patch_redis(monkeypatch)
     store = RedisResultStore(redis=fake)
-    monkeypatch.setattr(zpe_router, "get_result_store", lambda: store)
+    monkeypatch.setattr(zpe_backends, "get_result_store", lambda: store)
 
     client = TestClient(main.app)
     headers, user_id = _setup_user_and_target(client, monkeypatch, fake)
@@ -386,7 +377,8 @@ def test_zpe_result_read_projection_unavailable(monkeypatch):
     zpe_ops_flags.set_ops_flags(result_read_source="projection", redis=fake)
 
     status = client.get(f"/api/zpe/jobs/{job_id}", headers=headers)
-    assert status.status_code == 503
+    assert status.status_code == 200
+    assert status.json()["status"] == "finished"
 
 
 def test_admin_ops_flags_include_cutover_fields(monkeypatch):
@@ -476,7 +468,6 @@ def test_zpe_owner_enforcement_blocks_non_owner(monkeypatch):
 
     monkeypatch.setattr(zpe_backends, "get_result_store", lambda: store)
     monkeypatch.setattr(zpe_backends, "get_zpe_settings", lambda: settings)
-    monkeypatch.setattr(zpe_router, "get_result_store", lambda: store)
 
     client = TestClient(main.app)
     owner_headers, _owner_id = _setup_user_and_target(
@@ -524,7 +515,6 @@ def test_qe_relax_v1_enqueue_run_and_result(monkeypatch):
 
     monkeypatch.setattr(zpe_backends, "get_result_store", lambda: store)
     monkeypatch.setattr(zpe_backends, "get_zpe_settings", lambda: settings)
-    monkeypatch.setattr(zpe_router, "get_result_store", lambda: store)
 
     client = TestClient(main.app)
     headers, _user_id = _setup_user_and_target(client, monkeypatch, fake)

@@ -1,16 +1,32 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Dict
 from uuid import uuid4
 
 from app.schemas.zpe import ZPEJobRequest
+from services.structures import get_structure
 from .io import format_freqs_csv, format_summary
-from .parse import extract_fixed_indices, parse_kpoints_automatic
+from .job_meta import get_job_meta_store
+from .job_owner import get_job_owner_store
+from .parse import (
+    ensure_mobile_indices,
+    extract_fixed_indices,
+    parse_kpoints_automatic,
+    parse_qe_atoms,
+    parse_qe_structure,
+)
 from .http_queue import enqueue_http_job
 from .queue import get_queue
-from .result_store import ResultStore, get_result_store
-from .settings import get_zpe_settings
+from .queue_targets import get_queue_target_store
+from .result_store import ResultStore, ZPEJobStatus, get_result_store
+from .settings import ZPESettings, get_zpe_settings
+from .slurm_policy import (
+    SlurmQueueResolution,
+    resolve_runtime_slurm_queue,
+)
 from .thermo import calc_zpe_and_s_vib, normalize_frequencies
 
 
@@ -20,6 +36,139 @@ def _now_iso() -> str:
 
 def _default_kpts() -> tuple[int, int, int]:
     return (1, 1, 1)
+
+
+class NoActiveQueueTargetError(RuntimeError):
+    """Raised when the authenticated user has no active queue target."""
+
+
+class JobConflictError(RuntimeError):
+    """Raised when result/file reads are requested before job completion."""
+
+
+class ResultArtifactMissingError(RuntimeError):
+    """Raised when terminal job artifacts are unexpectedly missing."""
+
+
+class StructureMismatchError(ValueError):
+    """Raised when submitted QE input does not match the requested structure."""
+
+
+@dataclass(frozen=True)
+class SubmitJobOutcome:
+    job_id: str
+    requested_queue_name: str
+    resolved_queue_name: str
+    slurm_resolution: SlurmQueueResolution | None
+
+
+def _resolve_submission_queue(
+    requested_queue: str, *, settings: ZPESettings
+) -> SlurmQueueResolution | None:
+    if not settings.slurm_policy_path:
+        return None
+    return resolve_runtime_slurm_queue(
+        requested_queue,
+        policy_path=Path(settings.slurm_policy_path),
+    )
+
+
+def submit_job(
+    request: ZPEJobRequest, *, user_id: str, request_id: str
+) -> SubmitJobOutcome:
+    settings = get_zpe_settings()
+    target_store = get_queue_target_store()
+    target = target_store.get_active_target(user_id)
+    if not target:
+        raise NoActiveQueueTargetError("no active queue target")
+    resolution = _resolve_submission_queue(target.queue_name, settings=settings)
+    resolved_queue_name = resolution.resolved_queue if resolution else target.queue_name
+    if request.structure_id:
+        structure = get_structure(request.structure_id)
+        fixed_indices = extract_fixed_indices(request.content)
+        atoms = parse_qe_atoms(request.content)
+        if len(atoms) != len(structure.atoms):
+            raise StructureMismatchError("Structure does not match QE input atom count")
+    else:
+        structure, fixed_indices = parse_qe_structure(request.content)
+    mobile_indices = ensure_mobile_indices(
+        request.mobile_indices, len(structure.atoms), fixed_indices
+    )
+    payload = request.model_dump()
+    payload["mobile_indices"] = mobile_indices
+    job_id = enqueue_zpe_job(payload, queue_name=resolved_queue_name)
+    owner_store = get_job_owner_store()
+    owner_store.set_owner(job_id, user_id)
+    slurm_resolution_meta = {}
+    if resolution is not None:
+        slurm_resolution_meta = {
+            "requested_queue_name": resolution.requested_queue,
+            "resolved_queue_name": resolution.resolved_queue,
+            "used_fallback": resolution.used_fallback,
+            "slurm_partition": resolution.mapping.partition,
+            "slurm_account": resolution.mapping.account,
+            "slurm_qos": resolution.mapping.qos,
+            "slurm_max_walltime_minutes": resolution.mapping.max_walltime_minutes,
+        }
+    meta_store = get_job_meta_store()
+    meta_store.set_meta(
+        job_id,
+        {
+            "request_id": request_id,
+            "user_id": user_id,
+            "structure_id": request.structure_id,
+            "queue_name": resolved_queue_name,
+            "calc_mode": request.calc_mode,
+            **slurm_resolution_meta,
+        },
+    )
+    return SubmitJobOutcome(
+        job_id=job_id,
+        requested_queue_name=target.queue_name,
+        resolved_queue_name=resolved_queue_name,
+        slurm_resolution=resolution,
+    )
+
+
+def get_job_status(job_id: str) -> ZPEJobStatus:
+    store = get_result_store()
+    return store.get_status(job_id)
+
+
+def _ensure_job_finished(store: ResultStore, job_id: str) -> None:
+    try:
+        status = store.get_status(job_id)
+    except KeyError as exc:
+        raise KeyError("job not found") from exc
+    if status.status == "failed":
+        detail = status.detail or "unknown"
+        raise JobConflictError(f"job failed: {detail}")
+    if status.status != "finished":
+        raise JobConflictError(f"job not finished (status={status.status})")
+
+
+def get_job_result(job_id: str) -> Dict[str, Any]:
+    store = get_result_store()
+    _ensure_job_finished(store, job_id)
+    try:
+        result = store.get_result(job_id)
+    except KeyError as exc:
+        raise ResultArtifactMissingError("result missing after completion") from exc
+    if "kpts" in result and "kpoints" not in result:
+        result = {
+            **{key: value for key, value in result.items() if key != "kpts"},
+            "kpoints": result.get("kpts"),
+        }
+    return result
+
+
+def get_job_file(job_id: str, kind: str) -> str:
+    store = get_result_store()
+    _ensure_job_finished(store, job_id)
+    try:
+        return store.get_file(job_id, kind)
+    except KeyError as exc:
+        raise ResultArtifactMissingError("file missing after completion") from exc
 
 
 def enqueue_zpe_job(payload: Dict[str, Any], *, queue_name: str | None = None) -> str:
