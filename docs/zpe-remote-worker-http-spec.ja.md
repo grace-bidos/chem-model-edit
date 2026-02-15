@@ -1,21 +1,25 @@
 # ZPE リモートワーカー（HTTP仲介）Spec（ドラフト）
 
 ## 背景
+
 - 現状は Redis(RQ) 直結で worker がジョブを取得・結果保存する構成。
 - Upstash のURLは認証情報を含むため、ユーザーPCへ配布できない。
 - ユーザーPCはNAT越しで動作し、Cloud Run から直接到達できない前提。
 
 ## 目的
+
 - Upstashを開発者側（control-plane）にのみ保持し、**ワーカーはHTTPSでAPI経由**にジョブ取得/結果返却を行う。
 - 現状のZPE API（フロントからのジョブ登録・結果取得）との整合性を維持する。
 
 ## 制約
+
 - UpstashのURL/認証情報は**ユーザーに渡さない**。
 - ユーザーPCは**外向きのHTTPS通信のみ**で動作する想定。
 - 既存の `remote-queue`（Redis直結）モードは当面残す。
 - H2など最小計算で動作検証できること。
 
 ## 想定構成（最小）
+
 - **control-plane**: FastAPI（Cloud Run）
   - Upstash接続情報を保持
   - ジョブ登録APIを提供
@@ -29,6 +33,7 @@
 ## 仕様（案）
 
 ### 共通（HTTP）
+
 - **認証**: `Authorization: Bearer <worker_token>`（worker向けAPI）
 - **標準ステータス**:
   - `200 OK`: 正常
@@ -40,6 +45,7 @@
   - `409 Conflict`: 既にリース済み/完了済み
   - `500 Internal Server Error`: サーバー側エラー
 - **エラーレスポンス**:
+
 ```json
 {
   "error": {
@@ -51,6 +57,7 @@
 ```
 
 ### Redisキー設計（案）
+
 - `zpe:queue`: LIST（LPUSH/RPOP）
 - `zpe:payload:{job_id}`: STRING（JSON）
 - `zpe:status:{job_id}`: HASH（status/detail/updated_at）
@@ -68,12 +75,14 @@
   - `zpe:result/summary/freqs/status`: `result_ttl_seconds`
 
 ### 1. ジョブ投入（既存）
+
 - `POST /calc/zpe/jobs`
 - control-plane が `zpe:queue` に job_id を積む
 - `zpe:payload:{job_id}` に payload（JSON）を保存
 - `zpe:status:{job_id}` を `queued` に更新
 
 ### 2. ワーカー登録（拡張）
+
 - 既存: `POST /calc/zpe/compute/enroll-tokens`
 - 既存: `POST /calc/zpe/compute/servers/register`
 - 追加案:
@@ -87,6 +96,7 @@
   - **失効**: `zpe:revoked_tokens` へ `token_hash` を登録（全リクエストでチェック）
 
 ### 3. ジョブ取得（新規）
+
 - `POST /calc/zpe/compute/jobs/lease`
 - 認証: `Bearer worker_token`
 - 返却:
@@ -102,9 +112,11 @@
   - 推奨 5〜30秒（空の場合は指数バックオフ + jitter）
 
 ### 4. 結果返却（新規）
+
 - `POST /calc/zpe/compute/jobs/{job_id}/result`
 - 認証: `Bearer worker_token`
 - payload:
+
 ```json
 {
   "result": { "...": "..." },
@@ -118,6 +130,7 @@
   }
 }
 ```
+
 - control-planeがUpstashへ保存:
   - **lease検証**: `zpe:lease:{job_id}` の worker_id/lease_id と一致すること
   - **冪等性**: 既に `status=finished` の場合は内容一致なら `200 OK`
@@ -125,8 +138,10 @@
   - **lease削除**: 成功時に `zpe:lease:{job_id}` と `zpe:lease:index` を削除
 
 ### 5. 失敗通知（新規）
+
 - `POST /calc/zpe/compute/jobs/{job_id}/failed`
 - payload:
+
 ```json
 {
   "error_code": "QE_RUNTIME_ERROR",
@@ -134,6 +149,7 @@
   "traceback": "optional"
 }
 ```
+
 - **lease検証**: `zpe:lease:{job_id}` の worker_id/lease_id と一致すること
 - **失敗処理**:
   - retry回数を `zpe:retry_count:{job_id}` に記録
@@ -142,6 +158,7 @@
 - **lease削除**: 失敗処理後に削除
 
 ### 6. 期限切れ処理（最小）
+
 - **検知**: control-plane側で **定期リーパー**（例: 30秒周期）を実行
   - `zpe:lease:index` の期限切れを取得し、該当jobを再投入
   - `zpe:lease:{job_id}` が存在しない場合は **indexから除去してスキップ**
@@ -153,6 +170,7 @@
   - retry上限（例: 3〜5回）超過は `zpe:dlq` へ移動
 
 ## セキュリティ方針
+
 - Upstash URLはcontrol-planeのみ
 - workerは **短期トークン** or **専用トークン**を使用
 - トークンの失効（revocation）に備えてRedisで管理
@@ -160,6 +178,7 @@
 - **検証**: 全APIで `zpe:revoked_tokens` を確認
 
 ## 成功条件
+
 - Upstash URLを**ユーザーに配布しない**
 - ユーザーPCのworkerが **HTTPSでジョブ取得→QE計算→結果返却** できる
 - フロント/APIから `GET /calc/zpe/jobs/{id}/result` で結果取得できる
@@ -167,6 +186,7 @@
 - **Phase2**: ログ/メトリクス（queue depth, completion rate, active lease）を可視化
 
 ## 検証方法
+
 - control-plane: FastAPI dev（この環境）
 - compute-plane: 研究室PCで worker 起動
 - Upstash: 本番相当の共有Redis
@@ -174,11 +194,13 @@
 - **Phase2**: 複数worker同時実行、lease期限切れシナリオ、簡易負荷試験
 
 ## スコープ外（当面）
+
 - AiiDA / Slurm 連携
 - ジョブの可視化UI/詳細監視
 - 大規模HPC最適化
 
 ## 次フェーズ（実装計画）
+
 1. API仕様の確定（lease/timeout/retry）
 2. control-planeのHTTP仲介API実装
 3. workerのHTTPポーリング実装
