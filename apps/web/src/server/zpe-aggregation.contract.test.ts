@@ -18,7 +18,7 @@ type ContractFixture = {
   }
 }
 
-const CONTRACT_FIXTURES: ContractFixture[] = [
+const CONTRACT_FIXTURES: Array<ContractFixture> = [
   {
     name: 'legacy FastAPI payload remains compatible',
     expectedJobId: 'job-contract-1',
