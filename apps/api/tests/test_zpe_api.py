@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 import json
+import threading
+import time
 import fakeredis
 from fastapi.testclient import TestClient
 
 import main
 import app.routers.zpe as zpe_router
+from app.schemas.zpe import ZPEJobRequest
 from services.zpe import backends as zpe_backends
 from services.zpe import enroll as zpe_enroll
 from services.zpe import job_meta as zpe_job_meta
@@ -546,6 +550,55 @@ def test_zpe_retry_after_transient_audit_503_does_not_duplicate_enqueue(monkeypa
     assert second.status_code == 200
     assert second.json()["id"] == "job-audit-retry"
     assert len(enqueue_calls) == 1
+
+
+def test_zpe_submit_idempotency_prevents_duplicate_enqueue_under_overlap(monkeypatch):
+    fake = _patch_redis(monkeypatch)
+    settings = ZPESettings(compute_mode="mock", result_store="redis")
+    monkeypatch.setattr(zpe_backends, "get_zpe_settings", lambda: settings)
+
+    client = TestClient(main.app)
+    headers, user_id = _setup_user_and_target(client, monkeypatch, fake)
+    tenant_id = headers["X-Tenant-Id"]
+    request_payload = {
+        "content": QE_INPUT,
+        "mobile_indices": [0],
+        "use_environ": False,
+        "input_dir": None,
+        "calc_mode": "continue",
+    }
+    request_model = ZPEJobRequest(**request_payload)
+    request_id = "overlap-request-id-1"
+    enqueue_calls = {"count": 0}
+    enqueue_lock = threading.Lock()
+    barrier = threading.Barrier(2)
+
+    def _slow_enqueue(_payload, *, queue_name=None):
+        with enqueue_lock:
+            enqueue_calls["count"] += 1
+        # Keep claim pending long enough so the overlapping caller takes loser path.
+        time.sleep(0.2)
+        return "job-overlap-idempotent"
+
+    monkeypatch.setattr(zpe_backends, "enqueue_zpe_job", _slow_enqueue)
+
+    def _submit_once():
+        barrier.wait(timeout=1.0)
+        return zpe_backends.submit_job(
+            request_model,
+            user_id=user_id,
+            tenant_id=tenant_id,
+            request_id=request_id,
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [executor.submit(_submit_once) for _ in range(2)]
+        outcomes = [future.result(timeout=3.0) for future in futures]
+
+    assert enqueue_calls["count"] == 1
+    assert outcomes[0].job_id == "job-overlap-idempotent"
+    assert outcomes[1].job_id == "job-overlap-idempotent"
+    assert sorted([outcomes[0].idempotent, outcomes[1].idempotent]) == [False, True]
 
 
 def test_zpe_owner_enforcement_blocks_non_owner(monkeypatch):

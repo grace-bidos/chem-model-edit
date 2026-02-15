@@ -108,24 +108,6 @@ def submit_job(
 ) -> SubmitJobOutcome:
     settings = get_zpe_settings()
     idempotency_store = get_submit_idempotency_store()
-    request_fingerprint = compute_submit_request_fingerprint(request.model_dump())
-    existing = idempotency_store.get_record(
-        user_id=user_id,
-        tenant_id=tenant_id,
-        request_id=request_id,
-    )
-    if existing:
-        if existing.request_fingerprint != request_fingerprint:
-            raise IdempotencyKeyConflictError(
-                "request_id already used for a different submission payload"
-            )
-        return SubmitJobOutcome(
-            job_id=existing.job_id,
-            requested_queue_name=existing.requested_queue_name,
-            resolved_queue_name=existing.resolved_queue_name,
-            slurm_resolution=None,
-            idempotent=True,
-        )
     target_store = get_queue_target_store()
     target = target_store.get_active_target(user_id)
     if not target:
@@ -145,7 +127,69 @@ def submit_job(
     )
     payload = request.model_dump()
     payload["mobile_indices"] = mobile_indices
-    job_id = enqueue_zpe_job(payload, queue_name=resolved_queue_name)
+    request_fingerprint = compute_submit_request_fingerprint(payload)
+    try:
+        claim = idempotency_store.claim_or_get(
+            user_id=user_id,
+            tenant_id=tenant_id,
+            request_id=request_id,
+            request_fingerprint=request_fingerprint,
+        )
+    except ValueError as exc:
+        raise IdempotencyKeyConflictError(str(exc)) from exc
+    if claim.state == "ready":
+        if claim.record is None:
+            raise RuntimeError("submit idempotency record missing")
+        return SubmitJobOutcome(
+            job_id=claim.record.job_id,
+            requested_queue_name=claim.record.requested_queue_name,
+            resolved_queue_name=claim.record.resolved_queue_name,
+            slurm_resolution=None,
+            idempotent=True,
+        )
+    if claim.state == "pending":
+        try:
+            existing = idempotency_store.wait_for_record(
+                user_id=user_id,
+                tenant_id=tenant_id,
+                request_id=request_id,
+                request_fingerprint=request_fingerprint,
+            )
+        except ValueError as exc:
+            raise IdempotencyKeyConflictError(str(exc)) from exc
+        if existing is None:
+            raise RuntimeError("idempotency request still in progress; retry")
+        return SubmitJobOutcome(
+            job_id=existing.job_id,
+            requested_queue_name=existing.requested_queue_name,
+            resolved_queue_name=existing.resolved_queue_name,
+            slurm_resolution=None,
+            idempotent=True,
+        )
+    if claim.claim_token is None:
+        raise RuntimeError("submit idempotency claim token missing")
+    try:
+        job_id = enqueue_zpe_job(payload, queue_name=resolved_queue_name)
+    except Exception:
+        idempotency_store.release_claim(
+            user_id=user_id,
+            tenant_id=tenant_id,
+            request_id=request_id,
+            claim_token=claim.claim_token,
+        )
+        raise
+    idempotency_store.finalize_claim(
+        user_id=user_id,
+        tenant_id=tenant_id,
+        request_id=request_id,
+        claim_token=claim.claim_token,
+        record=SubmitIdempotencyRecord(
+            job_id=job_id,
+            request_fingerprint=request_fingerprint,
+            requested_queue_name=target.queue_name,
+            resolved_queue_name=resolved_queue_name,
+        ),
+    )
     owner_store = get_job_owner_store()
     owner_store.set_owner(job_id, user_id, tenant_id)
     slurm_resolution_meta = {}
@@ -171,17 +215,6 @@ def submit_job(
             "calc_mode": request.calc_mode,
             **slurm_resolution_meta,
         },
-    )
-    idempotency_store.remember(
-        user_id=user_id,
-        tenant_id=tenant_id,
-        request_id=request_id,
-        record=SubmitIdempotencyRecord(
-            job_id=job_id,
-            request_fingerprint=request_fingerprint,
-            requested_queue_name=target.queue_name,
-            resolved_queue_name=resolved_queue_name,
-        ),
     )
     return SubmitJobOutcome(
         job_id=job_id,
