@@ -27,6 +27,11 @@ from .slurm_policy import (
     SlurmQueueResolution,
     resolve_runtime_slurm_queue,
 )
+from .submit_idempotency import (
+    SubmitIdempotencyRecord,
+    compute_submit_request_fingerprint,
+    get_submit_idempotency_store,
+)
 from .thermo import calc_zpe_and_s_vib, normalize_frequencies
 from .compute_results import (
     FailureOutcome,
@@ -60,12 +65,17 @@ class StructureMismatchError(ValueError):
     """Raised when submitted QE input does not match the requested structure."""
 
 
+class IdempotencyKeyConflictError(ValueError):
+    """Raised when a request id is reused for a different submission payload."""
+
+
 @dataclass(frozen=True)
 class SubmitJobOutcome:
     job_id: str
     requested_queue_name: str
     resolved_queue_name: str
     slurm_resolution: SlurmQueueResolution | None
+    idempotent: bool = False
 
 
 @dataclass(frozen=True)
@@ -97,6 +107,25 @@ def submit_job(
     request: ZPEJobRequest, *, user_id: str, tenant_id: str, request_id: str
 ) -> SubmitJobOutcome:
     settings = get_zpe_settings()
+    idempotency_store = get_submit_idempotency_store()
+    request_fingerprint = compute_submit_request_fingerprint(request.model_dump())
+    existing = idempotency_store.get_record(
+        user_id=user_id,
+        tenant_id=tenant_id,
+        request_id=request_id,
+    )
+    if existing:
+        if existing.request_fingerprint != request_fingerprint:
+            raise IdempotencyKeyConflictError(
+                "request_id already used for a different submission payload"
+            )
+        return SubmitJobOutcome(
+            job_id=existing.job_id,
+            requested_queue_name=existing.requested_queue_name,
+            resolved_queue_name=existing.resolved_queue_name,
+            slurm_resolution=None,
+            idempotent=True,
+        )
     target_store = get_queue_target_store()
     target = target_store.get_active_target(user_id)
     if not target:
@@ -143,11 +172,23 @@ def submit_job(
             **slurm_resolution_meta,
         },
     )
+    idempotency_store.remember(
+        user_id=user_id,
+        tenant_id=tenant_id,
+        request_id=request_id,
+        record=SubmitIdempotencyRecord(
+            job_id=job_id,
+            request_fingerprint=request_fingerprint,
+            requested_queue_name=target.queue_name,
+            resolved_queue_name=resolved_queue_name,
+        ),
+    )
     return SubmitJobOutcome(
         job_id=job_id,
         requested_queue_name=target.queue_name,
         resolved_queue_name=resolved_queue_name,
         slurm_resolution=resolution,
+        idempotent=False,
     )
 
 

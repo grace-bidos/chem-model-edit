@@ -44,6 +44,7 @@ from app.schemas.zpe import (
 from services.structures import get_structure
 from services.zpe import get_zpe_settings
 from services.zpe.backends import (
+    IdempotencyKeyConflictError,
     JobConflictError,
     NoActiveQueueTargetError,
     ResultArtifactMissingError,
@@ -178,6 +179,8 @@ async def zpe_jobs(request: ZPEJobRequest, raw: Request) -> ZPEJobResponse:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except SlurmPolicyDeniedError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except IdempotencyKeyConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except SlurmPolicyConfigError as exc:
         raise HTTPException(
             status_code=503,
