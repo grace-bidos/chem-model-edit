@@ -137,6 +137,10 @@ Optional post-merge checks (expand later):
 - Stack C (migration and operations):
   - `GRA-21` -> `GRA-22` -> `GRA-19` -> `GRA-23` -> `GRA-24` -> `GRA-25`
 
+### 8.5 Accepted ADRs for backend refresh foundations
+
+- `GRA-12`: `docs/adr/ADR-0001-system-of-record-boundaries.md`
+
 ## 9. Review bottleneck controls
 
 - Keep stack depth typically <= 4 PRs when possible.
