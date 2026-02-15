@@ -279,6 +279,43 @@ def test_zpe_submission_denies_unknown_queue_when_slurm_policy_is_deny(
     assert "not allowed by slurm fallback policy" in response.json()["error"]["message"]
 
 
+def test_zpe_submission_surfaces_slurm_policy_read_error_as_503(
+    monkeypatch,
+    tmp_path,
+):
+    fake = _patch_redis(monkeypatch)
+    store = RedisResultStore(redis=fake)
+    policy_path = tmp_path / "policy-dir"
+    policy_path.mkdir()
+    settings = ZPESettings(
+        compute_mode="mock",
+        result_store="redis",
+        slurm_policy_path=str(policy_path),
+    )
+
+    monkeypatch.setattr(zpe_backends, "get_result_store", lambda: store)
+    monkeypatch.setattr(zpe_backends, "get_zpe_settings", lambda: settings)
+    monkeypatch.setattr(zpe_router, "get_result_store", lambda: store)
+    monkeypatch.setattr(zpe_router, "get_zpe_settings", lambda: settings)
+
+    client = TestClient(main.app)
+    headers, _user_id = _setup_user_and_target(client, monkeypatch, fake)
+
+    response = client.post(
+        "/api/zpe/jobs",
+        json={
+            "content": QE_INPUT,
+            "mobile_indices": [0],
+            "use_environ": False,
+            "input_dir": None,
+            "calc_mode": "continue",
+        },
+        headers=headers,
+    )
+    assert response.status_code == 503
+    assert "slurm policy configuration error" in response.json()["error"]["message"]
+
+
 def test_zpe_submission_routes_to_default_queue_with_slurm_route_default_policy(
     monkeypatch,
     tmp_path,
