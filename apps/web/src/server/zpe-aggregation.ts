@@ -257,28 +257,68 @@ type UpstreamStatusRequester = (request: {
   token: string
 }) => Promise<unknown>
 
+const DEFAULT_UPSTREAM_TIMEOUT_MS = 3000
+
+const withTimeout = <T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  source: 'projection' | 'adapter',
+): Promise<T> => {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(
+        createAggregationError(
+          'UPSTREAM_UNAVAILABLE',
+          `Timed out fetching ${source} job status`,
+        ),
+      )
+    }, timeoutMs)
+
+    promise.then(
+      (value) => {
+        clearTimeout(timer)
+        resolve(value)
+      },
+      (error: unknown) => {
+        clearTimeout(timer)
+        reject(error)
+      },
+    )
+  })
+}
+
 export const fetchAggregatedZpeJobStatusFromUpstreams = async ({
   jobId,
   token,
   requester = requestApiInternal,
+  timeoutMs = DEFAULT_UPSTREAM_TIMEOUT_MS,
 }: {
   jobId: string
   token: string
   requester?: UpstreamStatusRequester
+  timeoutMs?: number
 }): Promise<ZPEJobStatus> => {
   const safeJobId = encodeURIComponent(jobId)
   const projectionPath = `/zpe/jobs/${safeJobId}/projection`
   const adapterStatusPath = `/zpe/jobs/${safeJobId}`
 
   const [projectionResult, adapterResult] = await Promise.allSettled([
-    requester({
-      path: projectionPath,
-      token,
-    }),
-    requester({
-      path: adapterStatusPath,
-      token,
-    }),
+    withTimeout(
+      requester({
+        path: projectionPath,
+        token,
+      }),
+      timeoutMs,
+      'projection',
+    ),
+    withTimeout(
+      requester({
+        path: adapterStatusPath,
+        token,
+      }),
+      timeoutMs,
+      'adapter',
+    ),
   ])
 
   if (

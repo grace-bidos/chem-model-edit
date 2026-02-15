@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
   AggregatedZpeError,
@@ -257,6 +257,36 @@ describe('fetchAggregatedZpeJobStatusFromUpstreams', () => {
         requester: () => Promise.reject(new Error('down')),
       }),
     ).rejects.toThrow('Failed to fetch upstream job status')
+  })
+
+  it('times out hung projection source and falls back to adapter', async () => {
+    vi.useFakeTimers()
+    try {
+      const request = fetchAggregatedZpeJobStatusFromUpstreams({
+        jobId: 'job-13',
+        token: 'token-13',
+        timeoutMs: 25,
+        requester: (input: { path: string }) => {
+          if (input.path.endsWith('/projection')) {
+            return new Promise<unknown>(() => {})
+          }
+          return Promise.resolve({
+            status: 'started',
+            detail: 'adapter-live',
+            updated_at: '2026-02-15T08:23:00Z',
+          })
+        },
+      })
+
+      await vi.advanceTimersByTimeAsync(25)
+      await expect(request).resolves.toEqual({
+        status: 'started',
+        detail: 'adapter-live',
+        updated_at: '2026-02-15T08:23:00Z',
+      })
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 
