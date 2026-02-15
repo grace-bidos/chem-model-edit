@@ -149,6 +149,7 @@ Optional post-merge checks (expand later):
 ### 8.6 Active refactor plan artifacts
 
 - `GRA-20`: `docs/process/fastapi-thin-adapter-cleanup-plan.md`
+- `GRA-21`: `docs/process/redis-worker-cutover-flags.md`
 
 ## 9. Review bottleneck controls
 

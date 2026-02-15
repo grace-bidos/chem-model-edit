@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 import main
 from app import deps as app_deps
 from services.zpe import enroll as zpe_enroll
+from services.zpe import ops_flags as zpe_ops_flags
 from services.zpe import result_store as zpe_store
 from services.zpe import worker_auth as zpe_worker_auth
 from services.zpe.settings import ZPESettings
@@ -16,6 +17,7 @@ def _patch_redis(monkeypatch):
     monkeypatch.setattr(zpe_store, "get_redis_connection", lambda: fake)
     monkeypatch.setattr(zpe_enroll, "get_redis_connection", lambda: fake)
     monkeypatch.setattr(zpe_worker_auth, "get_redis_connection", lambda: fake)
+    monkeypatch.setattr(zpe_ops_flags, "get_redis_connection", lambda: fake)
     return fake
 
 
@@ -51,6 +53,25 @@ def test_zpe_enroll_token_api(monkeypatch):
 
     revoke = client.delete(
         f"/api/zpe/compute/servers/{payload['id']}",
+        headers={"Authorization": "Bearer secret"},
+    )
+    assert revoke.status_code == 200
+    assert revoke.json()["revoked_count"] == 1
+
+
+def test_revoke_stays_available_when_legacy_worker_endpoints_disabled(monkeypatch):
+    fake = _patch_redis(monkeypatch)
+    settings = ZPESettings(admin_token="secret")
+    monkeypatch.setattr(app_deps, "get_zpe_settings", lambda: settings)
+
+    token_store = zpe_worker_auth.WorkerTokenStore(redis=fake)
+    issued = token_store.create_token("compute-1")
+    assert issued.token
+    zpe_ops_flags.set_ops_flags(legacy_worker_endpoints_enabled=False, redis=fake)
+
+    client = TestClient(main.app)
+    revoke = client.delete(
+        "/api/zpe/compute/servers/compute-1",
         headers={"Authorization": "Bearer secret"},
     )
     assert revoke.status_code == 200

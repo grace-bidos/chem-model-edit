@@ -561,15 +561,33 @@ export interface components {
         OpsFlagsRequest: {
             /** Dequeue Enabled */
             dequeue_enabled?: boolean | null;
+            /** Legacy Worker Endpoints Enabled */
+            legacy_worker_endpoints_enabled?: boolean | null;
+            /** Result Read Source */
+            result_read_source?: ("redis" | "projection") | null;
             /** Submission Enabled */
             submission_enabled?: boolean | null;
+            /** Submission Route */
+            submission_route?: ("redis-worker" | "next-gen") | null;
         };
         /** OpsFlagsResponse */
         OpsFlagsResponse: {
             /** Dequeue Enabled */
             dequeue_enabled: boolean;
+            /** Legacy Worker Endpoints Enabled */
+            legacy_worker_endpoints_enabled: boolean;
+            /**
+             * Result Read Source
+             * @enum {string}
+             */
+            result_read_source: "redis" | "projection";
             /** Submission Enabled */
             submission_enabled: boolean;
+            /**
+             * Submission Route
+             * @enum {string}
+             */
+            submission_route: "redis-worker" | "next-gen";
         };
         /** Pagination */
         Pagination: {

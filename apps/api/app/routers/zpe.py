@@ -52,7 +52,7 @@ from services.zpe.enroll import get_enroll_store
 from services.zpe.job_meta import get_job_meta_store
 from services.zpe.job_owner import get_job_owner_store
 from services.zpe.lease import lease_next_job
-from services.zpe.ops_flags import get_ops_flags, set_ops_flags
+from services.zpe.ops_flags import OpsFlags, get_ops_flags, set_ops_flags
 from services.zpe.parse import (
     extract_fixed_indices,
     parse_atomic_species,
@@ -82,6 +82,24 @@ def _ensure_job_finished(job_id: str) -> None:
         raise HTTPException(
             status_code=409,
             detail=f"job not finished (status={status.status})",
+        )
+
+
+def _require_legacy_submission_route(flags: OpsFlags) -> None:
+    if flags.submission_route != "redis-worker":
+        raise HTTPException(status_code=503, detail="submission route not available")
+
+
+def _require_legacy_result_read_source(flags: OpsFlags) -> None:
+    if flags.result_read_source != "redis":
+        raise HTTPException(status_code=503, detail="result read source not available")
+
+
+def _require_legacy_worker_endpoints(flags: OpsFlags) -> None:
+    if not flags.legacy_worker_endpoints_enabled:
+        raise HTTPException(
+            status_code=503,
+            detail="legacy worker endpoints disabled by cutover flag",
         )
 
 
@@ -115,6 +133,7 @@ async def zpe_jobs(request: ZPEJobRequest, raw: Request) -> ZPEJobResponse:
     user = require_user_identity(raw)
     request_id = get_request_id(raw)
     flags = get_ops_flags()
+    _require_legacy_submission_route(flags)
     if not flags.submission_enabled:
         settings = get_zpe_settings()
         log_event(
@@ -187,6 +206,8 @@ async def zpe_jobs(request: ZPEJobRequest, raw: Request) -> ZPEJobResponse:
 @router.get("/jobs/{job_id}", response_model=ZPEJobStatus)
 async def zpe_job_status(job_id: str, raw: Request) -> ZPEJobStatus:
     require_job_owner(raw, job_id)
+    flags = get_ops_flags()
+    _require_legacy_result_read_source(flags)
     store = get_result_store()
     try:
         status = store.get_status(job_id)
@@ -202,6 +223,8 @@ async def zpe_job_status(job_id: str, raw: Request) -> ZPEJobStatus:
 @router.get("/jobs/{job_id}/result", response_model=ZPEJobResultResponse)
 async def zpe_job_result(job_id: str, raw: Request) -> ZPEJobResultResponse:
     require_job_owner(raw, job_id)
+    flags = get_ops_flags()
+    _require_legacy_result_read_source(flags)
     store = get_result_store()
     _ensure_job_finished(job_id)
     try:
@@ -229,6 +252,8 @@ async def zpe_job_files(
     kind: Literal["summary", "freqs"] = Query(...),
 ) -> Response:
     require_job_owner(raw, job_id)
+    flags = get_ops_flags()
+    _require_legacy_result_read_source(flags)
     store = get_result_store()
     _ensure_job_finished(job_id)
     try:
@@ -253,6 +278,8 @@ async def zpe_compute_enroll_token(
     request: EnrollTokenRequest,
     raw: Request,
 ) -> EnrollTokenResponse:
+    flags = get_ops_flags()
+    _require_legacy_worker_endpoints(flags)
     owner_id = None
     if not has_admin_access(raw):
         user = require_user_identity(raw)
@@ -277,6 +304,8 @@ async def zpe_compute_enroll_token(
 async def zpe_compute_register(
     request: ComputeRegisterRequest,
 ) -> ComputeRegisterResponse:
+    flags = get_ops_flags()
+    _require_legacy_worker_endpoints(flags)
     store = get_enroll_store()
     try:
         registration = store.consume_token(
@@ -325,6 +354,7 @@ async def zpe_compute_lease(raw: Request) -> Response | ComputeLeaseResponse:
     worker_id = require_worker(raw)
     request_id = get_request_id(raw)
     flags = get_ops_flags()
+    _require_legacy_worker_endpoints(flags)
     if not flags.dequeue_enabled:
         settings = get_zpe_settings()
         log_event(
@@ -379,6 +409,8 @@ async def zpe_compute_result(
     raw: Request,
 ) -> ComputeResultResponse:
     worker_id = require_worker(raw)
+    flags = get_ops_flags()
+    _require_legacy_worker_endpoints(flags)
     meta_store = get_job_meta_store()
     job_meta = meta_store.get_meta(job_id)
     try:
@@ -428,6 +460,8 @@ async def zpe_compute_failed(
     raw: Request,
 ) -> ComputeFailedResponse:
     worker_id = require_worker(raw)
+    flags = get_ops_flags()
+    _require_legacy_worker_endpoints(flags)
     meta_store = get_job_meta_store()
     job_meta = meta_store.get_meta(job_id)
     try:
@@ -517,6 +551,9 @@ async def zpe_ops_flags(raw: Request) -> OpsFlagsResponse:
     return OpsFlagsResponse(
         submission_enabled=flags.submission_enabled,
         dequeue_enabled=flags.dequeue_enabled,
+        submission_route=flags.submission_route,
+        result_read_source=flags.result_read_source,
+        legacy_worker_endpoints_enabled=flags.legacy_worker_endpoints_enabled,
     )
 
 
@@ -529,6 +566,9 @@ async def zpe_ops_flags_update(
     flags = set_ops_flags(
         submission_enabled=request.submission_enabled,
         dequeue_enabled=request.dequeue_enabled,
+        submission_route=request.submission_route,
+        result_read_source=request.result_read_source,
+        legacy_worker_endpoints_enabled=request.legacy_worker_endpoints_enabled,
     )
     settings = get_zpe_settings()
     log_event(
@@ -540,10 +580,16 @@ async def zpe_ops_flags_update(
         request_id=get_request_id(raw),
         submission_enabled=flags.submission_enabled,
         dequeue_enabled=flags.dequeue_enabled,
+        submission_route=flags.submission_route,
+        result_read_source=flags.result_read_source,
+        legacy_worker_endpoints_enabled=flags.legacy_worker_endpoints_enabled,
         backend=settings.compute_mode,
         result_store=settings.result_store,
     )
     return OpsFlagsResponse(
         submission_enabled=flags.submission_enabled,
         dequeue_enabled=flags.dequeue_enabled,
+        submission_route=flags.submission_route,
+        result_read_source=flags.result_read_source,
+        legacy_worker_endpoints_enabled=flags.legacy_worker_endpoints_enabled,
     )
