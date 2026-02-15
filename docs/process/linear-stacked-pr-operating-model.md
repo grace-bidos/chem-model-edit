@@ -126,6 +126,7 @@ Optional post-merge checks (expand later):
 
 - Cycle 1 (1 week) includes all backend-refresh execution issues:
   - `GRA-12` to `GRA-25` under `GRA-10`
+- `GRA-37` is a follow-up Ask ADR and is loaded independently when architecture clarification is required.
 - Specialized exploration (`GRA-26` to `GRA-30`) stays out of Cycle 1 unless explicitly promoted.
 
 ### 8.4 Suggested stack slices for backend refresh
@@ -141,6 +142,7 @@ Optional post-merge checks (expand later):
 
 - `GRA-12`: `docs/adr/ADR-0001-system-of-record-boundaries.md`
 - `GRA-13`: `docs/adr/ADR-0002-jobstate-contract.md`
+- `GRA-37`: `docs/adr/ADR-0003-projection-boundary-and-single-write-cutover.md`
 
 ## 9. Review bottleneck controls
 
