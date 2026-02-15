@@ -3,10 +3,21 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
+import logging
 from typing import Any, Dict, Optional, cast
 
 from redis import Redis, WatchError
 
+from services.convex_event_relay import (
+    AiidaJobEvent,
+    build_convex_projection,
+    compute_event_idempotency_key,
+    get_convex_event_dispatcher,
+)
+
+from .job_meta import get_job_meta_store
+from .job_owner import get_job_owner_store
+from .job_state import JobState, can_transition, coerce_job_state
 from .queue import get_redis_connection
 from .settings import get_zpe_settings
 
@@ -20,6 +31,11 @@ _LEASE_INDEX = "zpe:lease:index"
 _RETRY_PREFIX = "zpe:retry_count:"
 _DELAY_ZSET = "zpe:delay"
 _DLQ = "zpe:dlq"
+_RELAY_DISPATCH_PREFIX = "zpe:convex:relay:dispatch:"
+_RELAY_SEQUENCE_FIELD = "relay_sequence"
+
+
+logger = logging.getLogger(__name__)
 
 
 def _now_iso() -> str:
@@ -33,6 +49,99 @@ def _decode_map(data: Dict[bytes, bytes]) -> Dict[str, str]:
 def _get_lease(redis: Redis, job_id: str) -> Dict[str, str]:
     raw = cast(dict[bytes, bytes], redis.hgetall(f"{_LEASE_PREFIX}{job_id}"))
     return _decode_map(raw) if raw else {}
+
+
+def _decode_status(raw: Optional[str]) -> JobState | None:
+    if raw is None:
+        return None
+    return coerce_job_state(raw)
+
+
+def _to_iso_datetime(value: str | None) -> datetime:
+    if not value:
+        return datetime.now(timezone.utc)
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return datetime.now(timezone.utc)
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def _coerce_non_empty(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        stripped = value.strip()
+        return stripped or None
+    rendered = str(value).strip()
+    return rendered or None
+
+
+def _dispatch_runtime_state_transition(
+    *,
+    redis: Redis,
+    job_id: str,
+    state: JobState,
+    sequence: int,
+    updated_at: str,
+    ttl_seconds: int,
+) -> None:
+    if sequence <= 0:
+        return
+    dispatch_key = f"{_RELAY_DISPATCH_PREFIX}{job_id}:{sequence}"
+    acquired = cast(
+        bool,
+        redis.set(
+            dispatch_key,
+            "1",
+            nx=True,
+            ex=ttl_seconds,
+        ),
+    )
+    if not acquired:
+        return
+    settings = get_zpe_settings()
+    dispatcher = get_convex_event_dispatcher(
+        relay_url=settings.convex_relay_url,
+        relay_token=settings.convex_relay_token,
+        timeout_seconds=settings.convex_relay_timeout_seconds,
+    )
+    owner_id = get_job_owner_store().get_owner(job_id)
+    meta = get_job_meta_store().get_meta(job_id)
+    project_id = _coerce_non_empty(meta.get("project_id")) or _coerce_non_empty(
+        meta.get("queue_name")
+    )
+    node_id = _coerce_non_empty(meta.get("node_id")) or job_id
+    event = AiidaJobEvent(
+        job_id=job_id,
+        node_id=node_id,
+        project_id=project_id or "zpe",
+        owner_id=owner_id,
+        state=state,
+        event_id=f"runtime:{job_id}:{sequence}",
+        timestamp=_to_iso_datetime(updated_at),
+        sequence=sequence,
+    )
+    projection = build_convex_projection(event)
+    idempotency_key = compute_event_idempotency_key(event)
+    try:
+        dispatcher.dispatch_job_projection(
+            payload=projection,
+            idempotency_key=idempotency_key,
+        )
+    except Exception:
+        redis.delete(dispatch_key)
+        logger.warning(
+            "convex relay dispatch failed for runtime transition",
+            extra={
+                "job_id": job_id,
+                "state": state,
+                "sequence": sequence,
+            },
+            exc_info=True,
+        )
 
 
 @dataclass
@@ -71,7 +180,8 @@ def submit_result(
         try:
             pipe_any.watch(status_key, lease_key)
             status = _decode_map(cast(dict[bytes, bytes], pipe.hgetall(status_key)))
-            if status.get("status") == "finished":
+            previous = _decode_status(status.get("status"))
+            if previous == "finished":
                 existing_result = pipe.get(result_key)
                 existing_summary = pipe.get(summary_key)
                 existing_freqs = pipe.get(freqs_key)
@@ -81,8 +191,21 @@ def submit_result(
                     and existing_summary == summary_text.encode("utf-8")
                     and existing_freqs == freqs_csv.encode("utf-8")
                 ):
+                    sequence = int(status.get(_RELAY_SEQUENCE_FIELD) or "1")
+                    _dispatch_runtime_state_transition(
+                        redis=redis,
+                        job_id=job_id,
+                        state="finished",
+                        sequence=sequence,
+                        updated_at=status.get("updated_at") or _now_iso(),
+                        ttl_seconds=ttl,
+                    )
                     return ResultSubmitOutcome(idempotent=True)
                 raise ValueError("result already submitted")
+            if not can_transition(previous, "finished"):
+                raise ValueError(
+                    f"invalid job state transition: {previous or '<none>'} -> finished"
+                )
 
             lease = _get_lease(pipe, job_id)
             if not lease:
@@ -90,18 +213,29 @@ def submit_result(
             if lease.get("worker_id") != worker_id or lease.get("lease_id") != lease_id:
                 raise PermissionError("lease mismatch")
 
+            updated_at = _now_iso()
             pipe.multi()
             pipe.setex(result_key, ttl, payload_json)
             pipe.setex(summary_key, ttl, summary_text)
             pipe.setex(freqs_key, ttl, freqs_csv)
             pipe.hset(
                 status_key,
-                mapping={"status": "finished", "detail": "", "updated_at": _now_iso()},
+                mapping={"status": "finished", "detail": "", "updated_at": updated_at},
             )
+            pipe.hincrby(status_key, _RELAY_SEQUENCE_FIELD, 1)
             pipe.expire(status_key, ttl)
             pipe.delete(lease_key)
             pipe.zrem(_LEASE_INDEX, job_id)
-            pipe.execute()
+            response = cast(list[Any], pipe.execute())
+            sequence = int(response[4])
+            _dispatch_runtime_state_transition(
+                redis=redis,
+                job_id=job_id,
+                state="finished",
+                sequence=sequence,
+                updated_at=updated_at,
+                ttl_seconds=ttl,
+            )
             return ResultSubmitOutcome(idempotent=False)
         except WatchError:
             continue
@@ -130,7 +264,9 @@ def submit_failure(
         pipe = redis.pipeline()
         pipe_any = cast(Any, pipe)
         try:
-            pipe_any.watch(lease_key, retry_key)
+            pipe_any.watch(status_key, lease_key, retry_key)
+            status = _decode_map(cast(dict[bytes, bytes], pipe.hgetall(status_key)))
+            previous = _decode_status(status.get("status"))
             lease = _get_lease(pipe, job_id)
             if not lease:
                 raise PermissionError("lease not found")
@@ -140,7 +276,15 @@ def submit_failure(
             current_retry = cast(Optional[bytes], pipe.get(retry_key))
             retry_count = int(current_retry or 0) + 1
             detail = f"{error_code}: {error_message}"
+            next_state: JobState = (
+                "queued" if retry_count <= settings.retry_max else "failed"
+            )
+            if not can_transition(previous, next_state):
+                raise ValueError(
+                    f"invalid job state transition: {previous or '<none>'} -> {next_state}"
+                )
 
+            updated_at = _now_iso()
             pipe.multi()
             pipe.set(retry_key, retry_count)
             if retry_count <= settings.retry_max:
@@ -155,14 +299,24 @@ def submit_failure(
                     mapping={
                         "status": "queued",
                         "detail": f"requeue in {delay}s ({detail})",
-                        "updated_at": _now_iso(),
+                        "updated_at": updated_at,
                     },
                 )
+                pipe.hincrby(status_key, _RELAY_SEQUENCE_FIELD, 1)
                 pipe.expire(status_key, ttl)
                 pipe.expire(retry_key, ttl)
                 pipe.delete(lease_key)
                 pipe.zrem(_LEASE_INDEX, job_id)
-                pipe.execute()
+                response = cast(list[Any], pipe.execute())
+                sequence = int(response[3])
+                _dispatch_runtime_state_transition(
+                    redis=redis,
+                    job_id=job_id,
+                    state="queued",
+                    sequence=sequence,
+                    updated_at=updated_at,
+                    ttl_seconds=ttl,
+                )
                 return FailureOutcome(requeued=True, retry_count=retry_count)
 
             pipe.lpush(_DLQ, job_id)
@@ -171,14 +325,24 @@ def submit_failure(
                 mapping={
                     "status": "failed",
                     "detail": detail,
-                    "updated_at": _now_iso(),
+                    "updated_at": updated_at,
                 },
             )
+            pipe.hincrby(status_key, _RELAY_SEQUENCE_FIELD, 1)
             pipe.expire(status_key, ttl)
             pipe.expire(retry_key, ttl)
             pipe.delete(lease_key)
             pipe.zrem(_LEASE_INDEX, job_id)
-            pipe.execute()
+            response = cast(list[Any], pipe.execute())
+            sequence = int(response[3])
+            _dispatch_runtime_state_transition(
+                redis=redis,
+                job_id=job_id,
+                state="failed",
+                sequence=sequence,
+                updated_at=updated_at,
+                ttl_seconds=ttl,
+            )
             return FailureOutcome(requeued=False, retry_count=retry_count)
         except WatchError:
             continue
