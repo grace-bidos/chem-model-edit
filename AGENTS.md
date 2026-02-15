@@ -36,21 +36,34 @@ Primary capabilities include parallel structure views, partial structure transpl
 ### Linear operation rules (fixed)
 - Treat Linear Project/Issues as canonical. Do not use GitHub Issues as planning source-of-truth.
 - Keep issue hierarchy to one level only (`Parent -> Child`). Do not create deeper nesting.
+- Mandatory metadata for active issues (`Todo`/`In Progress`/`In Review`): `state`, `cycle`, `type:*`, and `size:*`.
+- For delivery work in a project, child issues must have a parent capability issue. Top-level epics/capabilities are the only parentless issues in that project.
+- Use `Backlog` only for parked work outside active execution. When an issue is pulled into the current cycle, move it to `Todo` or `In Progress`.
 - Create follow-up child issues before closing an item when a PR is a partial/first slice.
 - Do not close capability work by merge-only signal. Verify issue-level acceptance criteria first.
 
 ### Cycle assignment policy
+
 - Put child delivery issues in cycles.
 - Keep parent capability issues out of cycles by default; use project views to track parent progress.
 - Exception: a parent issue may be put in a cycle only for explicit coordination checkpoints.
+- During cycle calibration phases, it is acceptable to intentionally over-pack current cycle scope to measure realistic weekly throughput.
 
 ### State transition policy
+
 - Child issue lifecycle:
   - `Todo/In Progress/In Review`: active delivery states.
   - `Done`: allowed when PR is merged and child issue acceptance criteria are satisfied.
 - Parent issue lifecycle:
+  - `In Progress`: default when one or more child issues are active in the current cycle.
   - Move to `Done` only when required child issues are done and parent acceptance criteria are satisfied.
 - If PR description includes wording like "first slice", "follow-up required", or deferred TODO boundaries, keep the parent open and create missing child issues immediately.
+
+### Operational issue policy
+
+- Do not create perpetual projects for ongoing environment/tooling chores.
+- Default handling for operational chores: standalone team issue (no project), with `type:*` and `size:*`; assign to cycle only when actively worked.
+- Promote operational work into a project only when it becomes a bounded, multi-issue initiative with explicit completion criteria.
 
 ### Work-item taxonomy
 - Type axis: `Ask` / `Show` / `Ship`
@@ -121,7 +134,7 @@ Primary capabilities include parallel structure views, partial structure transpl
 - Mol* viewer center: `apps/web/src/components/molstar/MolstarViewer.tsx`
 - Mol* inputs: `pdbText` / `cifUrl` (single and multiple structures)
 - Main API I/O assumption: Quantum ESPRESSO `.in`
-- pnpm store policy: `.pnpm-store`
+- pnpm store policy: shared user-level store `~/.pnpm-store` (reuse across worktrees)
 
 ## Naming Rule for API Layers
 - Distinguish layers by directory (`app/routers`, `services`).
