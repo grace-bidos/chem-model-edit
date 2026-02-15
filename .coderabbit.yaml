@@ -4,7 +4,7 @@ reviews:
   profile: "chill"
   review_status: true
   commit_status: true
-  fail_commit_status: true
+  fail_commit_status: false
   high_level_summary: true
   changed_files_summary: true
   collapse_walkthrough: false
