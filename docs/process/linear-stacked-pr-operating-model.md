@@ -24,12 +24,15 @@ It standardizes how we plan work in Linear, implement with stacked PRs, and pass
 - Project: required for each initiative.
 - Cycle: required for active delivery windows.
 - Issue: required unit of implementation.
+- Fixed implementation hierarchy: `Project -> Parent Capability Issue -> Child Delivery Issue` (one nesting level only).
+- Active parent and child issues are in cycle by default.
+- Exception: a parent capability issue may stay out of cycle only when intentionally long-running and not active this week.
 
 Current default for this phase:
 
 - No roadmap object.
 - Active projects are used as top-level planning containers.
-- Cycle duration is 1 week.
+- Cycle duration is 1 week unless explicitly changed by team settings.
 
 ## 4. Work item taxonomy
 
@@ -103,7 +106,7 @@ Optional post-merge checks (expand later):
 5. Review:
    - review in GitHub
    - keep fixes inside same stack branch
-   - for runtime/backend-refresh PRs, include ADR-0001 SoR mapping in PR description (`field/aggregate`, `owner`, `write path`, `read path`)
+   - include architecture/contract context in PR description when runtime boundaries change
 6. Merge:
    - merge bottom-up: land the base PR first, then proceed upward through the stack
    - use merge queue where required
@@ -111,7 +114,10 @@ Optional post-merge checks (expand later):
    - `gt sync` and restack as needed
    - advance Linear status (`Todo` -> `In Progress` -> `In Review` -> `Done`)
 
-## 8. Backend refresh concrete mapping
+## 8. Backend refresh mapping (historical example)
+
+This section is a historical snapshot from the initial backend-refresh rollout.
+Use it as an example only; current planning source-of-truth is Linear.
 
 ### 8.1 Linear projects
 
@@ -125,10 +131,9 @@ Optional post-merge checks (expand later):
 
 ### 8.3 Cycle loading rule
 
-- Cycle 1 (1 week) includes all backend-refresh execution issues:
-  - `GRA-12` to `GRA-25` under `GRA-10`
+- Cycle 1 (1 week) included active parent capability `GRA-10` and active backend-refresh child issues (`GRA-12` to `GRA-25`).
 - `GRA-37` is a follow-up Ask ADR and is loaded independently when architecture clarification is required.
-- Specialized exploration (`GRA-26` to `GRA-30`) stays out of Cycle 1 unless explicitly promoted.
+- Parent `GRA-11` and specialized exploration (`GRA-26` to `GRA-30`) stayed out of Cycle 1 while not active for that week.
 
 ### 8.4 Suggested stack slices for backend refresh
 

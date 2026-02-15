@@ -42,7 +42,7 @@ Primary capabilities include parallel structure views, partial structure transpl
 
 - Treat Linear Project/Issues as canonical. Do not use GitHub Issues as planning source-of-truth.
 - Keep issue hierarchy to one level only (`Parent -> Child`). Do not create deeper nesting.
-- Mandatory metadata for active issues (`Todo`/`In Progress`/`In Review`): `state`, `cycle`, `type:*`, and `size:*`.
+- Mandatory metadata for active parent and child issues (`Todo`/`In Progress`/`In Review`): `state`, `cycle`, `type:*`, and `size:*`.
 - For delivery work in a project, child issues must have a parent capability issue. Top-level epics/capabilities are the only parentless issues in that project.
 - Use `Backlog` only for parked work outside active execution. When an issue is pulled into the current cycle, move it to `Todo` or `In Progress`.
 - Create follow-up child issues before closing an item when a PR is a partial/first slice.
@@ -51,8 +51,8 @@ Primary capabilities include parallel structure views, partial structure transpl
 ### Cycle assignment policy
 
 - Put child delivery issues in cycles.
-- Keep parent capability issues out of cycles by default; use project views to track parent progress.
-- Exception: a parent issue may be put in a cycle only for explicit coordination checkpoints.
+- Put parent capability issues in cycles by default to reflect current delivery velocity.
+- Exception: keep a parent capability issue out of cycle only when it is intentionally long-running and not active this week.
 - During cycle calibration phases, it is acceptable to intentionally over-pack current cycle scope to measure realistic weekly throughput.
 
 ### State transition policy
