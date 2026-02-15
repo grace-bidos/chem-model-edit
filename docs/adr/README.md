@@ -4,6 +4,7 @@ This directory stores architecture decisions that are binding for backend refres
 
 - `ADR-0001`: System-of-record boundaries and ownership model (`GRA-12`)
 - `ADR-0002`: Canonical JobState contract and transition rules (`GRA-13`)
+- `ADR-0003`: Projection boundary and single-write cutover policy (`GRA-37`)
 
 Rules:
 
