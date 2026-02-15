@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import fakeredis
 from fastapi.testclient import TestClient
 
@@ -37,6 +38,30 @@ ATOMIC_POSITIONS angstrom
 """.strip()
 
 
+def _write_slurm_policy(path, *, fallback_mode: str = "route-default") -> None:
+    policy = {
+        "cluster_name": "chem-cluster",
+        "slurm": {
+            "partitions": ["short", "long"],
+            "accounts": ["chem-default", "chem-premium"],
+            "qos": ["normal", "priority"],
+        },
+        "queue_mappings": [
+            {
+                "queue": "standard",
+                "partition": "short",
+                "account": "chem-default",
+                "qos": "normal",
+                "max_walltime_minutes": 120,
+            }
+        ],
+        "fallback_policy": {"mode": fallback_mode, "default_queue": "standard"},
+    }
+    if fallback_mode == "deny":
+        policy["fallback_policy"] = {"mode": "deny"}
+    path.write_text(json.dumps(policy), encoding="utf-8")
+
+
 def _patch_redis(monkeypatch):
     fake = fakeredis.FakeRedis()
     monkeypatch.setattr(zpe_store, "get_redis_connection", lambda: fake)
@@ -56,6 +81,7 @@ def _setup_user_and_target(
     fake,
     *,
     user_id: str = "dev-user-1",
+    queue_name: str = "zpe",
 ) -> tuple[dict[str, str], str]:
     headers = {
         "X-Dev-User-Id": user_id,
@@ -74,7 +100,7 @@ def _setup_user_and_target(
         json={
             "token": enroll_token,
             "name": "server-1",
-            "queue_name": "zpe",
+            "queue_name": queue_name,
         },
     )
     return headers, user_id
@@ -209,6 +235,105 @@ def test_zpe_submission_route_next_gen_unavailable(monkeypatch):
         headers=headers,
     )
     assert response.status_code == 503
+
+
+def test_zpe_submission_denies_unknown_queue_when_slurm_policy_is_deny(
+    monkeypatch,
+    tmp_path,
+):
+    fake = _patch_redis(monkeypatch)
+    store = RedisResultStore(redis=fake)
+    policy_path = tmp_path / "onboarding.policy.json"
+    _write_slurm_policy(policy_path, fallback_mode="deny")
+    settings = ZPESettings(
+        compute_mode="mock",
+        result_store="redis",
+        slurm_policy_path=str(policy_path),
+    )
+
+    monkeypatch.setattr(zpe_backends, "get_result_store", lambda: store)
+    monkeypatch.setattr(zpe_backends, "get_zpe_settings", lambda: settings)
+    monkeypatch.setattr(zpe_router, "get_result_store", lambda: store)
+    monkeypatch.setattr(zpe_router, "get_zpe_settings", lambda: settings)
+
+    client = TestClient(main.app)
+    headers, _user_id = _setup_user_and_target(
+        client,
+        monkeypatch,
+        fake,
+        queue_name="legacy",
+    )
+
+    response = client.post(
+        "/api/zpe/jobs",
+        json={
+            "content": QE_INPUT,
+            "mobile_indices": [0],
+            "use_environ": False,
+            "input_dir": None,
+            "calc_mode": "continue",
+        },
+        headers=headers,
+    )
+    assert response.status_code == 400
+    assert "not allowed by slurm fallback policy" in response.json()["error"]["message"]
+
+
+def test_zpe_submission_routes_to_default_queue_with_slurm_route_default_policy(
+    monkeypatch,
+    tmp_path,
+):
+    fake = _patch_redis(monkeypatch)
+    store = RedisResultStore(redis=fake)
+    policy_path = tmp_path / "onboarding.policy.json"
+    _write_slurm_policy(policy_path, fallback_mode="route-default")
+    settings = ZPESettings(
+        compute_mode="mock",
+        result_store="redis",
+        slurm_policy_path=str(policy_path),
+    )
+    captured: dict[str, str] = {}
+
+    def _capture_enqueue(payload, *, queue_name=None):
+        captured["queue_name"] = queue_name
+        return "job-slurm-route-default"
+
+    monkeypatch.setattr(zpe_backends, "get_result_store", lambda: store)
+    monkeypatch.setattr(zpe_backends, "get_zpe_settings", lambda: settings)
+    monkeypatch.setattr(zpe_router, "get_result_store", lambda: store)
+    monkeypatch.setattr(zpe_router, "get_zpe_settings", lambda: settings)
+    monkeypatch.setattr(zpe_router, "enqueue_zpe_job", _capture_enqueue)
+
+    client = TestClient(main.app)
+    headers, user_id = _setup_user_and_target(
+        client,
+        monkeypatch,
+        fake,
+        queue_name="legacy",
+    )
+    response = client.post(
+        "/api/zpe/jobs",
+        json={
+            "content": QE_INPUT,
+            "mobile_indices": [0],
+            "use_environ": False,
+            "input_dir": None,
+            "calc_mode": "continue",
+        },
+        headers=headers,
+    )
+    assert response.status_code == 200
+    assert response.json()["id"] == "job-slurm-route-default"
+    assert captured["queue_name"] == "standard"
+
+    meta = zpe_job_meta.JobMetaStore(redis=fake).get_meta("job-slurm-route-default")
+    assert meta["user_id"] == user_id
+    assert meta["requested_queue_name"] == "legacy"
+    assert meta["resolved_queue_name"] == "standard"
+    assert meta["used_fallback"] is True
+    assert meta["slurm_partition"] == "short"
+    assert meta["slurm_account"] == "chem-default"
+    assert meta["slurm_qos"] == "normal"
 
 
 def test_zpe_result_read_projection_unavailable(monkeypatch):

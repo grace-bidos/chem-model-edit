@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -61,6 +62,13 @@ from services.zpe.parse import (
     parse_qe_structure,
 )
 from services.zpe.queue_targets import get_queue_target_store
+from services.zpe.settings import ZPESettings
+from services.zpe.slurm_policy import (
+    SlurmPolicyConfigError,
+    SlurmPolicyDeniedError,
+    SlurmQueueResolution,
+    resolve_runtime_slurm_queue,
+)
 from services.zpe.structured_log import log_event
 from services.zpe.worker_auth import get_worker_token_store
 
@@ -103,6 +111,25 @@ def _require_legacy_worker_endpoints(flags: OpsFlags) -> None:
         )
 
 
+def _resolve_submission_queue(
+    requested_queue: str, *, settings: ZPESettings
+) -> SlurmQueueResolution | None:
+    if not settings.slurm_policy_path:
+        return None
+    try:
+        return resolve_runtime_slurm_queue(
+            requested_queue,
+            policy_path=Path(settings.slurm_policy_path),
+        )
+    except SlurmPolicyDeniedError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except SlurmPolicyConfigError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"slurm policy configuration error: {exc}",
+        ) from exc
+
+
 @router.post("/parse", response_model=ZPEParseResponse)
 async def zpe_parse(request: ZPEParseRequest) -> ZPEParseResponse:
     if request.structure_id:
@@ -132,10 +159,10 @@ async def zpe_parse(request: ZPEParseRequest) -> ZPEParseResponse:
 async def zpe_jobs(request: ZPEJobRequest, raw: Request) -> ZPEJobResponse:
     user = require_user_identity(raw)
     request_id = get_request_id(raw)
+    settings = get_zpe_settings()
     flags = get_ops_flags()
     _require_legacy_submission_route(flags)
     if not flags.submission_enabled:
-        settings = get_zpe_settings()
         log_event(
             logger,
             event="zpe_submission_blocked",
@@ -152,6 +179,8 @@ async def zpe_jobs(request: ZPEJobRequest, raw: Request) -> ZPEJobResponse:
     target = target_store.get_active_target(user.user_id)
     if not target:
         raise HTTPException(status_code=400, detail="no active queue target")
+    resolution = _resolve_submission_queue(target.queue_name, settings=settings)
+    resolved_queue_name = resolution.resolved_queue if resolution else target.queue_name
     if request.structure_id:
         try:
             structure = get_structure(request.structure_id)
@@ -171,9 +200,20 @@ async def zpe_jobs(request: ZPEJobRequest, raw: Request) -> ZPEJobResponse:
     )
     payload = request.model_dump()
     payload["mobile_indices"] = mobile_indices
-    job_id = enqueue_zpe_job(payload, queue_name=target.queue_name)
+    job_id = enqueue_zpe_job(payload, queue_name=resolved_queue_name)
     owner_store = get_job_owner_store()
     owner_store.set_owner(job_id, user.user_id)
+    slurm_resolution_meta = {}
+    if resolution is not None:
+        slurm_resolution_meta = {
+            "requested_queue_name": resolution.requested_queue,
+            "resolved_queue_name": resolution.resolved_queue,
+            "used_fallback": resolution.used_fallback,
+            "slurm_partition": resolution.mapping.partition,
+            "slurm_account": resolution.mapping.account,
+            "slurm_qos": resolution.mapping.qos,
+            "slurm_max_walltime_minutes": resolution.mapping.max_walltime_minutes,
+        }
     meta_store = get_job_meta_store()
     meta_store.set_meta(
         job_id,
@@ -181,11 +221,11 @@ async def zpe_jobs(request: ZPEJobRequest, raw: Request) -> ZPEJobResponse:
             "request_id": request_id,
             "user_id": user.user_id,
             "structure_id": request.structure_id,
-            "queue_name": target.queue_name,
+            "queue_name": resolved_queue_name,
             "calc_mode": request.calc_mode,
+            **slurm_resolution_meta,
         },
     )
-    settings = get_zpe_settings()
     log_event(
         logger,
         event="zpe_job_enqueued",
@@ -196,7 +236,14 @@ async def zpe_jobs(request: ZPEJobRequest, raw: Request) -> ZPEJobResponse:
         job_id=job_id,
         user_id=user.user_id,
         structure_id=request.structure_id,
-        queue_name=target.queue_name,
+        queue_name=resolved_queue_name,
+        requested_queue_name=target.queue_name,
+        queue_resolution_used_fallback=(
+            resolution.used_fallback if resolution is not None else False
+        ),
+        slurm_partition=resolution.mapping.partition if resolution else None,
+        slurm_account=resolution.mapping.account if resolution else None,
+        slurm_qos=resolution.mapping.qos if resolution else None,
         backend=settings.compute_mode,
         result_store=settings.result_store,
     )

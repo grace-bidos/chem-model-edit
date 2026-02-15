@@ -73,6 +73,7 @@ class ZPESettings(BaseSettings):
     convex_relay_url: Optional[str] = None
     convex_relay_token: Optional[str] = None
     convex_relay_timeout_seconds: int = 5
+    slurm_policy_path: Optional[str] = None
 
 
 @lru_cache
