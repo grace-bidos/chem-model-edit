@@ -70,6 +70,9 @@ class ZPESettings(BaseSettings):
     worker_poll_interval_seconds: int = 10
     worker_poll_max_interval_seconds: int = 60
     worker_request_timeout_seconds: int = 60
+    convex_relay_url: Optional[str] = None
+    convex_relay_token: Optional[str] = None
+    convex_relay_timeout_seconds: int = 5
 
 
 @lru_cache

@@ -3,7 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from hashlib import sha256
+import json
 from typing import Any, Protocol
+from urllib import error as urlerror
+from urllib import request as urlrequest
 
 from services.zpe.job_state import JobState
 
@@ -78,3 +81,83 @@ class ConvexEventDispatcher(Protocol):
         idempotency_key: str,
     ) -> None:
         ...
+
+
+class NoopConvexEventDispatcher:
+    """No-op dispatcher used when relay configuration is not provided."""
+
+    def dispatch_job_projection(
+        self,
+        payload: ConvexJobProjection,
+        idempotency_key: str,
+    ) -> None:
+        _ = payload
+        _ = idempotency_key
+
+
+class HttpConvexEventDispatcher:
+    """POST job projection updates to an HTTP relay endpoint."""
+
+    def __init__(
+        self,
+        *,
+        relay_url: str,
+        relay_token: str | None = None,
+        timeout_seconds: int = 5,
+    ) -> None:
+        self._relay_url = relay_url
+        self._relay_token = relay_token
+        self._timeout_seconds = timeout_seconds
+
+    def dispatch_job_projection(
+        self,
+        payload: ConvexJobProjection,
+        idempotency_key: str,
+    ) -> None:
+        body = json.dumps(
+            {
+                "projection": payload.as_dict(),
+                "idempotencyKey": idempotency_key,
+            },
+            ensure_ascii=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        headers = {
+            "Content-Type": "application/json",
+            "Idempotency-Key": idempotency_key,
+        }
+        if self._relay_token:
+            headers["Authorization"] = f"Bearer {self._relay_token}"
+        req = urlrequest.Request(
+            self._relay_url,
+            method="POST",
+            data=body,
+            headers=headers,
+        )
+        try:
+            with urlrequest.urlopen(req, timeout=self._timeout_seconds):
+                return
+        except urlerror.HTTPError as exc:
+            if exc.code == 409:
+                # Relay accepted an already-applied idempotent event.
+                return
+            raise RuntimeError(
+                f"convex relay dispatch failed with HTTP {exc.code}"
+            ) from exc
+        except urlerror.URLError as exc:
+            raise RuntimeError("convex relay dispatch failed") from exc
+
+
+def get_convex_event_dispatcher(
+    *,
+    relay_url: str | None,
+    relay_token: str | None,
+    timeout_seconds: int = 5,
+) -> ConvexEventDispatcher:
+    if not relay_url:
+        return NoopConvexEventDispatcher()
+    return HttpConvexEventDispatcher(
+        relay_url=relay_url,
+        relay_token=relay_token,
+        timeout_seconds=timeout_seconds,
+    )
