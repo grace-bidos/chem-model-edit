@@ -140,6 +140,7 @@ Optional post-merge checks (expand later):
 ### 8.5 Accepted ADRs for backend refresh foundations
 
 - `GRA-12`: `docs/adr/ADR-0001-system-of-record-boundaries.md`
+- `GRA-13`: `docs/adr/ADR-0002-jobstate-contract.md`
 
 ## 9. Review bottleneck controls
 

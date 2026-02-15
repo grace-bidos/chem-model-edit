@@ -6,6 +6,7 @@ from pydantic import Field
 
 from .base import ApiModel
 from .common import Pagination, Structure
+from services.zpe.job_state import JobState
 
 
 class ZPEParseRequest(ApiModel):
@@ -35,7 +36,7 @@ class ZPEJobResponse(ApiModel):
 
 
 class ZPEJobStatus(ApiModel):
-    status: str
+    status: JobState
     detail: Optional[str] = None
     updated_at: Optional[str] = None
 

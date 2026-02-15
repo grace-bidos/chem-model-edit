@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "exports": {
-    "./types": "./src/types.ts"
+    "./types": "./src/types.ts",
+    "./job-state": "./src/job-state.ts"
   }
 }
