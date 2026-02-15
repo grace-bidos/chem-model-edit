@@ -1,9 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import {
-  SignInButton,
-  useAuth,
-  useUser,
-} from '@clerk/clerk-react'
+import { SignInButton, useAuth, useUser } from '@clerk/clerk-react'
 import {
   Activity,
   AlertTriangle,
@@ -1560,10 +1556,8 @@ function TransferToolPanel({
         if (applyTokenRef.current !== token) {
           return
         }
-        const {
-          structure: nextStructure,
-          structure_id: structureId,
-        } = await createStructureFromQe(content)
+        const { structure: nextStructure, structure_id: structureId } =
+          await createStructureFromQe(content)
         if (applyTokenRef.current !== token) {
           return
         }
@@ -1600,10 +1594,8 @@ function TransferToolPanel({
       if (applyTokenRef.current !== token) {
         return
       }
-      const {
-        structure: previewStructure,
-        structure_id: structureId,
-      } = await createStructureFromQe(content)
+      const { structure: previewStructure, structure_id: structureId } =
+        await createStructureFromQe(content)
       if (applyTokenRef.current !== token) {
         return
       }

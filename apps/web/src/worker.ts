@@ -1,4 +1,7 @@
-import { createStartHandler, defaultStreamHandler } from '@tanstack/react-start/server'
+import {
+  createStartHandler,
+  defaultStreamHandler,
+} from '@tanstack/react-start/server'
 
 const handler = createStartHandler(defaultStreamHandler)
 
@@ -22,7 +25,10 @@ type AssetsBinding = {
 }
 
 export default {
-  async fetch(request: Request, env: { ASSETS?: AssetsBinding }): Promise<Response> {
+  async fetch(
+    request: Request,
+    env: { ASSETS?: AssetsBinding },
+  ): Promise<Response> {
     if ((request.method === 'GET' || request.method === 'HEAD') && env.ASSETS) {
       if (isAssetRequest(request)) {
         const assetResponse = await env.ASSETS.fetch(request)

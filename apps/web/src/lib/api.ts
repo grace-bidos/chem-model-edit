@@ -15,7 +15,7 @@ export function setApiTokenProvider(provider: TokenProvider | null) {
 const request = async <T>(params: ApiRequest): Promise<T> => {
   const token =
     params.token === undefined
-      ? (await tokenProvider?.()) ?? undefined
+      ? ((await tokenProvider?.()) ?? undefined)
       : params.token
   return (await requestApi({ data: { ...params, token } })) as T
 }
