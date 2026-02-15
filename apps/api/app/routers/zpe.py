@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -42,16 +41,20 @@ from app.schemas.zpe import (
     ZPEResult,
 )
 from services.structures import get_structure
-from services.zpe import (
-    ensure_mobile_indices,
-    enqueue_zpe_job,
-    get_result_store,
-    get_zpe_settings,
+from services.zpe import get_zpe_settings
+from services.zpe.backends import (
+    JobConflictError,
+    NoActiveQueueTargetError,
+    ResultArtifactMissingError,
+    StructureMismatchError,
+    get_job_file,
+    get_job_result,
+    get_job_status,
+    submit_job,
 )
 from services.zpe.compute_results import submit_failure, submit_result
 from services.zpe.enroll import get_enroll_store
 from services.zpe.job_meta import get_job_meta_store
-from services.zpe.job_owner import get_job_owner_store
 from services.zpe.lease import lease_next_job
 from services.zpe.ops_flags import OpsFlags, get_ops_flags, set_ops_flags
 from services.zpe.parse import (
@@ -62,12 +65,9 @@ from services.zpe.parse import (
     parse_qe_structure,
 )
 from services.zpe.queue_targets import get_queue_target_store
-from services.zpe.settings import ZPESettings
 from services.zpe.slurm_policy import (
     SlurmPolicyConfigError,
     SlurmPolicyDeniedError,
-    SlurmQueueResolution,
-    resolve_runtime_slurm_queue,
 )
 from services.zpe.structured_log import log_event
 from services.zpe.worker_auth import get_worker_token_store
@@ -77,57 +77,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/zpe", tags=["zpe"])
 
 
-def _ensure_job_finished(job_id: str) -> None:
-    store = get_result_store()
-    try:
-        status = store.get_status(job_id)
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail="job not found") from exc
-    if status.status == "failed":
-        detail = status.detail or "unknown"
-        raise HTTPException(status_code=409, detail=f"job failed: {detail}")
-    if status.status != "finished":
-        raise HTTPException(
-            status_code=409,
-            detail=f"job not finished (status={status.status})",
-        )
-
-
-def _require_legacy_submission_route(flags: OpsFlags) -> None:
-    if flags.submission_route != "redis-worker":
-        raise HTTPException(status_code=503, detail="submission route not available")
-
-
-def _require_legacy_result_read_source(flags: OpsFlags) -> None:
-    if flags.result_read_source != "redis":
-        raise HTTPException(status_code=503, detail="result read source not available")
-
-
 def _require_legacy_worker_endpoints(flags: OpsFlags) -> None:
     if not flags.legacy_worker_endpoints_enabled:
         raise HTTPException(
             status_code=503,
             detail="legacy worker endpoints disabled by cutover flag",
         )
-
-
-def _resolve_submission_queue(
-    requested_queue: str, *, settings: ZPESettings
-) -> SlurmQueueResolution | None:
-    if not settings.slurm_policy_path:
-        return None
-    try:
-        return resolve_runtime_slurm_queue(
-            requested_queue,
-            policy_path=Path(settings.slurm_policy_path),
-        )
-    except SlurmPolicyDeniedError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except SlurmPolicyConfigError as exc:
-        raise HTTPException(
-            status_code=503,
-            detail=f"slurm policy configuration error: {exc}",
-        ) from exc
 
 
 @router.post("/parse", response_model=ZPEParseResponse)
@@ -161,7 +116,6 @@ async def zpe_jobs(request: ZPEJobRequest, raw: Request) -> ZPEJobResponse:
     request_id = get_request_id(raw)
     settings = get_zpe_settings()
     flags = get_ops_flags()
-    _require_legacy_submission_route(flags)
     if not flags.submission_enabled:
         log_event(
             logger,
@@ -175,57 +129,22 @@ async def zpe_jobs(request: ZPEJobRequest, raw: Request) -> ZPEJobResponse:
             result_store=settings.result_store,
         )
         raise HTTPException(status_code=503, detail="zpe submissions disabled")
-    target_store = get_queue_target_store()
-    target = target_store.get_active_target(user.user_id)
-    if not target:
-        raise HTTPException(status_code=400, detail="no active queue target")
-    resolution = _resolve_submission_queue(target.queue_name, settings=settings)
-    resolved_queue_name = resolution.resolved_queue if resolution else target.queue_name
-    if request.structure_id:
-        try:
-            structure = get_structure(request.structure_id)
-        except KeyError as exc:
-            raise HTTPException(status_code=404, detail="Structure not found") from exc
-        fixed_indices = extract_fixed_indices(request.content)
-        atoms = parse_qe_atoms(request.content)
-        if len(atoms) != len(structure.atoms):
-            raise HTTPException(
-                status_code=409,
-                detail="Structure does not match QE input atom count",
-            )
-    else:
-        structure, fixed_indices = parse_qe_structure(request.content)
-    mobile_indices = ensure_mobile_indices(
-        request.mobile_indices, len(structure.atoms), fixed_indices
-    )
-    payload = request.model_dump()
-    payload["mobile_indices"] = mobile_indices
-    job_id = enqueue_zpe_job(payload, queue_name=resolved_queue_name)
-    owner_store = get_job_owner_store()
-    owner_store.set_owner(job_id, user.user_id)
-    slurm_resolution_meta = {}
-    if resolution is not None:
-        slurm_resolution_meta = {
-            "requested_queue_name": resolution.requested_queue,
-            "resolved_queue_name": resolution.resolved_queue,
-            "used_fallback": resolution.used_fallback,
-            "slurm_partition": resolution.mapping.partition,
-            "slurm_account": resolution.mapping.account,
-            "slurm_qos": resolution.mapping.qos,
-            "slurm_max_walltime_minutes": resolution.mapping.max_walltime_minutes,
-        }
-    meta_store = get_job_meta_store()
-    meta_store.set_meta(
-        job_id,
-        {
-            "request_id": request_id,
-            "user_id": user.user_id,
-            "structure_id": request.structure_id,
-            "queue_name": resolved_queue_name,
-            "calc_mode": request.calc_mode,
-            **slurm_resolution_meta,
-        },
-    )
+    try:
+        outcome = submit_job(request, user_id=user.user_id, request_id=request_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Structure not found") from exc
+    except NoActiveQueueTargetError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except StructureMismatchError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except SlurmPolicyDeniedError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except SlurmPolicyConfigError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"slurm policy configuration error: {exc}",
+        ) from exc
+    resolution = outcome.slurm_resolution
     log_event(
         logger,
         event="zpe_job_enqueued",
@@ -233,11 +152,11 @@ async def zpe_jobs(request: ZPEJobRequest, raw: Request) -> ZPEJobResponse:
         stage="enqueue",
         status="queued",
         request_id=request_id,
-        job_id=job_id,
+        job_id=outcome.job_id,
         user_id=user.user_id,
         structure_id=request.structure_id,
-        queue_name=resolved_queue_name,
-        requested_queue_name=target.queue_name,
+        queue_name=outcome.resolved_queue_name,
+        requested_queue_name=outcome.requested_queue_name,
         queue_resolution_used_fallback=(
             resolution.used_fallback if resolution is not None else False
         ),
@@ -247,17 +166,14 @@ async def zpe_jobs(request: ZPEJobRequest, raw: Request) -> ZPEJobResponse:
         backend=settings.compute_mode,
         result_store=settings.result_store,
     )
-    return ZPEJobResponse(id=job_id)
+    return ZPEJobResponse(id=outcome.job_id)
 
 
 @router.get("/jobs/{job_id}", response_model=ZPEJobStatus)
 async def zpe_job_status(job_id: str, raw: Request) -> ZPEJobStatus:
     require_job_owner(raw, job_id)
-    flags = get_ops_flags()
-    _require_legacy_result_read_source(flags)
-    store = get_result_store()
     try:
-        status = store.get_status(job_id)
+        status = get_job_status(job_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="job not found") from exc
     return ZPEJobStatus(
@@ -270,21 +186,14 @@ async def zpe_job_status(job_id: str, raw: Request) -> ZPEJobStatus:
 @router.get("/jobs/{job_id}/result", response_model=ZPEJobResultResponse)
 async def zpe_job_result(job_id: str, raw: Request) -> ZPEJobResultResponse:
     require_job_owner(raw, job_id)
-    flags = get_ops_flags()
-    _require_legacy_result_read_source(flags)
-    store = get_result_store()
-    _ensure_job_finished(job_id)
     try:
-        result_dict = store.get_result(job_id)
+        result_dict = get_job_result(job_id)
     except KeyError as exc:
-        raise HTTPException(
-            status_code=500, detail="result missing after completion"
-        ) from exc
-    if "kpts" in result_dict and "kpoints" not in result_dict:
-        result_dict = {
-            **{key: value for key, value in result_dict.items() if key != "kpts"},
-            "kpoints": result_dict.get("kpts"),
-        }
+        raise HTTPException(status_code=404, detail="job not found") from exc
+    except JobConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ResultArtifactMissingError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
     try:
         result = ZPEResult(**result_dict)
     except ValidationError as exc:
@@ -299,18 +208,16 @@ async def zpe_job_files(
     kind: Literal["summary", "freqs"] = Query(...),
 ) -> Response:
     require_job_owner(raw, job_id)
-    flags = get_ops_flags()
-    _require_legacy_result_read_source(flags)
-    store = get_result_store()
-    _ensure_job_finished(job_id)
     try:
-        payload = store.get_file(job_id, kind)
+        payload = get_job_file(job_id, kind)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="job not found") from exc
+    except JobConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except KeyError as exc:
-        raise HTTPException(
-            status_code=500, detail="file missing after completion"
-        ) from exc
+    except ResultArtifactMissingError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
     filename = "summary.txt" if kind == "summary" else "freqs.csv"
     media_type = "text/plain" if kind == "summary" else "text/csv"
     return Response(
