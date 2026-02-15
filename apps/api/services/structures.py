@@ -2,11 +2,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from io import StringIO
+import json
+import os
+from pathlib import Path
+import sqlite3
 from threading import RLock
-from typing import Dict, Optional
+from typing import Dict, Optional, cast
 from uuid import uuid4
 
 from ase import Atoms as ASEAtoms
+from ase.io import read as ase_read
 from app.schemas.common import QeParameters, Structure
 from services.cif import atoms_to_cif
 from services.parse import extract_qe_params, parse_qe_atoms, structure_from_ase
@@ -22,7 +28,7 @@ class StoredStructure:
     created_at: datetime
 
 
-class StructureStore:
+class InMemoryStructureStore:
     def __init__(self) -> None:
         self._items: Dict[str, StoredStructure] = {}
         self._lock = RLock()
@@ -51,13 +57,146 @@ class StructureStore:
 
     def get(self, structure_id: str) -> Optional[StoredStructure]:
         with self._lock:
-            entry = self._items.get(structure_id)
-            if not entry:
-                return None
-            return entry
+            return self._items.get(structure_id)
 
 
-_STORE = StructureStore()
+class SQLiteStructureStore:
+    def __init__(self, db_path: str | Path, *, reset_on_start: bool = False) -> None:
+        self._db_path = Path(db_path)
+        self._lock = RLock()
+        self._db_path.parent.mkdir(parents=True, exist_ok=True)
+        self._initialize_schema(reset_on_start=reset_on_start)
+
+    def _connect(self) -> sqlite3.Connection:
+        connection = sqlite3.connect(str(self._db_path))
+        connection.row_factory = sqlite3.Row
+        return connection
+
+    def _initialize_schema(self, *, reset_on_start: bool) -> None:
+        with self._lock, self._connect() as connection:
+            if reset_on_start:
+                connection.execute("DROP TABLE IF EXISTS structures")
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS structures (
+                  structure_id TEXT PRIMARY KEY,
+                  source TEXT NOT NULL,
+                  cif TEXT NOT NULL,
+                  params_json TEXT,
+                  raw_input TEXT,
+                  created_at TEXT NOT NULL
+                )
+                """
+            )
+            connection.commit()
+
+    def create(
+        self,
+        atoms: ASEAtoms,
+        source: str,
+        cif: str,
+        params: QeParameters | None,
+        raw_input: str | None,
+    ) -> str:
+        structure_id = uuid4().hex
+        now = datetime.now(timezone.utc).isoformat()
+        params_json = params.model_dump_json() if params is not None else None
+        with self._lock, self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO structures (
+                  structure_id,
+                  source,
+                  cif,
+                  params_json,
+                  raw_input,
+                  created_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (structure_id, source, cif, params_json, raw_input, now),
+            )
+            connection.commit()
+        return structure_id
+
+    def get(self, structure_id: str) -> Optional[StoredStructure]:
+        with self._lock, self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT structure_id, source, cif, params_json, raw_input, created_at
+                FROM structures
+                WHERE structure_id = ?
+                """,
+                (structure_id,),
+            ).fetchone()
+        if row is None:
+            return None
+
+        cif = cast(str, row["cif"])
+        params_json = cast(Optional[str], row["params_json"])
+        params: QeParameters | None = None
+        if params_json:
+            params = QeParameters.model_validate(json.loads(params_json))
+
+        created_at_raw = cast(str, row["created_at"])
+        created_at = datetime.fromisoformat(created_at_raw)
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+
+        return StoredStructure(
+            atoms=_atoms_from_cif(cif),
+            source=cast(str, row["source"]),
+            cif=cif,
+            params=params,
+            raw_input=cast(Optional[str], row["raw_input"]),
+            created_at=created_at,
+        )
+
+
+def _atoms_from_cif(cif_text: str) -> ASEAtoms:
+    atoms = ase_read(StringIO(cif_text), format="cif")
+    if not isinstance(atoms, ASEAtoms):
+        raise ValueError("failed to parse CIF into ASE atoms")
+    return atoms
+
+
+def _default_db_path() -> Path:
+    cwd = Path.cwd()
+    for base in (cwd, *cwd.parents):
+        if (base / ".git").exists():
+            return base / ".just-runtime" / "structures.sqlite3"
+    return cwd / ".just-runtime" / "structures.sqlite3"
+
+
+def _as_bool(value: str | None, default: bool = False) -> bool:
+    if value is None:
+        return default
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    return default
+
+
+def _build_store() -> InMemoryStructureStore | SQLiteStructureStore:
+    backend = os.getenv("STRUCTURE_STORE_BACKEND", "sqlite").strip().lower()
+    if backend == "memory":
+        return InMemoryStructureStore()
+    if backend != "sqlite":
+        raise ValueError("STRUCTURE_STORE_BACKEND must be 'sqlite' or 'memory'")
+
+    db_path_raw = os.getenv("STRUCTURE_STORE_DB_PATH")
+    db_path = Path(db_path_raw).expanduser() if db_path_raw else _default_db_path()
+    reset_on_start = _as_bool(os.getenv("STRUCTURE_STORE_RESET_ON_START"), False)
+    return SQLiteStructureStore(db_path, reset_on_start=reset_on_start)
+
+
+_STORE = _build_store()
+
+
+def reload_structure_store() -> None:
+    global _STORE
+    _STORE = _build_store()
 
 
 def create_structure_from_qe(

@@ -152,6 +152,7 @@ Optional post-merge checks (expand later):
 - `GRA-20`: `docs/process/fastapi-thin-adapter-cleanup-plan.md`
 - `GRA-21`: `docs/process/redis-worker-cutover-flags.md`
 - `GRA-22`: `docs/process/redis-worker-retirement-plan.md`
+- `GRA-24`: `docs/process/structure-store-persistence.md`
 
 ## 9. Review bottleneck controls
 
