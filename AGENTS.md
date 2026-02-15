@@ -56,6 +56,10 @@ Primary capabilities include parallel structure views, partial structure transpl
 - Use `--resolve-outdated-threads` only for outdated threads; do not auto-resolve active review discussions.
 - Prefer this script over ad-hoc manual polling when handling repeated CI/review feedback cycles.
 - If `--delete-branch` fails because the branch is attached to an active worktree, clean it up manually after removing the worktree.
+- After a PR is merged, always sync local `main` immediately as part of the same operation set:
+  - `git fetch origin --prune`
+  - `git checkout main`
+  - `git pull --ff-only origin main`
 
 ## Repository Layout
 - `apps/web`: TanStack Start frontend
