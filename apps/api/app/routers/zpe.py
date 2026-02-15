@@ -478,6 +478,8 @@ async def zpe_compute_failed(
         )
     except PermissionError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     settings = get_zpe_settings()
     log_event(
         logger,

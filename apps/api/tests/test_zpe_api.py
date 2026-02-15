@@ -279,6 +279,34 @@ def test_admin_ops_flags_partial_update_keeps_other_values(monkeypatch):
     assert payload["legacy_worker_endpoints_enabled"] is False
 
 
+def test_compute_failed_endpoint_maps_invalid_transition_to_conflict(monkeypatch):
+    fake = _patch_redis(monkeypatch)
+    client = TestClient(main.app)
+    worker_token = zpe_worker_auth.WorkerTokenStore(redis=fake).create_token(
+        "compute-1"
+    ).token
+
+    def _raise_invalid_transition(**_kwargs):
+        raise ValueError("invalid job state transition: finished -> queued")
+
+    monkeypatch.setattr(zpe_router, "submit_failure", _raise_invalid_transition)
+
+    response = client.post(
+        "/api/zpe/compute/jobs/job-1/failed",
+        headers={"Authorization": f"Bearer {worker_token}"},
+        json={
+            "lease_id": "lease-1",
+            "error_code": "ERR",
+            "error_message": "boom",
+        },
+    )
+
+    assert response.status_code == 409
+    payload = response.json()
+    assert payload["error"]["code"] == "conflict"
+    assert "invalid job state transition" in payload["error"]["message"]
+
+
 def test_zpe_owner_enforcement_blocks_non_owner(monkeypatch):
     fake = _patch_redis(monkeypatch)
     store = RedisResultStore(redis=fake)
