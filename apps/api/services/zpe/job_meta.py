@@ -17,9 +17,12 @@ class JobMetaStore:
         self.redis = redis or get_redis_connection()
 
     def set_meta(self, job_id: str, meta: Dict[str, Any]) -> None:
+        tenant_id = meta.get("tenant_id")
+        if not isinstance(tenant_id, str) or not tenant_id.strip():
+            raise ValueError("tenant_id is required in job meta")
         settings = get_zpe_settings()
         key = f"{_META_PREFIX}{job_id}"
-        payload = json.dumps(meta, ensure_ascii=True)
+        payload = json.dumps(meta, ensure_ascii=True, separators=(",", ":"))
         ok = self.redis.setex(key, settings.result_ttl_seconds, payload)
         if not ok:
             raise RuntimeError("failed to set job meta")
