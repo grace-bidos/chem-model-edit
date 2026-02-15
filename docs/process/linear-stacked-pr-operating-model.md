@@ -121,16 +121,27 @@ Optional post-merge checks (expand later):
 
 - Main agent owns Linear planning/status/dependency management, stack order, and final merge execution.
 - Sub-agents own implementation, research, review-loop handling, and CI fixes inside assigned child-issue lanes only.
+- Main agent is not a constant PR/CI poller; it checks at explicit milestones (handoff, merge-ready notification, merge execution).
 - Inter-agent communication is English by default.
 - Lane conflict classification and default concurrency:
   - Low conflict lane (docs/specs/localized tests): up to 3 concurrent child lanes.
   - Medium conflict lane (same app area, clear file ownership): up to 2 concurrent child lanes.
   - High conflict lane (shared contracts/schemas/core runtime): 1 active lane; serialize merges.
 - Sub-agent slot budget: up to 3 planned delivery lanes plus 1 reserved hotfix lane for `main` health recovery.
+- Lane inventory cadence: update active-lane inventory on assignment, at least every 2 hours, and at end-of-day handoff.
+- Stale-session rule: if no lane heartbeat for 30+ minutes during active CI/review, mark lane stale and pause new assignments into that slot until recovered or reassigned.
+- Lane close rule: when merged/reassigned/canceled, post final lane status and clean worktree/branch to free slot capacity.
 - Merge-readiness handoff from sub-agent to main requires required checks green, unresolved review threads = 0, and head not `BEHIND` base.
 - Handoff report must also list addressed review feedback and remaining risks/conflicts.
 - Sub-agents do not merge PRs directly.
 - If lane conflicts appear, sub-agents hand off conflict context/options to main agent for resolution direction.
+
+### 8.1 Worktree preflight before lane start
+
+- Before coding in a new lane worktree, verify toolchain readiness: `node`, `corepack`, `pnpm`, `uv`.
+- Required preflight commands: `for tool in node corepack pnpm uv; do command -v "$tool" >/dev/null || { echo "missing: $tool"; exit 1; }; done`, `node -v`, `pnpm -v`, `uv --version`.
+- If missing tools are detected, remediate first (`corepack enable`, `corepack prepare pnpm@10.27.0 --activate`, install `uv`), then run dependency setup (`pnpm install`, `uv sync` in `apps/api`).
+- Do not start PR auto-loop or CI/watch until preflight is green.
 
 ## 9. Backend refresh mapping (historical example)
 
