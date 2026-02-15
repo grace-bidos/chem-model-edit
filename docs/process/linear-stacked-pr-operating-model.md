@@ -103,6 +103,7 @@ Optional post-merge checks (expand later):
 5. Review:
    - review in GitHub
    - keep fixes inside same stack branch
+   - for runtime/backend-refresh PRs, include ADR-0001 SoR mapping in PR description (`field/aggregate`, `owner`, `write path`, `read path`)
 6. Merge:
    - merge bottom-up: land the base PR first, then proceed upward through the stack
    - use merge queue where required
@@ -137,12 +138,17 @@ Optional post-merge checks (expand later):
   - `GRA-14` -> `GRA-15` -> `GRA-16` -> `GRA-18` -> `GRA-20`
 - Stack C (migration and operations):
   - `GRA-21` -> `GRA-22` -> `GRA-19` -> `GRA-23` -> `GRA-24` -> `GRA-25`
+  - follow ADR-0003 single-write cutover policy for migration PRs (`GRA-21`, `GRA-22`): no long-lived dual-write phase, rollback behavior documented, and temporary emergency-stop flags must include explicit expiry/removal plan
 
 ### 8.5 Accepted ADRs for backend refresh foundations
 
 - `GRA-12`: `docs/adr/ADR-0001-system-of-record-boundaries.md`
 - `GRA-13`: `docs/adr/ADR-0002-jobstate-contract.md`
 - `GRA-37`: `docs/adr/ADR-0003-projection-boundary-and-single-write-cutover.md`
+
+### 8.6 Active refactor plan artifacts
+
+- `GRA-20`: `docs/process/fastapi-thin-adapter-cleanup-plan.md`
 
 ## 9. Review bottleneck controls
 
