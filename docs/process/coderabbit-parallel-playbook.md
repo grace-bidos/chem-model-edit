@@ -7,11 +7,14 @@ This playbook converts review wait time into delivery time by using stacked PRs 
 - Every task has a child issue with clear acceptance criteria.
 - Each child issue maps to one small PR.
 - Worktree path is `.worktrees/<branch-name>`.
+- Lane owner (sub-agent) is assigned for each active PR lane.
 - Lane conflict classification and default concurrency:
   - Low conflict lane (docs/specs/localized tests): up to 3 concurrent child lanes.
   - Medium conflict lane (same app area, clear file ownership): up to 2 concurrent child lanes.
   - High conflict lane (shared contracts/schemas/core runtime): 1 active lane; serialize merges.
 - Slot budget: up to 3 planned delivery lanes plus 1 reserved hotfix lane for `main` health recovery.
+- Main agent coordinates and merges; it does not run continuous PR/CI polling for every lane.
+- Before lane start, run worktree preflight: `for tool in node corepack pnpm uv; do command -v "$tool" >/dev/null || { echo "missing: $tool"; exit 1; }; done`, `node -v`, `pnpm -v`, `uv --version`.
 
 ## Standard Flow
 
@@ -21,6 +24,13 @@ This playbook converts review wait time into delivery time by using stacked PRs 
 4. Merge PR-A with merge commit.
 5. Restack/sync PR-B onto merged base (prefer `gt sync`; use rebase only if not using Graphite).
 6. Repeat for PR-C, PR-D.
+
+Lane operations while active:
+
+- Lane owner runs `scripts/gh/pr-autoloop.py ... --watch` and handles CI/review feedback in-lane.
+- Refresh lane inventory on assignment, every 2 hours, and before end-of-day handoff.
+- If no lane heartbeat for 30+ minutes during active CI/review, mark lane stale and pause slot reuse until recovered or reassigned.
+- Close lane after merge/reassignment/cancel: post final status, clean worktree/branch, then release slot.
 
 ## Merge Gate (Mandatory)
 

@@ -103,6 +103,8 @@ Primary capabilities include parallel structure views, partial structure transpl
 - Use `scripts/gh/pr-autoloop.py <PR_NUMBER> --watch --merge-when-ready --merge-method merge` to run the review/check/merge loop.
 - Use `--resolve-outdated-threads` only for outdated threads; do not auto-resolve active review discussions.
 - Prefer this script over ad-hoc manual polling when handling repeated CI/review feedback cycles.
+- Main agent should not be a constant PR/CI poller; use milestone-based checks (handoff received, merge-ready ping, merge execution) instead of continuous watch loops.
+- Sub-agent owning a lane runs the PR loop and CI/watch for that lane until handoff.
 - CodeRabbit trigger policy: request review once when PR is review-ready, then re-request only after substantive new commits and at least 15 minutes since the last request.
 - If `--delete-branch` fails because the branch is attached to an active worktree, clean it up manually after removing the worktree.
 - After a PR is merged, always sync local `main` immediately as part of the same operation set.
@@ -122,9 +124,27 @@ Primary capabilities include parallel structure views, partial structure transpl
   - Medium conflict lane (same app area, clear file ownership): up to 2 concurrent child lanes.
   - High conflict lane (shared contracts/schemas/core runtime): 1 active lane; serialize merges.
 - Sub-agent slot budget: up to 3 planned delivery lanes plus 1 reserved hotfix lane for `main` health recovery.
+- Sub-agent inventory cadence: refresh lane inventory at assignment time, at least every 2 hours during active delivery, and before end-of-day handoff.
+- Stale-session handling: if a lane has no heartbeat for 30+ minutes during active CI/review, mark it stale, pause new assignments into that slot, and either recover or reassign ownership explicitly.
+- Lane close rule: on merge/reassignment/cancel, close the lane by posting final status, cleaning up worktree/branch, and freeing the slot in inventory.
 - Merge-readiness contract for sub-agent handoff: required checks are green, unresolved review threads are zero, head is not `BEHIND` base, and remaining risks/conflicts are listed.
 - Conflict handoff rule: if cross-lane conflicts are detected, stop local conflict resolution and hand off to main agent with impacted files, conflict summary, and proposed resolution options.
 - Sub-agents must not merge PRs directly. Main agent performs final merge and post-merge Linear updates.
+
+### Worktree Preflight Policy
+
+- Before implementation in a new worktree, verify tool availability: `node`, `corepack`, `pnpm`, and `uv`.
+- Minimum preflight checks:
+  - `for tool in node corepack pnpm uv; do command -v "$tool" >/dev/null || { echo "missing: $tool"; exit 1; }; done`
+  - `node -v`
+  - `pnpm -v`
+  - `uv --version`
+- Remediation path:
+  - If `node`/`corepack` are missing, install Node with Corepack support.
+  - If `pnpm` is missing, run `corepack enable` and `corepack prepare pnpm@10.27.0 --activate`.
+  - If `uv` is missing, install `uv` before running API tasks.
+  - If dependencies are not ready in the worktree, run `pnpm install` and `uv sync` in `apps/api`.
+- Do not start PR/CI watch loops until preflight is green for the lane.
 
 ## Repository Layout
 
