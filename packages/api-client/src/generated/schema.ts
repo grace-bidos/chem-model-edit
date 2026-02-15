@@ -453,6 +453,11 @@ export interface components {
         };
         /** ComputeRegisterRequest */
         ComputeRegisterRequest: {
+            /**
+             * Activate Target
+             * @default false
+             */
+            activate_target: boolean;
             /** Meta */
             meta?: {
                 [key: string]: unknown;

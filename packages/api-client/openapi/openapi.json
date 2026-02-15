@@ -129,6 +129,11 @@
       "ComputeRegisterRequest": {
         "additionalProperties": false,
         "properties": {
+          "activate_target": {
+            "default": false,
+            "title": "Activate Target",
+            "type": "boolean"
+          },
           "meta": {
             "additionalProperties": true,
             "title": "Meta",
