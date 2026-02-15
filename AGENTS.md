@@ -107,11 +107,16 @@ Primary capabilities include parallel structure views, partial structure transpl
   - `git fetch origin --prune`
   - `git -C "$(git rev-parse --show-toplevel)" merge --ff-only origin/main`
 
-### Sub-agent ownership policy
+### Main vs Sub-agent execution model
 
 - Assign sub-agents only child delivery issues, never parent capability issues.
-- Main agent owns parent issue planning, decomposition, and acceptance checks.
-- Sub-agent handoff must include issue id, owned files, out-of-scope boundaries, and reporting language (`English` for inter-agent communication).
+- Main agent owns Linear planning/status/dependency management, parent acceptance checks, and final merge execution.
+- Sub-agents own implementation, research, review-loop handling, and CI fixes for their assigned child issue and owned files.
+- Inter-agent communication (including sub-agent outputs) is English by default.
+- Parallel lane rule: one child issue maps to one lane (`issue -> branch -> worktree -> PR`); sub-agents must not edit outside their lane ownership.
+- Merge-readiness contract for sub-agent handoff: required checks are green (or blocker explicitly documented), review comments are addressed, and remaining risks/conflicts are listed.
+- Conflict handoff rule: if cross-lane conflicts are detected, stop local conflict resolution and hand off to main agent with impacted files, conflict summary, and proposed resolution options.
+- Sub-agents must not merge PRs directly. Main agent performs final merge and post-merge Linear updates.
 
 ## Repository Layout
 
