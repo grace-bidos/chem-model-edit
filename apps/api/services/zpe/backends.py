@@ -27,6 +27,11 @@ from .slurm_policy import (
     SlurmQueueResolution,
     resolve_runtime_slurm_queue,
 )
+from .submit_idempotency import (
+    SubmitIdempotencyRecord,
+    compute_submit_request_fingerprint,
+    get_submit_idempotency_store,
+)
 from .thermo import calc_zpe_and_s_vib, normalize_frequencies
 from .compute_results import (
     FailureOutcome,
@@ -60,12 +65,17 @@ class StructureMismatchError(ValueError):
     """Raised when submitted QE input does not match the requested structure."""
 
 
+class IdempotencyKeyConflictError(ValueError):
+    """Raised when a request id is reused for a different submission payload."""
+
+
 @dataclass(frozen=True)
 class SubmitJobOutcome:
     job_id: str
     requested_queue_name: str
     resolved_queue_name: str
     slurm_resolution: SlurmQueueResolution | None
+    idempotent: bool = False
 
 
 @dataclass(frozen=True)
@@ -97,6 +107,7 @@ def submit_job(
     request: ZPEJobRequest, *, user_id: str, tenant_id: str, request_id: str
 ) -> SubmitJobOutcome:
     settings = get_zpe_settings()
+    idempotency_store = get_submit_idempotency_store()
     target_store = get_queue_target_store()
     target = target_store.get_active_target(user_id)
     if not target:
@@ -116,7 +127,69 @@ def submit_job(
     )
     payload = request.model_dump()
     payload["mobile_indices"] = mobile_indices
-    job_id = enqueue_zpe_job(payload, queue_name=resolved_queue_name)
+    request_fingerprint = compute_submit_request_fingerprint(payload)
+    try:
+        claim = idempotency_store.claim_or_get(
+            user_id=user_id,
+            tenant_id=tenant_id,
+            request_id=request_id,
+            request_fingerprint=request_fingerprint,
+        )
+    except ValueError as exc:
+        raise IdempotencyKeyConflictError(str(exc)) from exc
+    if claim.state == "ready":
+        if claim.record is None:
+            raise RuntimeError("submit idempotency record missing")
+        return SubmitJobOutcome(
+            job_id=claim.record.job_id,
+            requested_queue_name=claim.record.requested_queue_name,
+            resolved_queue_name=claim.record.resolved_queue_name,
+            slurm_resolution=None,
+            idempotent=True,
+        )
+    if claim.state == "pending":
+        try:
+            existing = idempotency_store.wait_for_record(
+                user_id=user_id,
+                tenant_id=tenant_id,
+                request_id=request_id,
+                request_fingerprint=request_fingerprint,
+            )
+        except ValueError as exc:
+            raise IdempotencyKeyConflictError(str(exc)) from exc
+        if existing is None:
+            raise RuntimeError("idempotency request still in progress; retry")
+        return SubmitJobOutcome(
+            job_id=existing.job_id,
+            requested_queue_name=existing.requested_queue_name,
+            resolved_queue_name=existing.resolved_queue_name,
+            slurm_resolution=None,
+            idempotent=True,
+        )
+    if claim.claim_token is None:
+        raise RuntimeError("submit idempotency claim token missing")
+    try:
+        job_id = enqueue_zpe_job(payload, queue_name=resolved_queue_name)
+    except Exception:
+        idempotency_store.release_claim(
+            user_id=user_id,
+            tenant_id=tenant_id,
+            request_id=request_id,
+            claim_token=claim.claim_token,
+        )
+        raise
+    idempotency_store.finalize_claim(
+        user_id=user_id,
+        tenant_id=tenant_id,
+        request_id=request_id,
+        claim_token=claim.claim_token,
+        record=SubmitIdempotencyRecord(
+            job_id=job_id,
+            request_fingerprint=request_fingerprint,
+            requested_queue_name=target.queue_name,
+            resolved_queue_name=resolved_queue_name,
+        ),
+    )
     owner_store = get_job_owner_store()
     owner_store.set_owner(job_id, user_id, tenant_id)
     slurm_resolution_meta = {}
@@ -148,6 +221,7 @@ def submit_job(
         requested_queue_name=target.queue_name,
         resolved_queue_name=resolved_queue_name,
         slurm_resolution=resolution,
+        idempotent=False,
     )
 
 

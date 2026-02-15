@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 import json
+import threading
+import time
 import fakeredis
 from fastapi.testclient import TestClient
 
 import main
 import app.routers.zpe as zpe_router
+from app.schemas.zpe import ZPEJobRequest
 from services.zpe import backends as zpe_backends
 from services.zpe import enroll as zpe_enroll
 from services.zpe import job_meta as zpe_job_meta
@@ -14,6 +18,7 @@ from services.zpe import ops_flags as zpe_ops_flags
 from services.zpe import queue as zpe_queue
 from services.zpe import queue_targets as zpe_queue_targets
 from services.zpe import result_store as zpe_store
+from services.zpe import submit_idempotency as zpe_submit_idempotency
 from services.zpe import worker_auth as zpe_worker_auth
 from services.zpe.result_store import RedisResultStore
 from services.zpe.settings import ZPESettings
@@ -72,6 +77,7 @@ def _patch_redis(monkeypatch):
     monkeypatch.setattr(zpe_job_owner, "get_redis_connection", lambda: fake)
     monkeypatch.setattr(zpe_job_meta, "get_redis_connection", lambda: fake)
     monkeypatch.setattr(zpe_ops_flags, "get_redis_connection", lambda: fake)
+    monkeypatch.setattr(zpe_submit_idempotency, "get_redis_connection", lambda: fake)
     return fake
 
 
@@ -500,6 +506,99 @@ def test_zpe_enqueue_returns_503_when_audit_write_fails(monkeypatch):
     assert owner is not None
     assert owner.user_id == user_id
     assert owner.tenant_id == headers["X-Tenant-Id"]
+
+
+def test_zpe_retry_after_transient_audit_503_does_not_duplicate_enqueue(monkeypatch):
+    fake = _patch_redis(monkeypatch)
+    store = RedisResultStore(redis=fake)
+    settings = ZPESettings(compute_mode="mock", result_store="redis")
+    enqueue_calls: list[dict[str, object]] = []
+
+    def _capture_enqueue(payload, *, queue_name=None):
+        enqueue_calls.append({"queue_name": queue_name, "payload": payload})
+        return "job-audit-retry"
+
+    audit_attempts = {"count": 0}
+
+    def _flaky_audit(**_kwargs):
+        audit_attempts["count"] += 1
+        if audit_attempts["count"] == 1:
+            raise RuntimeError("disk full")
+        return False
+
+    monkeypatch.setattr(zpe_backends, "get_result_store", lambda: store)
+    monkeypatch.setattr(zpe_backends, "get_zpe_settings", lambda: settings)
+    monkeypatch.setattr(zpe_backends, "enqueue_zpe_job", _capture_enqueue)
+    monkeypatch.setattr(zpe_router, "write_audit_event", _flaky_audit)
+
+    client = TestClient(main.app)
+    headers, _user_id = _setup_user_and_target(client, monkeypatch, fake)
+    headers["X-Request-Id"] = "retry-audit-503-request-id"
+    payload = {
+        "content": QE_INPUT,
+        "mobile_indices": [0],
+        "use_environ": False,
+        "input_dir": None,
+        "calc_mode": "continue",
+    }
+
+    first = client.post("/api/zpe/jobs", json=payload, headers=headers)
+    assert first.status_code == 503
+    assert first.json()["error"]["message"] == "audit sink unavailable"
+
+    second = client.post("/api/zpe/jobs", json=payload, headers=headers)
+    assert second.status_code == 200
+    assert second.json()["id"] == "job-audit-retry"
+    assert len(enqueue_calls) == 1
+
+
+def test_zpe_submit_idempotency_prevents_duplicate_enqueue_under_overlap(monkeypatch):
+    fake = _patch_redis(monkeypatch)
+    settings = ZPESettings(compute_mode="mock", result_store="redis")
+    monkeypatch.setattr(zpe_backends, "get_zpe_settings", lambda: settings)
+
+    client = TestClient(main.app)
+    headers, user_id = _setup_user_and_target(client, monkeypatch, fake)
+    tenant_id = headers["X-Tenant-Id"]
+    request_payload = {
+        "content": QE_INPUT,
+        "mobile_indices": [0],
+        "use_environ": False,
+        "input_dir": None,
+        "calc_mode": "continue",
+    }
+    request_model = ZPEJobRequest(**request_payload)
+    request_id = "overlap-request-id-1"
+    enqueue_calls = {"count": 0}
+    enqueue_lock = threading.Lock()
+    barrier = threading.Barrier(2)
+
+    def _slow_enqueue(_payload, *, queue_name=None):
+        with enqueue_lock:
+            enqueue_calls["count"] += 1
+        # Keep claim pending long enough so the overlapping caller takes loser path.
+        time.sleep(0.2)
+        return "job-overlap-idempotent"
+
+    monkeypatch.setattr(zpe_backends, "enqueue_zpe_job", _slow_enqueue)
+
+    def _submit_once():
+        barrier.wait(timeout=1.0)
+        return zpe_backends.submit_job(
+            request_model,
+            user_id=user_id,
+            tenant_id=tenant_id,
+            request_id=request_id,
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [executor.submit(_submit_once) for _ in range(2)]
+        outcomes = [future.result(timeout=3.0) for future in futures]
+
+    assert enqueue_calls["count"] == 1
+    assert outcomes[0].job_id == "job-overlap-idempotent"
+    assert outcomes[1].job_id == "job-overlap-idempotent"
+    assert sorted([outcomes[0].idempotent, outcomes[1].idempotent]) == [False, True]
 
 
 def test_zpe_owner_enforcement_blocks_non_owner(monkeypatch):
