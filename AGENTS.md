@@ -49,6 +49,13 @@ Primary capabilities include parallel structure views, partial structure transpl
 - GitHub CLI (`gh`): PR review/merge/check inspection.
 - Git (`git`): low-level repository operations.
 - Jujutsu (`jj`): optional local-history helper only; do not use as primary PR/push path.
+- `scripts/gh/pr-autoloop.py`: lightweight PR loop helper for watch/blocker detection and optional auto-merge.
+
+### PR Loop Operation (Recommended)
+- Use `scripts/gh/pr-autoloop.py <PR_NUMBER> --watch --merge-when-ready --merge-method merge` to run the review/check/merge loop.
+- Use `--resolve-outdated-threads` only for outdated threads; do not auto-resolve active review discussions.
+- Prefer this script over ad-hoc manual polling when handling repeated CI/review feedback cycles.
+- If `--delete-branch` fails because the branch is attached to an active worktree, clean it up manually after removing the worktree.
 
 ## Repository Layout
 - `apps/web`: TanStack Start frontend

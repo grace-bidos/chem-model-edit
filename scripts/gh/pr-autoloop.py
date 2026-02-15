@@ -169,6 +169,13 @@ def now_str() -> str:
 
 
 def main() -> int:
+    # Keep logs visible during long-running watch mode even when stdout is piped.
+    try:
+        sys.stdout.reconfigure(line_buffering=True)
+        sys.stderr.reconfigure(line_buffering=True)
+    except Exception:
+        pass
+
     parser = argparse.ArgumentParser(
         description="Watch PR status and optionally auto-merge when ready."
     )
