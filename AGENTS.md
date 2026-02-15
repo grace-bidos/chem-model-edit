@@ -20,6 +20,8 @@ Primary capabilities include parallel structure views, partial structure transpl
 - Public artifacts (GitHub PR/Issue/comments) must be written in English.
 - Inter-agent communication (main agent <-> sub-agents, and sub-agent outputs) must be in English by default.
 - Even when the initiating prompt is in Japanese, sub-agents should answer in English unless explicitly requested otherwise for a specific task.
+- In user-facing status reports, mention task/issue titles first and use identifiers only as supplemental context (for example: `Implement tenant_id propagation (GRA-44)`).
+- Avoid overusing numbered lists in user-facing reports. Prefer short prose or compact bullets unless strict sequencing is required.
 
 ## Mandatory Working Rules
 
