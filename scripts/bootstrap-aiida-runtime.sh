@@ -70,6 +70,40 @@ docker_container_running() {
   docker ps --format '{{.Names}}' | grep -Fxq "$1"
 }
 
+wait_for_tcp() {
+  local host="$1"
+  local port="$2"
+  local timeout_seconds="$3"
+  local start_ts now_ts
+  start_ts="$(date +%s)"
+  while true; do
+    if python3 - "$host" "$port" <<'PY' >/dev/null 2>&1
+import socket
+import sys
+
+host = sys.argv[1]
+port = int(sys.argv[2])
+
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+sock.settimeout(1.0)
+try:
+    sock.connect((host, port))
+except OSError:
+    raise SystemExit(1)
+finally:
+    sock.close()
+PY
+    then
+      return 0
+    fi
+    now_ts="$(date +%s)"
+    if (( now_ts - start_ts >= timeout_seconds )); then
+      return 1
+    fi
+    sleep 1
+  done
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --apply)
@@ -206,6 +240,15 @@ else
 fi
 
 if [[ "$INIT_PROFILE" -eq 1 ]]; then
+  if [[ "$DRY_RUN" -eq 0 ]]; then
+    log "waiting for postgres readiness: ${AIIDA_PGHOST}:${AIIDA_PGPORT}"
+    wait_for_tcp "$AIIDA_PGHOST" "$AIIDA_PGPORT" 60 \
+      || die "postgres did not become ready within timeout"
+    log "waiting for rabbitmq readiness: ${AIIDA_BROKER_HOST}:${AIIDA_BROKER_PORT}"
+    wait_for_tcp "$AIIDA_BROKER_HOST" "$AIIDA_BROKER_PORT" 60 \
+      || die "rabbitmq did not become ready within timeout"
+  fi
+
   profile_exists=1
   if [[ "$DRY_RUN" -eq 0 ]]; then
     if AIIDA_PATH="$AIIDA_CONFIG_DIR_ABS" uv run --project "$ROOT_DIR/apps/api" --group aiida \
