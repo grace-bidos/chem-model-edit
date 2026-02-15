@@ -37,7 +37,8 @@ Defaults preserve current behavior and are backward compatible.
 
 4. **Legacy Endpoint Disablement**
    - Set `legacy_worker_endpoints_enabled=false` after next-gen worker/ingest paths are active.
-   - This disables legacy compute endpoints under `/api/zpe/compute/*`.
+   - This disables legacy compute enrollment/lease/result/failure endpoints.
+   - Admin revoke (`DELETE /api/zpe/compute/servers/{server_id}`) remains available for emergency token invalidation.
 
 5. **Cleanup**
    - Remove disabled legacy endpoints in `GRA-22` once migration verification is complete.
@@ -47,4 +48,5 @@ Defaults preserve current behavior and are backward compatible.
 - `submission_route != "redis-worker"` currently blocks legacy `/api/zpe/jobs` enqueue path.
 - `result_read_source != "redis"` currently blocks legacy `/api/zpe/jobs/*` status/result/file read paths.
 - `legacy_worker_endpoints_enabled=false` blocks legacy compute enrollment/lease/result/failure endpoints.
+- Admin revoke endpoint remains enabled to preserve incident response ability during and after cutover.
 - Flags are intended as short-lived migration controls, not permanent configuration.

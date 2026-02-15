@@ -344,8 +344,6 @@ async def zpe_compute_revoke(
     raw: Request,
 ) -> ComputeRevokeResponse:
     require_admin(raw)
-    flags = get_ops_flags()
-    _require_legacy_worker_endpoints(flags)
     token_store = get_worker_token_store()
     revoked = token_store.revoke_tokens_for_worker(server_id)
     return ComputeRevokeResponse(revoked_count=revoked)

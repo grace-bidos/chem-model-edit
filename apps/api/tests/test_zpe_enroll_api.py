@@ -57,3 +57,22 @@ def test_zpe_enroll_token_api(monkeypatch):
     )
     assert revoke.status_code == 200
     assert revoke.json()["revoked_count"] == 1
+
+
+def test_revoke_stays_available_when_legacy_worker_endpoints_disabled(monkeypatch):
+    fake = _patch_redis(monkeypatch)
+    settings = ZPESettings(admin_token="secret")
+    monkeypatch.setattr(app_deps, "get_zpe_settings", lambda: settings)
+
+    token_store = zpe_worker_auth.WorkerTokenStore(redis=fake)
+    issued = token_store.create_token("compute-1")
+    assert issued.token
+    zpe_ops_flags.set_ops_flags(legacy_worker_endpoints_enabled=False, redis=fake)
+
+    client = TestClient(main.app)
+    revoke = client.delete(
+        "/api/zpe/compute/servers/compute-1",
+        headers={"Authorization": "Bearer secret"},
+    )
+    assert revoke.status_code == 200
+    assert revoke.json()["revoked_count"] == 1
