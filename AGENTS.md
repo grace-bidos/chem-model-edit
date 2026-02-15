@@ -15,6 +15,8 @@ Primary capabilities include parallel structure views, partial structure transpl
 ## Language and Communication
 - Report to the user in Japanese.
 - Public artifacts (GitHub PR/Issue/comments) must be written in English.
+- Inter-agent communication (main agent <-> sub-agents, and sub-agent outputs) must be in English by default.
+- Even when the initiating prompt is in Japanese, sub-agents should answer in English unless explicitly requested otherwise for a specific task.
 
 ## Mandatory Working Rules
 - Always create and use a dedicated git worktree before starting implementation work.
