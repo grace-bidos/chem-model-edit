@@ -83,9 +83,11 @@ def _setup_user_and_target(
     user_id: str = "dev-user-1",
     queue_name: str = "zpe",
 ) -> tuple[dict[str, str], str]:
+    tenant_id = f"tenant-{user_id}"
     headers = {
         "X-Dev-User-Id": user_id,
         "X-Dev-User-Email": f"{user_id}@example.com",
+        "X-Tenant-Id": tenant_id,
     }
 
     enroll = client.post(
@@ -177,7 +179,7 @@ def test_zpe_job_result_not_finished(monkeypatch):
     client = TestClient(main.app)
     headers, user_id = _setup_user_and_target(client, monkeypatch, fake)
     owner_store = zpe_job_owner.JobOwnerStore(redis=fake)
-    owner_store.set_owner(job_id, user_id)
+    owner_store.set_owner(job_id, user_id, headers["X-Tenant-Id"])
     response = client.get(f"/api/zpe/jobs/{job_id}/result", headers=headers)
     assert response.status_code == 409
 
@@ -372,7 +374,9 @@ def test_zpe_result_read_projection_keeps_read_hotpath_available(monkeypatch):
     client = TestClient(main.app)
     headers, user_id = _setup_user_and_target(client, monkeypatch, fake)
     job_id = "job-projection-read"
-    zpe_job_owner.JobOwnerStore(redis=fake).set_owner(job_id, user_id)
+    zpe_job_owner.JobOwnerStore(redis=fake).set_owner(
+        job_id, user_id, headers["X-Tenant-Id"]
+    )
     store.set_status(job_id, "finished")
     zpe_ops_flags.set_ops_flags(result_read_source="projection", redis=fake)
 
@@ -436,6 +440,10 @@ def test_admin_ops_flags_partial_update_keeps_other_values(monkeypatch):
 def test_compute_failed_endpoint_maps_invalid_transition_to_conflict(monkeypatch):
     fake = _patch_redis(monkeypatch)
     client = TestClient(main.app)
+    zpe_job_meta.JobMetaStore(redis=fake).set_meta(
+        "job-1",
+        {"tenant_id": "tenant-worker", "request_id": "req-1", "user_id": "user-1"},
+    )
     worker_token = zpe_worker_auth.WorkerTokenStore(redis=fake).create_token(
         "compute-1"
     ).token
@@ -476,6 +484,7 @@ def test_zpe_owner_enforcement_blocks_non_owner(monkeypatch):
     other_headers = {
         "X-Dev-User-Id": "user-other",
         "X-Dev-User-Email": "user-other@example.com",
+        "X-Tenant-Id": "tenant-user-other",
     }
 
     response = client.post(
@@ -506,6 +515,68 @@ def test_zpe_owner_enforcement_blocks_non_owner(monkeypatch):
         headers=other_headers,
     )
     assert file_forbidden.status_code == 403
+
+
+def test_zpe_owner_enforcement_blocks_wrong_tenant(monkeypatch):
+    fake = _patch_redis(monkeypatch)
+    store = RedisResultStore(redis=fake)
+    settings = ZPESettings(compute_mode="mock", result_store="redis")
+
+    monkeypatch.setattr(zpe_backends, "get_result_store", lambda: store)
+    monkeypatch.setattr(zpe_backends, "get_zpe_settings", lambda: settings)
+
+    client = TestClient(main.app)
+    owner_headers, _owner_id = _setup_user_and_target(
+        client, monkeypatch, fake, user_id="tenant-owner"
+    )
+    wrong_tenant_headers = {
+        "X-Dev-User-Id": "tenant-owner",
+        "X-Dev-User-Email": "tenant-owner@example.com",
+        "X-Tenant-Id": "tenant-other",
+    }
+
+    response = client.post(
+        "/api/zpe/jobs",
+        json={
+            "content": QE_INPUT,
+            "mobile_indices": [0],
+            "use_environ": False,
+            "input_dir": None,
+            "calc_mode": "continue",
+        },
+        headers=owner_headers,
+    )
+    assert response.status_code == 200
+    job_id = response.json()["id"]
+
+    forbidden = client.get(f"/api/zpe/jobs/{job_id}", headers=wrong_tenant_headers)
+    assert forbidden.status_code == 403
+
+
+def test_zpe_requires_tenant_id(monkeypatch):
+    fake = _patch_redis(monkeypatch)
+    store = RedisResultStore(redis=fake)
+    settings = ZPESettings(compute_mode="mock", result_store="redis")
+
+    monkeypatch.setattr(zpe_backends, "get_result_store", lambda: store)
+    monkeypatch.setattr(zpe_backends, "get_zpe_settings", lambda: settings)
+
+    client = TestClient(main.app)
+    headers, _user_id = _setup_user_and_target(client, monkeypatch, fake)
+    headers.pop("X-Tenant-Id")
+    response = client.post(
+        "/api/zpe/jobs",
+        json={
+            "content": QE_INPUT,
+            "mobile_indices": [0],
+            "use_environ": False,
+            "input_dir": None,
+            "calc_mode": "continue",
+        },
+        headers=headers,
+    )
+    assert response.status_code == 400
+    assert response.json()["error"]["message"] == "missing tenant_id"
 
 
 def test_qe_relax_v1_enqueue_run_and_result(monkeypatch):

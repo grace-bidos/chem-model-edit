@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import secrets
 
 from fastapi import HTTPException, Request
@@ -8,6 +9,9 @@ from services.authn import UserIdentity, get_authn_settings, verify_clerk_token
 from services.zpe.job_owner import get_job_owner_store
 from services.zpe.settings import get_zpe_settings
 from services.zpe.worker_auth import get_worker_token_store
+
+_TENANT_HEADER = "x-tenant-id"
+_TENANT_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{1,127}$")
 
 
 def _extract_bearer_token(request: Request) -> str | None:
@@ -30,7 +34,30 @@ def _require_dev_bypass_identity(request: Request) -> UserIdentity:
     return UserIdentity(user_id=user_id, email=email)
 
 
+def _extract_tenant_id(request: Request) -> str | None:
+    state_value = getattr(request.state, "tenant_id", None)
+    if isinstance(state_value, str):
+        value = state_value.strip()
+        return value or None
+    raw = request.headers.get(_TENANT_HEADER)
+    if raw is None:
+        return None
+    value = raw.strip()
+    return value or None
+
+
+def require_tenant_id(request: Request) -> str:
+    tenant_id = _extract_tenant_id(request)
+    if tenant_id is None:
+        raise HTTPException(status_code=400, detail="missing tenant_id")
+    if not _TENANT_ID_PATTERN.fullmatch(tenant_id):
+        raise HTTPException(status_code=400, detail="invalid tenant_id")
+    request.state.tenant_id = tenant_id
+    return tenant_id
+
+
 def require_user_identity(request: Request) -> UserIdentity:
+    require_tenant_id(request)
     mode = get_authn_settings().mode
     if mode == "dev-bypass":
         return _require_dev_bypass_identity(request)
@@ -50,11 +77,14 @@ def require_user_identity(request: Request) -> UserIdentity:
 
 def require_job_owner(request: Request, job_id: str) -> UserIdentity:
     user = require_user_identity(request)
+    tenant_id = require_tenant_id(request)
     owner_store = get_job_owner_store()
-    owner_id = owner_store.get_owner(job_id)
-    if not owner_id:
+    owner = owner_store.get_owner_record(job_id)
+    if not owner:
         raise HTTPException(status_code=404, detail="job not found")
-    if owner_id != user.user_id:
+    if owner.user_id != user.user_id:
+        raise HTTPException(status_code=403, detail="forbidden")
+    if owner.tenant_id is None or owner.tenant_id != tenant_id:
         raise HTTPException(status_code=403, detail="forbidden")
     return user
 

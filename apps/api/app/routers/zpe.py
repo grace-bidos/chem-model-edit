@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Literal
+from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import Response
@@ -11,10 +11,11 @@ from app.deps import (
     has_admin_access,
     require_admin,
     require_job_owner,
+    require_tenant_id,
     require_user_identity,
     require_worker,
 )
-from app.middleware import get_request_id
+from app.middleware import get_request_id, get_tenant_id
 from app.schemas.common import Pagination
 from app.schemas.zpe import (
     ComputeFailedRequest,
@@ -55,6 +56,7 @@ from services.zpe.backends import (
     submit_job,
 )
 from services.zpe.enroll import get_enroll_store
+from services.zpe.job_meta import get_job_meta_store
 from services.zpe.lease import lease_next_job
 from services.zpe.ops_flags import OpsFlags, get_ops_flags, set_ops_flags
 from services.zpe.parse import (
@@ -85,6 +87,15 @@ def _require_legacy_worker_endpoints(flags: OpsFlags) -> None:
         )
 
 
+def _require_job_tenant_meta(job_id: str) -> dict[str, Any]:
+    meta_store = get_job_meta_store()
+    job_meta = meta_store.get_meta(job_id)
+    tenant_id = job_meta.get("tenant_id")
+    if not isinstance(tenant_id, str) or not tenant_id.strip():
+        raise HTTPException(status_code=409, detail="job tenant metadata missing")
+    return job_meta
+
+
 @router.post("/parse", response_model=ZPEParseResponse)
 async def zpe_parse(request: ZPEParseRequest) -> ZPEParseResponse:
     if request.structure_id:
@@ -113,6 +124,7 @@ async def zpe_parse(request: ZPEParseRequest) -> ZPEParseResponse:
 @router.post("/jobs", response_model=ZPEJobResponse)
 async def zpe_jobs(request: ZPEJobRequest, raw: Request) -> ZPEJobResponse:
     user = require_user_identity(raw)
+    tenant_id = require_tenant_id(raw)
     request_id = get_request_id(raw)
     settings = get_zpe_settings()
     flags = get_ops_flags()
@@ -130,7 +142,12 @@ async def zpe_jobs(request: ZPEJobRequest, raw: Request) -> ZPEJobResponse:
         )
         raise HTTPException(status_code=503, detail="zpe submissions disabled")
     try:
-        outcome = submit_job(request, user_id=user.user_id, request_id=request_id)
+        outcome = submit_job(
+            request,
+            user_id=user.user_id,
+            tenant_id=tenant_id,
+            request_id=request_id,
+        )
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="Structure not found") from exc
     except NoActiveQueueTargetError as exc:
@@ -152,6 +169,7 @@ async def zpe_jobs(request: ZPEJobRequest, raw: Request) -> ZPEJobResponse:
         stage="enqueue",
         status="queued",
         request_id=request_id,
+        tenant_id=tenant_id,
         job_id=outcome.job_id,
         user_id=user.user_id,
         structure_id=request.structure_id,
@@ -330,6 +348,9 @@ async def zpe_compute_lease(raw: Request) -> Response | ComputeLeaseResponse:
     if lease is None:
         return Response(status_code=204)
     meta = lease.meta
+    lease_tenant_id = meta.get("tenant_id")
+    if isinstance(lease_tenant_id, str) and lease_tenant_id.strip():
+        raw.state.tenant_id = lease_tenant_id.strip()
     try:
         payload = ZPEJobRequest(**lease.payload).model_dump(
             by_alias=True, exclude_none=True
@@ -344,6 +365,7 @@ async def zpe_compute_lease(raw: Request) -> Response | ComputeLeaseResponse:
         stage="lease",
         status="granted",
         request_id=meta.get("request_id", request_id),
+        tenant_id=get_tenant_id(raw),
         job_id=lease.job_id,
         worker_id=worker_id,
         user_id=meta.get("user_id"),
@@ -368,6 +390,9 @@ async def zpe_compute_result(
     worker_id = require_worker(raw)
     flags = get_ops_flags()
     _require_legacy_worker_endpoints(flags)
+    job_meta = _require_job_tenant_meta(job_id)
+    tenant_id = str(job_meta["tenant_id"])
+    raw.state.tenant_id = tenant_id
     try:
         submission = submit_compute_result(
             job_id=job_id,
@@ -391,6 +416,7 @@ async def zpe_compute_result(
         stage="result",
         status="submitted",
         request_id=job_meta.get("request_id", get_request_id(raw)),
+        tenant_id=tenant_id,
         job_id=job_id,
         worker_id=worker_id,
         user_id=job_meta.get("user_id"),
@@ -412,6 +438,9 @@ async def zpe_compute_failed(
     worker_id = require_worker(raw)
     flags = get_ops_flags()
     _require_legacy_worker_endpoints(flags)
+    job_meta = _require_job_tenant_meta(job_id)
+    tenant_id = str(job_meta["tenant_id"])
+    raw.state.tenant_id = tenant_id
     try:
         submission = submit_compute_failure(
             job_id=job_id,
@@ -435,6 +464,7 @@ async def zpe_compute_failed(
         stage="result",
         status="failed",
         request_id=job_meta.get("request_id", get_request_id(raw)),
+        tenant_id=tenant_id,
         job_id=job_id,
         worker_id=worker_id,
         user_id=job_meta.get("user_id"),

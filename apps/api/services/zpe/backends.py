@@ -94,7 +94,7 @@ def _resolve_submission_queue(
 
 
 def submit_job(
-    request: ZPEJobRequest, *, user_id: str, request_id: str
+    request: ZPEJobRequest, *, user_id: str, tenant_id: str, request_id: str
 ) -> SubmitJobOutcome:
     settings = get_zpe_settings()
     target_store = get_queue_target_store()
@@ -118,7 +118,7 @@ def submit_job(
     payload["mobile_indices"] = mobile_indices
     job_id = enqueue_zpe_job(payload, queue_name=resolved_queue_name)
     owner_store = get_job_owner_store()
-    owner_store.set_owner(job_id, user_id)
+    owner_store.set_owner(job_id, user_id, tenant_id)
     slurm_resolution_meta = {}
     if resolution is not None:
         slurm_resolution_meta = {
@@ -136,6 +136,7 @@ def submit_job(
         {
             "request_id": request_id,
             "user_id": user_id,
+            "tenant_id": tenant_id,
             "structure_id": request.structure_id,
             "queue_name": resolved_queue_name,
             "calc_mode": request.calc_mode,

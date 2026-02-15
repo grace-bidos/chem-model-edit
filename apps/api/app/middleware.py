@@ -17,6 +17,18 @@ def get_request_id(request: Request) -> str:
     return request_id or new_request_id()
 
 
+def get_tenant_id(request: Request) -> str | None:
+    tenant_id = getattr(request.state, "tenant_id", None)
+    if isinstance(tenant_id, str):
+        value = tenant_id.strip()
+        return value or None
+    raw = request.headers.get("x-tenant-id")
+    if raw is None:
+        return None
+    value = raw.strip()
+    return value or None
+
+
 async def add_request_context(
     request: Request,
     call_next: Callable[[Request], Awaitable[Response]],
@@ -32,6 +44,7 @@ async def add_request_context(
     """
     request_id = request.headers.get("x-request-id") or new_request_id()
     request.state.request_id = request_id
+    request.state.tenant_id = get_tenant_id(request)
     start = time.monotonic()
     response = await call_next(request)
     response.headers["x-request-id"] = request_id
@@ -43,6 +56,7 @@ async def add_request_context(
             event="zpe_http_request",
             service="control-plane",
             request_id=request_id,
+            tenant_id=get_tenant_id(request),
             method=request.method,
             path=path,
             status=response.status_code,

@@ -9,6 +9,8 @@ from services.authn.settings import AuthnSettings
 from services.authn.types import UserIdentity
 from services.zpe import queue_targets as zpe_queue_targets
 
+TENANT_HEADERS = {"X-Tenant-Id": "tenant-auth-tests"}
+
 
 def _patch_target_store_redis(monkeypatch):
     fake = fakeredis.FakeRedis()
@@ -35,7 +37,8 @@ def test_clerk_mode_accepts_verified_token(monkeypatch):
 
     client = TestClient(main.app)
     response = client.get(
-        "/api/zpe/targets", headers={"Authorization": "Bearer valid-token"}
+        "/api/zpe/targets",
+        headers={**TENANT_HEADERS, "Authorization": "Bearer valid-token"},
     )
 
     assert response.status_code == 200
@@ -61,7 +64,8 @@ def test_clerk_mode_rejects_allowlist_denied(monkeypatch):
 
     client = TestClient(main.app)
     response = client.get(
-        "/api/zpe/targets", headers={"Authorization": "Bearer denied-token"}
+        "/api/zpe/targets",
+        headers={**TENANT_HEADERS, "Authorization": "Bearer denied-token"},
     )
 
     assert response.status_code == 403
@@ -83,6 +87,7 @@ def test_dev_bypass_mode_accepts_header_identity(monkeypatch):
     response = client.get(
         "/api/zpe/targets",
         headers={
+            **TENANT_HEADERS,
             "X-Dev-User-Id": "dev-user-1",
             "X-Dev-User-Email": "dev-user@example.com",
         },
@@ -100,6 +105,6 @@ def test_dev_bypass_mode_missing_header_is_unauthorized(monkeypatch):
     )
 
     client = TestClient(main.app)
-    response = client.get("/api/zpe/targets")
+    response = client.get("/api/zpe/targets", headers=TENANT_HEADERS)
 
     assert response.status_code == 401

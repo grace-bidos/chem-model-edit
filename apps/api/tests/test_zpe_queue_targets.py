@@ -29,6 +29,7 @@ def _auth_headers(client: TestClient, monkeypatch, fake) -> dict[str, str]:
     return {
         "X-Dev-User-Id": "dev-user-1",
         "X-Dev-User-Email": "dev-user@example.com",
+        "X-Tenant-Id": "tenant-dev-user-1",
     }
 
 
@@ -102,10 +103,12 @@ def test_queue_target_visibility_is_scoped_by_user(monkeypatch):
     owner_headers = {
         "X-Dev-User-Id": "user-owner",
         "X-Dev-User-Email": "user-owner@example.com",
+        "X-Tenant-Id": "tenant-user-owner",
     }
     other_headers = {
         "X-Dev-User-Id": "user-other",
         "X-Dev-User-Email": "user-other@example.com",
+        "X-Tenant-Id": "tenant-user-other",
     }
 
     owner_target_id = _register_target(client, owner_headers, "zpe-owner")
