@@ -8,13 +8,14 @@ from typing import Any, Dict, Optional, cast
 
 from redis import Redis
 
+from .job_state import JobState, can_transition, coerce_job_state
 from .queue import get_redis_connection
 from .settings import get_zpe_settings
 
 
 @dataclass
 class ZPEJobStatus:
-    status: str
+    status: JobState
     detail: Optional[str] = None
     updated_at: Optional[str] = None
 
@@ -41,12 +42,12 @@ def _decode_dict(data: Dict[bytes, bytes]) -> Dict[str, str]:
 
 class ResultStore(ABC):
     @abstractmethod
-    def set_status(self, job_id: str, status: str, detail: Optional[str] = None) -> None:
-        ...
+    def set_status(
+        self, job_id: str, status: JobState, detail: Optional[str] = None
+    ) -> None: ...
 
     @abstractmethod
-    def get_status(self, job_id: str) -> ZPEJobStatus:
-        ...
+    def get_status(self, job_id: str) -> ZPEJobStatus: ...
 
     @abstractmethod
     def set_result(
@@ -56,16 +57,13 @@ class ResultStore(ABC):
         *,
         summary_text: str,
         freqs_csv: str,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @abstractmethod
-    def get_result(self, job_id: str) -> Dict[str, Any]:
-        ...
+    def get_result(self, job_id: str) -> Dict[str, Any]: ...
 
     @abstractmethod
-    def get_file(self, job_id: str, kind: str) -> str:
-        ...
+    def get_file(self, job_id: str, kind: str) -> str: ...
 
 
 class RedisResultStore(ResultStore):
@@ -73,8 +71,18 @@ class RedisResultStore(ResultStore):
         self.redis = redis or get_redis_connection()
         self.ttl = get_zpe_settings().result_ttl_seconds
 
-    def set_status(self, job_id: str, status: str, detail: Optional[str] = None) -> None:
+    def set_status(
+        self, job_id: str, status: JobState, detail: Optional[str] = None
+    ) -> None:
         key = f"{_STATUS_PREFIX}{job_id}"
+        previous_raw = cast(Optional[bytes], self.redis.hget(key, "status"))
+        previous = (
+            coerce_job_state(previous_raw.decode("utf-8")) if previous_raw else None
+        )
+        if not can_transition(previous, status):
+            raise ValueError(
+                f"invalid job state transition: {previous or '<none>'} -> {status}"
+            )
         payload = {
             "status": status,
             "detail": detail or "",
@@ -89,8 +97,11 @@ class RedisResultStore(ResultStore):
         if not data:
             raise KeyError("status not found")
         decoded = _decode_dict(data)
+        raw_status = decoded.get("status")
+        if not raw_status:
+            raise ValueError("status payload missing 'status'")
         return ZPEJobStatus(
-            status=decoded.get("status", "unknown"),
+            status=coerce_job_state(raw_status),
             detail=decoded.get("detail") or None,
             updated_at=decoded.get("updated_at"),
         )

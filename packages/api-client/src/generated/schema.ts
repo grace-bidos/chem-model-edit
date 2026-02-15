@@ -834,8 +834,11 @@ export interface components {
         ZPEJobStatus: {
             /** Detail */
             detail?: string | null;
-            /** Status */
-            status: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "started" | "finished" | "failed";
             /** Updated At */
             updated_at?: string | null;
         };

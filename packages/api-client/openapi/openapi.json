@@ -1261,6 +1261,12 @@
             "title": "Detail"
           },
           "status": {
+            "enum": [
+              "queued",
+              "started",
+              "finished",
+              "failed"
+            ],
             "title": "Status",
             "type": "string"
           },

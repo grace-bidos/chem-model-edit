@@ -8,6 +8,9 @@ from .base import ApiModel
 from .common import Pagination, Structure
 
 
+JobState = Literal["queued", "started", "finished", "failed"]
+
+
 class ZPEParseRequest(ApiModel):
     content: str
     structure_id: Optional[str] = None
@@ -35,7 +38,7 @@ class ZPEJobResponse(ApiModel):
 
 
 class ZPEJobStatus(ApiModel):
-    status: str
+    status: JobState
     detail: Optional[str] = None
     updated_at: Optional[str] = None
 

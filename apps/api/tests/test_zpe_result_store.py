@@ -38,3 +38,23 @@ def test_redis_result_store_missing_keys():
 
     with pytest.raises(ValueError):
         store.get_file("job-1", "unknown")
+
+
+def test_redis_result_store_rejects_invalid_transition_from_finished():
+    fake = fakeredis.FakeRedis()
+    store = RedisResultStore(redis=fake)
+
+    store.set_status("job-1", "finished")
+
+    with pytest.raises(ValueError, match="invalid job state transition"):
+        store.set_status("job-1", "started")
+
+
+def test_redis_result_store_allows_retry_transition_from_failed():
+    fake = fakeredis.FakeRedis()
+    store = RedisResultStore(redis=fake)
+
+    store.set_status("job-1", "failed")
+    store.set_status("job-1", "queued")
+    status = store.get_status("job-1")
+    assert status.status == "queued"
