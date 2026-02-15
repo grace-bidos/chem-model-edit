@@ -14,7 +14,7 @@ This playbook converts review wait time into delivery time by using stacked PRs 
 2. Start PR-B immediately in another worktree from branch A (stacked).
 3. When PR-A review arrives, fix PR-A first.
 4. Merge PR-A with merge commit.
-5. Rebase/update PR-B onto latest `main` (or onto merged A equivalent).
+5. Restack/sync PR-B onto merged base (prefer `gt sync`; use rebase only if not using Graphite).
 6. Repeat for PR-C, PR-D.
 
 ## Merge Gate (Mandatory)
@@ -22,7 +22,7 @@ This playbook converts review wait time into delivery time by using stacked PRs 
 Do not merge product-impacting PRs when required checks are red or incomplete.
 
 - Product-impacting means API/auth/worker/runtime behavior changes.
-- Required checks are `CI / api`, `CI / web`, and `CI / contract`.
+- Required checks are all branch-protection required checks (including PR policy checks).
 - If CodeRabbit is marked required in the PR template, wait for review output (or explicitly document why unavailable) before merge.
 - If checks are flaky, re-run or fix within the same PR cycle. Do not defer known red checks to `main`.
 
@@ -69,6 +69,6 @@ Optional:
 
 ## PR Template Checklist
 
-- Link child issue and parent epic.
+- Link child issue and parent capability issue (or parent epic when applicable).
 - Declare whether CodeRabbit is required or optional.
 - If temporary behavior exists, document final target and follow-up PR.
