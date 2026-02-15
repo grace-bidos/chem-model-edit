@@ -23,7 +23,7 @@ API は `/calc/zpe/parse` と `/calc/zpe/jobs` 系を追加し、ワーカーで
 
 ### Documentation (this feature)
 
-```
+```text
 specs/002-zpegui-backend/
 ├── spec.md
 ├── plan.md
@@ -32,7 +32,7 @@ specs/002-zpegui-backend/
 
 ### Source Code (repository root)
 
-```
+```text
 apps/api/
 ├── main.py              # API routes (add /calc/zpe/*)
 ├── models.py            # request/response models

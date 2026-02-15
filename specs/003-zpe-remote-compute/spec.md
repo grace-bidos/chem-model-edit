@@ -15,6 +15,7 @@ UI から ZPE 計算を開始しても、サービス提供側ホストでは計
 **Independent Test**: サービス提供側に QE/pseudo が存在しない状態でもジョブ投入が成功する。
 
 **Acceptance Scenarios**:
+
 1. **Given** サービス提供側に `pw.x` が無い、**When** `/calc/zpe/jobs` を呼ぶ、**Then** `job_id` が返る
 2. **Given** 計算サーバーが有効、**When** ジョブ投入、**Then** 計算は計算サーバー側で実行される
 
@@ -28,6 +29,7 @@ UI から ZPE 計算を開始しても、サービス提供側ホストでは計
 **Independent Test**: サービス提供側に計算ディレクトリが無くても `/calc/zpe/jobs/{id}/result` が返る。
 
 **Acceptance Scenarios**:
+
 1. **Given** 計算完了ジョブ、**When** `/calc/zpe/jobs/{id}/result` を呼ぶ、**Then** 結果が JSON で返る
 2. **Given** 計算完了ジョブ、**When** `/calc/zpe/jobs/{id}/files?kind=summary|freqs` を呼ぶ、**Then** CSV/summary が返る
 
@@ -41,6 +43,7 @@ UI から ZPE 計算を開始しても、サービス提供側ホストでは計
 **Independent Test**: モックモードで短時間に結果が返る。
 
 **Acceptance Scenarios**:
+
 1. **Given** モックモード、**When** `/calc/zpe/jobs` を呼ぶ、**Then** 数秒以内に完了ステータスが返る
 2. **Given** モックモード、**When** 結果取得、**Then** 決定論的なダミー値が返る
 
@@ -68,11 +71,11 @@ UI から ZPE 計算を開始しても、サービス提供側ホストでは計
 - **FR-007**: 通信はトークン認証または限定ネットワークで保護できる
 - **FR-008**: 失敗時は原因（計算側/ストア側/設定不備）を明確に返す
 - **FR-009**: 結果ストアは **control-plane のみが接続**し、ワーカーへ資格情報を配布しない
-- **FR-010**: 計算サーバ登録は「短期登録トークン」を前提にし、登録後は **worker_token** で認証する  
-  - 登録トークンは管理者が発行し、短期（例: 1時間）で失効する  
+- **FR-010**: 計算サーバ登録は「短期登録トークン」を前提にし、登録後は **worker_token** で認証する
+  - 登録トークンは管理者が発行し、短期（例: 1時間）で失効する
   - 配布は管理者が安全なチャネルで行い、期限切れトークンは無効扱い
 - **FR-011**: ワーカーは lease を取得し、結果/失敗を HTTP で返却する
-- **FR-012**: lease 期限切れ/失敗は retry 上限と DLQ を持つ  
+- **FR-012**: lease 期限切れ/失敗は retry 上限と DLQ を持つ
   - 例: retry_max=3、指数バックオフ、上限超過は DLQ に送る（詳細は実装で定義）
 
 ### Key Entities

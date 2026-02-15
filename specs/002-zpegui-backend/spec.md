@@ -15,6 +15,7 @@
 **Independent Test**: QE .in を投げ、原子数・座標・固定フラグが期待通りに返る。
 
 **Acceptance Scenarios**:
+
 1. **Given** 有効な QE .in、**When** `/calc/zpe/parse` を呼ぶ、**Then** 原子一覧・格子・固定原子 indices が返る
 2. **Given** ATOMIC_POSITIONS が欠落した .in、**When** `/calc/zpe/parse` を呼ぶ、**Then** 400 でエラーが返る
 
@@ -28,6 +29,7 @@
 **Independent Test**: ジョブ投入時に即時 job_id が返り、RQ にエンキューされる。
 
 **Acceptance Scenarios**:
+
 1. **Given** 構造と可動原子 indices、**When** `/calc/zpe/jobs` を呼ぶ、**Then** job_id が返る
 2. **Given** 可動原子が空、**When** `/calc/zpe/jobs` を呼ぶ、**Then** 400 でエラーが返る
 3. **Given** qe/pseudo の必須ファイルが不足、**When** ジョブ実行、**Then** job は failed になり理由が取得できる
@@ -42,6 +44,7 @@
 **Independent Test**: 完了ジョブの result が JSON で返り、CSV 取得エンドポイントが機能する。
 
 **Acceptance Scenarios**:
+
 1. **Given** 実行中ジョブ、**When** `/calc/zpe/jobs/{id}` を呼ぶ、**Then** status=started/queued が返る
 2. **Given** 完了ジョブ、**When** `/calc/zpe/jobs/{id}/result` を呼ぶ、**Then** ZPE/周波数/メタ情報が返る
 3. **Given** 完了ジョブ、**When** `/calc/zpe/jobs/{id}/files?kind=summary|freqs` を呼ぶ、**Then** summary.txt / freqs.csv がDLできる

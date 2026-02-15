@@ -5,12 +5,12 @@
 
 ## Summary
 
-Quantum ESPRESSO の .in を中心に、2構造(A/B)の可視化・編集・表面転写・複合スーパーセル構築・距離QC・格子変換・共有/重ね表示を行うWebアプリを構築する。フロントは TanStack Start + shadcn/ui + Mol*、バックエンドは FastAPI + ASE/pymatgen に分離する。P1（読み込み/編集/表示）を最優先で実装し、P2（表面転写/距離QC）とP3（タイル合成/格子変換/共有）を段階的に追加する。
+Quantum ESPRESSO の .in を中心に、2構造(A/B)の可視化・編集・表面転写・複合スーパーセル構築・距離QC・格子変換・共有/重ね表示を行うWebアプリを構築する。フロントは TanStack Start + shadcn/ui + Mol\*、バックエンドは FastAPI + ASE/pymatgen に分離する。P1（読み込み/編集/表示）を最優先で実装し、P2（表面転写/距離QC）とP3（タイル合成/格子変換/共有）を段階的に追加する。
 
 ## Technical Context
 
 **Language/Version**: TypeScript (React), Python 3.11+  
-**Primary Dependencies**: TanStack Start, shadcn/ui, Mol*, FastAPI, ASE, pymatgen  
+**Primary Dependencies**: TanStack Start, shadcn/ui, Mol\*, FastAPI, ASE, pymatgen  
 **Storage**: 基本はファイル/メモリ  
 **Testing**: Frontend: Vitest + Playwright(予定), Backend: pytest  
 **Target Platform**: モダンブラウザ（Chrome/Firefox/Safari最新系） + ローカル/サーバ運用  
@@ -54,6 +54,7 @@ packages/
 ## Phased Plan
 
 ### Phase 0: 仕様確定（Spec承認）
+
 - Spec のレビューと修正
 - 出力オプションは設定画面で管理し、デフォルトは入力形式/単位保持を確定
 - celldm は保持のみ（再計算/削除は将来対応）を明記
@@ -61,12 +62,14 @@ packages/
 - 共有は単一HTML（重ね表示/透明度/可視を再現）を確定
 
 ### Phase 1: 基盤設計
+
 - データモデル設計（Model(A/B)/Structure/Atom/Lattice/Selection/SurfaceTransfer/DistanceReport/TilingPattern/ExportSettings）
 - StructureRegistry と StructureId ベースの契約（Editor v2/Supercell v2）
 - FastAPI API契約（parse, export, transfer, distance, supercell, lattice-convert）
-- Mol* 表示統合設計（入力フォーマット変換、表示/色/ラベル/背景）
+- Mol\* 表示統合設計（入力フォーマット変換、表示/色/ラベル/背景）
 
 ### Phase 2: MVP実装 (P1)
+
 - .in 読み込み/パース（ASE/pymatgen）
 - 3D表示 + テーブル編集の同期
 - 基本編集操作（座標/元素変更、コピー/貼り付け）
@@ -74,13 +77,15 @@ packages/
 - 出力設定画面（デフォルト保持のみ、将来拡張を見据えたUI枠）
 
 ### Phase 2b: Editor UI刷新（/editor 統合）
+
 - 新UIを `/editor` に統合し、旧 `/editor` は廃止
 - 左ツールナビ + ファイルマネージャ + ワークスペース構成へ移行
 - 特別モードの命名を整理（内部ID: transfer/supercell/vibration、表示名: Transfer / Supercell Builder / Vibrations (Preview)）
-- 機能接続は段階的に進行（最初は見た目・遷移、次にMol*・編集系）
+- 機能接続は段階的に進行（最初は見た目・遷移、次にMol\*・編集系）
 - ZPE/振動系は当面プレースホルダで接続なし
 
 ### Phase 3: 表面転写/距離QC (P2)
+
 - 2構造(A/B)の並列表示
 - 選択UI（表面領域の選択を含む）
 - インデックス対応の表面転写（Cartesian座標上書き）
@@ -89,6 +94,7 @@ packages/
 - 重ね表示モードの切り替えと構造ごとの表示/透明度調整
 
 ### Phase 3b: Δ移植（小スラブ out → 大スラブ in）(P2)
+
 - API追加: `POST /transplant/delta`
   - 入力: `small_in`, `small_out`, `large_in`（全て文字列）
   - 出力: `content`（移植済み .in）
@@ -105,6 +111,7 @@ packages/
   - 結果プレビューと .in ダウンロードを接続
 
 ### Phase 4: 複合スーパーセル/格子変換 (P3)
+
 - タイルパターン入力（StructureId の 2D グリッド or GUI）
 - タイル合成（タイル内座標保持＋並進のみ、格子は baseStructure の lattice を利用）
 - 重複/衝突チェック（許容誤差つき、任意）
@@ -114,7 +121,7 @@ packages/
 ## Risks & Mitigations
 
 - **QE .in の多様性**: ASE/pymatgen の対応範囲を明確化し、非対応は明示的エラーにする
-- **Mol* への変換**: PDB/CIF 中間形式を採用し、変換処理を共通化
+- **Mol\* への変換**: PDB/CIF 中間形式を採用し、変換処理を共通化
 - **インデックス対応の前提**: A/Bの整列・並び順が崩れると誤転写の恐れがあるため、事前警告とガイドを用意
 - **celldm 整合性**: 出力保持の前提で、セル編集時の不整合に注意喚起を出す
 - **共有HTMLの容量**: 大規模構造ではサイズが肥大化するため、将来はサーバ保存方式を検討

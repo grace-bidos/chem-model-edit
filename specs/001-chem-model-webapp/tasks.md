@@ -47,6 +47,7 @@
 - [x] T027 [US1] 出力設定画面（入力形式/単位保持がデフォルト、将来拡張の枠を用意）
 
 ### Tests (US1)
+
 - [x] T025 [P] [US1] API: `/parse` の単体テスト（`apps/api/tests/test_parse.py`）
 - [x] T026 [P] [US1] API: `/export` の単体テスト（`apps/api/tests/test_export.py`）
 
@@ -62,7 +63,7 @@
 - [x] T033 [US2] 対応原子距離レポート（PBC最小像を適用）
 - [x] T034 [US2] 事前検証（原子数非互換の警告）
 - [x] T035 [US2] フロント: 距離テーブルUI
-- [x] T036 [US5] フロント: 重ね表示ON/OFFと構造ごとの表示/透明度をMol*へ反映（`apps/web/src/components/molstar/MolstarViewer.tsx`, `apps/web/src/routes/editor.tsx`）
+- [x] T036 [US5] フロント: 重ね表示ON/OFFと構造ごとの表示/透明度をMol\*へ反映（`apps/web/src/components/molstar/MolstarViewer.tsx`, `apps/web/src/routes/editor.tsx`）
 - [x] T037 [US5] フロント: 構造ごとの表示/透明度UIを追加（`apps/web/src/routes/editor.tsx`）
 
 ---
@@ -138,7 +139,7 @@
 - [x] T080 [P] [US1] 新UIを `/editor` に統合し、旧 `/editor` を廃止
 - [x] T081 [P] [US1] Tools/パネルの命名整理と ZPE(振動)のプレビュー表示
 - [ ] T082 [US1] ファイルマネージャを `structures` 状態と接続
-- [ ] T083 [US1] File Panel に Mol* ビューを埋め込み
+- [ ] T083 [US1] File Panel に Mol\* ビューを埋め込み
 - [ ] T084 [US1] Import/Export の導線を新UIへ接続
 - [ ] T085 [US2/US3] Tools パネルに転写/スーパーセル機能を段階移植
 
