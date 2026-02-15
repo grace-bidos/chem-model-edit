@@ -476,8 +476,7 @@ def test_zpe_enqueue_returns_503_when_audit_write_fails(monkeypatch):
 
     monkeypatch.setattr(zpe_backends, "get_result_store", lambda: store)
     monkeypatch.setattr(zpe_backends, "get_zpe_settings", lambda: settings)
-    monkeypatch.setattr(zpe_router, "get_result_store", lambda: store)
-    monkeypatch.setattr(zpe_router, "enqueue_zpe_job", lambda *_args, **_kwargs: "job-audit")
+    monkeypatch.setattr(zpe_backends, "enqueue_zpe_job", lambda *_args, **_kwargs: "job-audit")
     monkeypatch.setattr(
         zpe_router, "write_audit_event", lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("disk full"))
     )
