@@ -6,11 +6,13 @@
 **Input**: ユーザー要望「APIスキーマ/エンドポイントを整理し、フロント・バックの責務分割を容易にする」
 
 ## 背景 / 目的
+
 - 現状は `apps/api/main.py` にルートが集中し、スキーマ/URLがばらけている。
 - フロント側は `apps/web/src/lib/types.ts` と `packages/shared` に型が二重化し、API変更が波及しやすい。
 - 今後の中身のリファクタを進めるために、**契約（API）を固定**し、フロント/バックの責務分割を明確にしたい。
 
 ## スコープ
+
 - `/api` プレフィックスでAPIを統一（バージョン無し）。
 - URL命名・構造の整理（名詞/複数形、リソース指向）。
 - すべてのAPIスキーマをPydanticに集約し、OpenAPIを正とする。
@@ -19,12 +21,14 @@
 - ルーティングを機能別に分割（routers/services/schemasなど）。
 
 ## 非ゴール
+
 - 物理計算ロジック/アルゴリズムの変更。
 - 計算結果やUI動作の変更（最終的な挙動は維持）。
 - 永続ストレージの導入やDB移行。
 - 外部連携方式の刷新（Cloud Run / Cloudflare Pagesの変更はしない）。
 
 ## 方針 / 決定事項
+
 - **Base Path**: `/api` に統一（`/api/v1` は使わない）。
 - **命名規則**: ワイヤ上は camelCase。内部は snake_case 可（Pydanticのaliasで変換）。
 - **認証**: `Authorization: Bearer <token>` を統一。
@@ -36,38 +40,45 @@
 ## APIエンドポイント（新）
 
 ### 共通
+
 - `GET /api/health`
 
-### Auth
+### Auth Schemas
+
 - `POST /api/auth/register`
 - `POST /api/auth/login`
 - `POST /api/auth/logout`
 - `GET /api/auth/me`
 
-### Structures
+### Structures Schemas
+
 - `POST /api/structures/parse`
 - `POST /api/structures`
 - `GET /api/structures/{id}`
 - `GET /api/structures/{id}/view?format=cif`
 - `POST /api/structures/export`
 
-### Transforms / Lattice
+### Transforms / Lattice Schemas
+
 - `POST /api/transforms/delta-transplant`
 - `POST /api/lattices/convert`
 
-### Supercell
+### Supercell Schemas
+
 - `POST /api/supercells`
 - `POST /api/supercells/tiled`
 - `POST /api/supercells/builds`
 
-### ZPE (user)
+### ZPE (user) Schemas
+
 - `POST /api/zpe/parse`
 - `POST /api/zpe/jobs`
 - `GET /api/zpe/jobs/{id}`
 - `GET /api/zpe/jobs/{id}/result`
 - `GET /api/zpe/jobs/{id}/files?kind=summary|freqs`
 
-### ZPE (compute/admin)
+### ZPE (compute/admin) Schemas
+
 - `POST /api/zpe/compute/enroll-tokens`
 - `POST /api/zpe/compute/servers`
 - `DELETE /api/zpe/compute/servers/{id}`
@@ -82,6 +93,7 @@
 ## 契約（スキーマ）
 
 ### 共通型
+
 - `Atom`: `{ symbol, x, y, z }`
 - `Vector3`: `{ x, y, z }`
 - `Lattice`: `{ a, b, c }`
@@ -91,6 +103,7 @@
 - `Pagination`: `{ total, limit, offset }`
 
 ### Auth
+
 - `AuthRegisterRequest`: `{ email, password }`
 - `AuthLoginRequest`: `{ email, password }`
 - `AuthUser`: `{ id, email, createdAt }`
@@ -99,6 +112,7 @@
 - `AuthLogoutResponse`: `{ ok: true }`
 
 ### Structures
+
 - `StructureParseRequest`: `{ content, format? }`
 - `StructureParseResponse`: `{ structure }`
 - `StructureCreateRequest`: `{ content, format? }`
@@ -109,6 +123,7 @@
   - `/api/structures/{id}/view` は `chemical/x-cif` を返す（JSONではない）。
 
 ### Transforms / Lattice
+
 - `DeltaTransplantRequest`: `{ smallIn, smallOut, largeIn }`
 - `DeltaTransplantResponse`: `{ content }`
 - `LatticeConvertRequest`: `{ from, unit?, lattice?, params? }`
@@ -117,12 +132,14 @@
 - `LatticeConvertResponse`: `{ lattice, params, unit }`
 
 ### Supercell
+
 - `SupercellRequest`: `{ structureA, structureB, sequence, lattice }`
 - `SupercellResponse`: `{ structure, meta }`
 - `SupercellBuildRequest`: `{ baseStructureId, grid, options?, output? }`
 - `SupercellBuildResponse`: `{ id, structure?, meta }`
 
 ### ZPE (user)
+
 - `ZPEParseRequest`: `{ content, structureId? }`
 - `ZPEParseResponse`: `{ structure, fixedIndices, atomicSpecies, kpoints? }`
 - `ZPEJobRequest`: `{ content, mobileIndices, useEnviron?, inputDir?, calcMode?, structureId? }`
@@ -134,6 +151,7 @@
 - `ZPEResult`: `{ freqsCm, zpeEv, sVibJmolK, mobileIndices, fixedIndices, kpoints, delta, lowCutCm, temperature, useEnviron, qeInput, pseudoDir, calcStartTime, calcEndTime, elapsedSeconds, cacheChecked, cacheDeleted, ecutwfc?, ecutrho? }`
 
 ### ZPE (compute/admin)
+
 - `EnrollTokenRequest`: `{ ttlSeconds?, label? }`
 - `EnrollTokenResponse`: `{ token, expiresAt, ttlSeconds, label? }`
 - `ComputeRegisterRequest`: `{ token, name?, queueName?, meta? }`
@@ -153,11 +171,13 @@
   - `GET /api/zpe/admin/ops` は単一のフラグオブジェクトを返す（リストではない）。
 
 ### エラー
+
 - `ErrorResponse`: `{ error: { code, message, details? } }`
   - すべての 4xx/5xx で統一形式にする（FastAPIの例外ハンドラを差し替え）。
   - `code` は `not_found` / `validation_error` / `unauthorized` / `conflict` などの機械可読値。
 
 ## フロントエンド変更
+
 - OpenAPI生成クライアントを `packages/api-client` に追加。
 - `apps/web` は `@chem-model/api-client` の型とリクエスト関数のみ利用。
 - `apps/web/src/lib/types.ts` のAPI型は削除 or 移動。
@@ -167,6 +187,7 @@
 - 既存UIの動作は維持（見た目/操作は変えない）。
 
 ## 成果物（期待される状態）
+
 1. `/api` 配下に統一されたエンドポイント。
 2. Pydanticスキーマが単一の契約源となる。
 3. OpenAPIから生成されたTS型/クライアントが`packages/api-client`に存在。
@@ -174,17 +195,20 @@
 5. ルーティングが `routers/` に分割され、責務が明確になる。
 
 ## 受け入れ基準
+
 - `/api/openapi.json` と `/api/docs` が確認できる。
 - 主要フロー（parse, structures, supercell, zpe）が従来と同じ動作。
 - フロントのAPI型が `@chem-model/api-client` に統一される。
 - 旧エンドポイントへの依存がなくなる。
 
 ## 移行方針
+
 - 旧APIは即時廃止（互換維持は行わない）。
 - フロント/バックは同時更新を前提とする（外部クライアントが無い前提）。
 - 必要なら旧URLの簡易リダイレクトは検討（最小限）。
 
 ## リスク / 未確定事項
+
 - 外部のZPE workerが存在する場合、同時更新が必要。
 - camelCase化により既存のフロント/バッチが壊れる可能性。
 - 生成クライアント導入に伴うビルド/CI設定の微調整。

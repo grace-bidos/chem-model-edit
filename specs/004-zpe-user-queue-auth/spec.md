@@ -19,6 +19,7 @@ Session tokens are transported via `Authorization: Bearer <token>` and stored cl
 **Independent Test**: A new user can register, log in, and call `/auth/me` with a bearer token.
 
 **Acceptance Scenarios**:
+
 1. **Given** a new email/password, **When** `/auth/register` is called, **Then** a user is created and a session token is issued
 2. **Given** valid credentials, **When** `/auth/login` is called, **Then** a session token is issued
 3. **Given** a bearer token, **When** `/auth/me` is called, **Then** user profile is returned
@@ -33,6 +34,7 @@ A logged-in user can register their compute server by consuming a short-lived en
 **Independent Test**: A user can create an enroll token, register a queue target, and see it in the target list.
 
 **Acceptance Scenarios**:
+
 1. **Given** a logged-in user, **When** `/calc/zpe/compute/enroll-tokens` is called, **Then** a short-lived token is issued
 2. **Given** a valid enroll token, **When** `/calc/zpe/compute/servers/register` is called, **Then** a server_id is issued and stored under the user
 3. **Given** existing targets, **When** `/calc/zpe/compute/targets` is called, **Then** the user’s targets are returned
@@ -47,6 +49,7 @@ ZPE job submission uses the authenticated user’s selected queue target; job st
 **Independent Test**: A user submits a job and can fetch status/results; another user is denied.
 
 **Acceptance Scenarios**:
+
 1. **Given** a logged-in user with an active queue target, **When** `/calc/zpe/jobs` is called, **Then** a job is enqueued to the selected queue
 2. **Given** a job owner, **When** `/calc/zpe/jobs/{id}` is called, **Then** status is returned
 3. **Given** a different user, **When** `/calc/zpe/jobs/{id}` is called, **Then** 403 is returned
@@ -60,6 +63,7 @@ Admin tokens are not required for standard users, and admin-only operations rema
 **Independent Test**: A user can issue enroll tokens without admin secret in the UI.
 
 **Acceptance Scenarios**:
+
 1. **Given** no admin token, **When** `/calc/zpe/compute/enroll-tokens` is called with user auth, **Then** a token is issued
 2. **Given** admin token, **When** `/calc/zpe/compute/enroll-tokens` is called, **Then** a token is issued even without user auth
 

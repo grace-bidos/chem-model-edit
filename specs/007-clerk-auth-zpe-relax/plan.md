@@ -4,11 +4,13 @@
 **Input**: Epic #151 + child issues #152-#157
 
 ## Summary
+
 This planning PR defines the issue hierarchy and implementation sequence for one-shot Clerk migration.
 The migration removes legacy local auth endpoints, standardizes JWT verification via Clerk JWKS,
 and keeps the current Redis-based worker architecture while adding minimal `qe.relax.v1`.
 
 ## Key Decisions
+
 - One-shot migration to Clerk (legacy auth removed, no dual-run in production)
 - Clerk JWT verified by API through JWKS
 - Allowlist-based user policy
@@ -16,6 +18,7 @@ and keeps the current Redis-based worker architecture while adding minimal `qe.r
 - Implementation delivered through child-issue-scoped small PRs
 
 ## Technical Context
+
 - Frontend: TanStack Start (`apps/web`)
 - Backend: FastAPI (`apps/api`)
 - Queue/worker: Redis + existing ZPE remote worker flow
@@ -23,6 +26,7 @@ and keeps the current Redis-based worker architecture while adding minimal `qe.r
 - CI/Review: GitHub Actions + CodeRabbit auto review
 
 ## Project Structure
+
 ```plaintext
 specs/007-clerk-auth-zpe-relax/
 ├── spec.md
@@ -31,6 +35,7 @@ specs/007-clerk-auth-zpe-relax/
 ```
 
 ## Work Breakdown (Child-Issue Driven)
+
 1. **#152 Plan Docs**
    - Add new `specs/007-*` docs
    - Add superseded note to `specs/004-*`
@@ -51,6 +56,7 @@ specs/007-clerk-auth-zpe-relax/
    - Add regression protections for ZPE
 
 ## PR Strategy
+
 - Parent issue: #151
 - Child issues: #152-#157
 - Optional research issue: #158
@@ -58,6 +64,7 @@ specs/007-clerk-auth-zpe-relax/
 - PR size target: small, child-issue scoped
 
 ## CodeRabbit Feedback Handling Policy
+
 - Categorize comments into:
   - `design-change` (architecture or contract impact)
   - `wording/docs` (text-level quality)
@@ -70,13 +77,16 @@ specs/007-clerk-auth-zpe-relax/
   - No undecided architecture-level choices
 
 ## Implementation Gate
+
 Implementation starts only when all are true:
+
 - Planning PR merged
 - Parent issue links to final merged plan
 - Child issue acceptance criteria are fixed
 - Child issue implementation order is fixed
 
 ## Risks & Mitigations
+
 - **Risk**: Auth contract churn impacts web/api-client simultaneously.
   - **Mitigation**: Sequence #153 -> #154 -> #155 and validate typecheck/test at each step.
 - **Risk**: Ownership checks regress during identity migration.
