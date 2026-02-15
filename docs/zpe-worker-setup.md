@@ -81,10 +81,12 @@ Optional:
 ```bash
 curl -X POST http://localhost:8000/calc/zpe/compute/servers/register \
   -H "Content-Type: application/json" \
-  -d '{"token": "<ENROLL_TOKEN>", "name": "worker-1", "queue_name": "zpe", "meta": {"host": "compute-01"}}'
+  -d '{"token": "<ENROLL_TOKEN>", "name": "worker-1", "queue_name": "zpe", "activate_target": true, "meta": {"host": "compute-01"}}'
 ```
 
-The server is registered under the signed-in user and becomes available as a queue target in the UI.
+The server is registered under the signed-in user and becomes available as a queue
+target in the UI. Set `"activate_target": true` to switch the active queue target
+as part of the same registration call.
 
 ### 1) Create a token on the control-plane
 

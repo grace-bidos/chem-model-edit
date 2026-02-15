@@ -33,7 +33,10 @@ def _auth_headers(client: TestClient, monkeypatch, fake) -> dict[str, str]:
 
 
 def _register_target(
-    client: TestClient, headers: dict[str, str], queue_name: str
+    client: TestClient,
+    headers: dict[str, str],
+    queue_name: str,
+    activate_target: bool = False,
 ) -> str:
     enroll = client.post(
         "/api/zpe/compute/enroll-tokens",
@@ -47,10 +50,16 @@ def _register_target(
             "token": enroll_token,
             "name": f"server-{queue_name}",
             "queue_name": queue_name,
+            "activate_target": activate_target,
         },
     )
     assert register.status_code == 200
-    return register.json()["id"]
+    listing = client.get("/api/zpe/targets", headers=headers)
+    assert listing.status_code == 200
+    target = next(
+        item for item in listing.json()["targets"] if item["queue_name"] == queue_name
+    )
+    return target["id"]
 
 
 def test_queue_target_list_and_select(monkeypatch):
@@ -58,7 +67,7 @@ def test_queue_target_list_and_select(monkeypatch):
     client = TestClient(main.app)
     headers = _auth_headers(client, monkeypatch, fake)
 
-    _register_target(client, headers, "zpe")
+    first_id = _register_target(client, headers, "zpe")
 
     listing = client.get("/api/zpe/targets", headers=headers)
     assert listing.status_code == 200
@@ -73,14 +82,13 @@ def test_queue_target_list_and_select(monkeypatch):
     assert listing.status_code == 200
     payload = listing.json()
     assert len(payload["targets"]) == 2
+    assert payload["active_target_id"] == first_id
     second = next(
         target for target in payload["targets"] if target["queue_name"] == "zpe-2"
     )
     second_id = second["id"]
 
-    select = client.put(
-        f"/api/zpe/targets/{second_id}/active", headers=headers
-    )
+    select = client.put(f"/api/zpe/targets/{second_id}/active", headers=headers)
     assert select.status_code == 200
     assert select.json()["active_target_id"] == second_id
 
@@ -114,3 +122,17 @@ def test_queue_target_visibility_is_scoped_by_user(monkeypatch):
         f"/api/zpe/targets/{owner_target_id}/active", headers=other_headers
     )
     assert forbidden_select.status_code == 404
+
+
+def test_register_target_activate_flag_can_switch_active(monkeypatch):
+    fake = _patch_redis(monkeypatch)
+    client = TestClient(main.app)
+    headers = _auth_headers(client, monkeypatch, fake)
+
+    first_id = _register_target(client, headers, "zpe")
+    listing = client.get("/api/zpe/targets", headers=headers)
+    assert listing.json()["active_target_id"] == first_id
+
+    second_id = _register_target(client, headers, "zpe-2", activate_target=True)
+    listing = client.get("/api/zpe/targets", headers=headers)
+    assert listing.json()["active_target_id"] == second_id

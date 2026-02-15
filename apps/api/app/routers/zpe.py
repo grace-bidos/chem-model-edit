@@ -318,13 +318,16 @@ async def zpe_compute_register(
     queue_name = request.queue_name or get_zpe_settings().queue_name
     if registration.owner_id:
         target_store = get_queue_target_store()
+        had_active_target = (
+            target_store.get_active_target(registration.owner_id) is not None
+        )
         target = target_store.add_target(
             user_id=registration.owner_id,
             queue_name=queue_name,
             server_id=registration.server_id,
             name=request.name,
         )
-        if not target_store.get_active_target(registration.owner_id):
+        if request.activate_target or not had_active_target:
             target_store.set_active_target(registration.owner_id, target.target_id)
     token_store = get_worker_token_store()
     worker_token = token_store.create_token(registration.server_id, label=request.name)
