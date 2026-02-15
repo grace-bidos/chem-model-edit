@@ -27,6 +27,7 @@ jobs:
               - 'apps/web/**'
               - 'packages/shared/**'
               - 'packages/api-client/**'
+              - 'knip.json'
               - 'nx.json'
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
