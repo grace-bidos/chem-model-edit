@@ -102,16 +102,19 @@ const mergeImportFailures = (
   prev: Array<ImportFailure>,
   failedFiles: Array<ImportFailure>,
 ) => {
-  const merged = new Map(prev.map((item) => [`${item.name}:${item.message}`, item]))
+  const merged = new Map(
+    prev.map((item) => [`${item.name}:${item.message}`, item]),
+  )
   for (const failure of failedFiles) {
     merged.set(`${failure.name}:${failure.message}`, failure)
   }
   return Array.from(merged.values())
 }
 
-const createSupercellOutputFile = (
-  result: { structure_id: string; meta: SupercellBuildMeta },
-): WorkspaceFile => {
+const createSupercellOutputFile = (result: {
+  structure_id: string
+  meta: SupercellBuildMeta
+}): WorkspaceFile => {
   const timestamp = new Date()
     .toISOString()
     .slice(0, 19)

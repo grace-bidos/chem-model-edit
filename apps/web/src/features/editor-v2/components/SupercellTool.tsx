@@ -77,7 +77,8 @@ const validateBuildInput = (params: {
   checkOverlap: boolean
   overlapTolerance: string
 }) => {
-  const { baseId, baseHasLattice, grid, checkOverlap, overlapTolerance } = params
+  const { baseId, baseHasLattice, grid, checkOverlap, overlapTolerance } =
+    params
   const gridRows = grid.length
   const gridCols = gridRows > 0 ? grid[0].length : 0
 

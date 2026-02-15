@@ -63,7 +63,9 @@ const buildColumns = (
   }
 
   columns.push(
-    columnHelper.accessor('symbol', { header: 'El' }) as ColumnDef<AtomTableRow>,
+    columnHelper.accessor('symbol', {
+      header: 'El',
+    }) as ColumnDef<AtomTableRow>,
   )
 
   columns.push(
@@ -119,7 +121,10 @@ export function AtomTable({
   showIndex = true,
 }: AtomTableProps) {
   const canSelect = Boolean(onRowClick) && selectionEnabled
-  const columns = useMemo(() => buildColumns(digits, showIndex), [digits, showIndex])
+  const columns = useMemo(
+    () => buildColumns(digits, showIndex),
+    [digits, showIndex],
+  )
 
   const table = useReactTable({
     data: rows,
@@ -130,7 +135,12 @@ export function AtomTable({
   const colSpan = table.getVisibleLeafColumns().length
 
   return (
-    <TableContainer className={cn('h-full rounded border border-slate-100 bg-slate-50 p-2', containerClassName)}>
+    <TableContainer
+      className={cn(
+        'h-full rounded border border-slate-100 bg-slate-50 p-2',
+        containerClassName,
+      )}
+    >
       <Table className="text-xs">
         <TableHeader
           className={cn(stickyHeader && 'sticky top-0 z-10 bg-slate-50')}
@@ -182,14 +192,19 @@ export function AtomTable({
                   {row.getVisibleCells().map((cell) => {
                     const columnId = cell.column.id
                     const cellClass = cn(
-                      columnId === 'index' && 'text-xs font-medium text-slate-500',
+                      columnId === 'index' &&
+                        'text-xs font-medium text-slate-500',
                       columnId === 'symbol' && 'font-semibold text-slate-700',
-                      coordinateColumns.has(columnId) && cn('font-mono', fixedCoordClass),
+                      coordinateColumns.has(columnId) &&
+                        cn('font-mono', fixedCoordClass),
                     )
 
                     return (
                       <TableCell key={cell.id} className={cellClass}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext(),
+                        )}
                       </TableCell>
                     )
                   })}

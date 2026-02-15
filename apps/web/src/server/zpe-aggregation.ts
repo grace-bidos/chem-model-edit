@@ -30,7 +30,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> => {
   return typeof value === 'object' && value !== null
 }
 
-const isStringOrNullish = (value: unknown): value is string | null | undefined => {
+const isStringOrNullish = (
+  value: unknown,
+): value is string | null | undefined => {
   return value === null || value === undefined || typeof value === 'string'
 }
 

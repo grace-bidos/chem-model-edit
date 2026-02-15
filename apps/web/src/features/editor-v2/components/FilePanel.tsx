@@ -98,7 +98,9 @@ function ParameterTable({ group }: ParameterTableProps) {
         <TableBody>
           {group.entries.map(([key, value]) => (
             <TableRow key={`${group.label}-${key}`}>
-              <TableCell className="font-medium text-slate-500">{key}</TableCell>
+              <TableCell className="font-medium text-slate-500">
+                {key}
+              </TableCell>
               <TableCell className="break-all font-mono text-[11px] text-slate-700">
                 {formatParamValue(value) || '-'}
               </TableCell>
