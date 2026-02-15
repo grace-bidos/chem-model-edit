@@ -29,7 +29,28 @@ Primary capabilities include parallel structure views, partial structure transpl
 - GitHub Issues are optional mirrors or external discussion threads.
 - Delivery style: **Trunk-based + Stacked PR**.
 - Branch format: `feature/identifier-title` (example: `feature/GRA-21-define-cutover-flags`).
-- One implementation issue maps to one PR layer in a stack.
+- Planning hierarchy (fixed): `Project -> Parent Capability Issue -> Child Delivery Issue`.
+- Parent capability issues track outcomes and acceptance criteria; do not use them as direct implementation containers.
+- Child delivery issues are implementation units. One child issue maps to exactly one PR layer in a stack.
+
+### Linear operation rules (fixed)
+- Treat Linear Project/Issues as canonical. Do not use GitHub Issues as planning source-of-truth.
+- Keep issue hierarchy to one level only (`Parent -> Child`). Do not create deeper nesting.
+- Create follow-up child issues before closing an item when a PR is a partial/first slice.
+- Do not close capability work by merge-only signal. Verify issue-level acceptance criteria first.
+
+### Cycle assignment policy
+- Put child delivery issues in cycles.
+- Keep parent capability issues out of cycles by default; use project views to track parent progress.
+- Exception: a parent issue may be put in a cycle only for explicit coordination checkpoints.
+
+### State transition policy
+- Child issue lifecycle:
+  - `Todo/In Progress/In Review`: active delivery states.
+  - `Done`: allowed when PR is merged and child issue acceptance criteria are satisfied.
+- Parent issue lifecycle:
+  - Move to `Done` only when required child issues are done and parent acceptance criteria are satisfied.
+- If PR description includes wording like "first slice", "follow-up required", or deferred TODO boundaries, keep the parent open and create missing child issues immediately.
 
 ### Work-item taxonomy
 - Type axis: `Ask` / `Show` / `Ship`
@@ -62,6 +83,11 @@ Primary capabilities include parallel structure views, partial structure transpl
 - Worktree-safe sync from any worktree:
   - `git fetch origin --prune`
   - `git -C "$(git rev-parse --show-toplevel)" merge --ff-only origin/main`
+
+### Sub-agent ownership policy
+- Assign sub-agents only child delivery issues, never parent capability issues.
+- Main agent owns parent issue planning, decomposition, and acceptance checks.
+- Sub-agent handoff must include issue id, owned files, out-of-scope boundaries, and reporting language (`English` for inter-agent communication).
 
 ## Repository Layout
 - `apps/web`: TanStack Start frontend
