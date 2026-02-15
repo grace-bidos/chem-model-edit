@@ -135,7 +135,7 @@ Primary capabilities include parallel structure views, partial structure transpl
 
 - Before implementation in a new worktree, verify tool availability: `node`, `corepack`, `pnpm`, and `uv`.
 - Minimum preflight checks:
-  - `command -v node corepack pnpm uv`
+  - `for tool in node corepack pnpm uv; do command -v "$tool" >/dev/null || { echo "missing: $tool"; exit 1; }; done`
   - `node -v`
   - `pnpm -v`
   - `uv --version`

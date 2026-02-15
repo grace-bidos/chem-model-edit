@@ -139,7 +139,7 @@ Optional post-merge checks (expand later):
 ### 8.1 Worktree preflight before lane start
 
 - Before coding in a new lane worktree, verify toolchain readiness: `node`, `corepack`, `pnpm`, `uv`.
-- Required preflight commands: `command -v node corepack pnpm uv`, `node -v`, `pnpm -v`, `uv --version`.
+- Required preflight commands: `for tool in node corepack pnpm uv; do command -v "$tool" >/dev/null || { echo "missing: $tool"; exit 1; }; done`, `node -v`, `pnpm -v`, `uv --version`.
 - If missing tools are detected, remediate first (`corepack enable`, `corepack prepare pnpm@10.27.0 --activate`, install `uv`), then run dependency setup (`pnpm install`, `uv sync` in `apps/api`).
 - Do not start PR auto-loop or CI/watch until preflight is green.
 

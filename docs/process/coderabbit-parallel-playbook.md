@@ -14,7 +14,7 @@ This playbook converts review wait time into delivery time by using stacked PRs 
   - High conflict lane (shared contracts/schemas/core runtime): 1 active lane; serialize merges.
 - Slot budget: up to 3 planned delivery lanes plus 1 reserved hotfix lane for `main` health recovery.
 - Main agent coordinates and merges; it does not run continuous PR/CI polling for every lane.
-- Before lane start, run worktree preflight: `command -v node corepack pnpm uv`, `node -v`, `pnpm -v`, `uv --version`.
+- Before lane start, run worktree preflight: `for tool in node corepack pnpm uv; do command -v "$tool" >/dev/null || { echo "missing: $tool"; exit 1; }; done`, `node -v`, `pnpm -v`, `uv --version`.
 
 ## Standard Flow
 
