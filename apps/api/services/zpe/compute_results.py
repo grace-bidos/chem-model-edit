@@ -31,6 +31,7 @@ _LEASE_INDEX = "zpe:lease:index"
 _RETRY_PREFIX = "zpe:retry_count:"
 _DELAY_ZSET = "zpe:delay"
 _DLQ = "zpe:dlq"
+_FAILURE_SUBMIT_PREFIX = "zpe:failure_submit:"
 _RELAY_DISPATCH_PREFIX = "zpe:convex:relay:dispatch:"
 _RELAY_SEQUENCE_FIELD = "relay_sequence"
 
@@ -155,6 +156,31 @@ class FailureOutcome:
     retry_count: int
 
 
+def _validate_recorded_failure_payload(
+    *,
+    existing: Dict[str, str],
+    worker_id: str,
+    error_code: str,
+    error_message: str,
+    traceback: Optional[str],
+) -> None:
+    if existing.get("worker_id") != worker_id:
+        raise PermissionError("lease mismatch")
+    if (
+        existing.get("error_code") != error_code
+        or existing.get("error_message") != error_message
+        or existing.get("traceback", "") != (traceback or "")
+    ):
+        raise ValueError("failure already submitted with different payload")
+
+
+def _failure_outcome_from_record(existing: Dict[str, str]) -> FailureOutcome:
+    return FailureOutcome(
+        requeued=existing.get("requeued") == "1",
+        retry_count=int(existing.get("retry_count", "0")),
+    )
+
+
 def submit_result(
     *,
     job_id: str,
@@ -258,17 +284,54 @@ def submit_failure(
     status_key = f"{_STATUS_PREFIX}{job_id}"
     lease_key = f"{_LEASE_PREFIX}{job_id}"
     retry_key = f"{_RETRY_PREFIX}{job_id}"
+    submit_key = f"{_FAILURE_SUBMIT_PREFIX}{job_id}:{lease_id}"
     ttl = settings.result_ttl_seconds
+
+    existing = _decode_map(cast(dict[bytes, bytes], redis.hgetall(submit_key)))
+    if existing:
+        _validate_recorded_failure_payload(
+            existing=existing,
+            worker_id=worker_id,
+            error_code=error_code,
+            error_message=error_message,
+            traceback=traceback,
+        )
+        lease = _get_lease(redis, job_id)
+        if not lease:
+            return _failure_outcome_from_record(existing)
 
     for _ in range(3):
         pipe = redis.pipeline()
         pipe_any = cast(Any, pipe)
         try:
-            pipe_any.watch(status_key, lease_key, retry_key)
+            pipe_any.watch(status_key, lease_key, retry_key, submit_key)
+            existing = _decode_map(cast(dict[bytes, bytes], pipe.hgetall(submit_key)))
+            if existing:
+                _validate_recorded_failure_payload(
+                    existing=existing,
+                    worker_id=worker_id,
+                    error_code=error_code,
+                    error_message=error_message,
+                    traceback=traceback,
+                )
             status = _decode_map(cast(dict[bytes, bytes], pipe.hgetall(status_key)))
             previous = _decode_status(status.get("status"))
             lease = _get_lease(pipe, job_id)
+            if existing and not lease:
+                pipe.unwatch()
+                return _failure_outcome_from_record(existing)
             if not lease:
+                existing = _decode_map(cast(dict[bytes, bytes], pipe.hgetall(submit_key)))
+                if existing:
+                    _validate_recorded_failure_payload(
+                        existing=existing,
+                        worker_id=worker_id,
+                        error_code=error_code,
+                        error_message=error_message,
+                        traceback=traceback,
+                    )
+                    pipe.unwatch()
+                    return _failure_outcome_from_record(existing)
                 raise PermissionError("lease not found")
             if lease.get("worker_id") != worker_id or lease.get("lease_id") != lease_id:
                 raise PermissionError("lease mismatch")
@@ -307,6 +370,18 @@ def submit_failure(
                 pipe.expire(retry_key, ttl)
                 pipe.delete(lease_key)
                 pipe.zrem(_LEASE_INDEX, job_id)
+                pipe.hset(
+                    submit_key,
+                    mapping={
+                        "worker_id": worker_id,
+                        "error_code": error_code,
+                        "error_message": error_message,
+                        "traceback": traceback or "",
+                        "retry_count": str(retry_count),
+                        "requeued": "1",
+                    },
+                )
+                pipe.expire(submit_key, ttl)
                 response = cast(list[Any], pipe.execute())
                 sequence = int(response[3])
                 _dispatch_runtime_state_transition(
@@ -333,6 +408,18 @@ def submit_failure(
             pipe.expire(retry_key, ttl)
             pipe.delete(lease_key)
             pipe.zrem(_LEASE_INDEX, job_id)
+            pipe.hset(
+                submit_key,
+                mapping={
+                    "worker_id": worker_id,
+                    "error_code": error_code,
+                    "error_message": error_message,
+                    "traceback": traceback or "",
+                    "retry_count": str(retry_count),
+                    "requeued": "0",
+                },
+            )
+            pipe.expire(submit_key, ttl)
             response = cast(list[Any], pipe.execute())
             sequence = int(response[3])
             _dispatch_runtime_state_transition(
