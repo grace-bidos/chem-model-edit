@@ -114,7 +114,16 @@ Optional post-merge checks (expand later):
    - `gt sync` and restack as needed
    - advance Linear status (`Todo` -> `In Progress` -> `In Review` -> `Done`)
 
-## 8. Backend refresh mapping (historical example)
+## 8. Main vs sub-agent parallel lanes
+
+- Main agent owns Linear planning/status/dependency management, stack order, and final merge execution.
+- Sub-agents own implementation, research, review-loop handling, and CI fixes inside assigned child-issue lanes only.
+- Inter-agent communication is English by default.
+- Merge-readiness handoff from sub-agent to main must include check status, addressed review feedback, and unresolved risks/conflicts.
+- Sub-agents do not merge PRs directly.
+- If lane conflicts appear, sub-agents hand off conflict context/options to main agent for resolution direction.
+
+## 9. Backend refresh mapping (historical example)
 
 This section is a historical snapshot from the initial backend-refresh rollout.
 Use it as an example only; current planning source-of-truth is Linear.
@@ -160,14 +169,14 @@ Use it as an example only; current planning source-of-truth is Linear.
 - `GRA-22`: `docs/process/redis-worker-retirement-plan.md`
 - `GRA-24`: `docs/process/structure-store-persistence.md`
 
-## 9. Review bottleneck controls
+## 10. Review bottleneck controls
 
 - Keep stack depth typically <= 4 PRs when possible.
 - Keep each PR focused on one issue only.
 - Prefer early draft PR creation to overlap review waiting time with next stacked task.
 - Prioritize reviewing lower-stack PRs first to unblock the whole stack.
 
-## 10. Governance
+## 11. Governance
 
 - Linear is source-of-truth for status and priority.
 - GitHub Issues are optional mirrors or external-facing discussion threads.
