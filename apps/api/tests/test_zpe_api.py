@@ -469,6 +469,39 @@ def test_compute_failed_endpoint_maps_invalid_transition_to_conflict(monkeypatch
     assert "invalid job state transition" in payload["error"]["message"]
 
 
+def test_zpe_enqueue_returns_503_when_audit_write_fails(monkeypatch):
+    fake = _patch_redis(monkeypatch)
+    store = RedisResultStore(redis=fake)
+    settings = ZPESettings(compute_mode="mock", result_store="redis")
+
+    monkeypatch.setattr(zpe_backends, "get_result_store", lambda: store)
+    monkeypatch.setattr(zpe_backends, "get_zpe_settings", lambda: settings)
+    monkeypatch.setattr(zpe_backends, "enqueue_zpe_job", lambda *_args, **_kwargs: "job-audit")
+    monkeypatch.setattr(
+        zpe_router, "write_audit_event", lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("disk full"))
+    )
+
+    client = TestClient(main.app)
+    headers, user_id = _setup_user_and_target(client, monkeypatch, fake)
+    response = client.post(
+        "/api/zpe/jobs",
+        json={
+            "content": QE_INPUT,
+            "mobile_indices": [0],
+            "use_environ": False,
+            "input_dir": None,
+            "calc_mode": "continue",
+        },
+        headers=headers,
+    )
+    assert response.status_code == 503
+    assert response.json()["error"]["message"] == "audit sink unavailable"
+    owner = zpe_job_owner.JobOwnerStore(redis=fake).get_owner_record("job-audit")
+    assert owner is not None
+    assert owner.user_id == user_id
+    assert owner.tenant_id == headers["X-Tenant-Id"]
+
+
 def test_zpe_owner_enforcement_blocks_non_owner(monkeypatch):
     fake = _patch_redis(monkeypatch)
     store = RedisResultStore(redis=fake)

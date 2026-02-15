@@ -71,7 +71,7 @@ from services.zpe.slurm_policy import (
     SlurmPolicyConfigError,
     SlurmPolicyDeniedError,
 )
-from services.zpe.structured_log import log_event
+from services.zpe.structured_log import log_event, write_audit_event
 from services.zpe.worker_auth import get_worker_token_store
 
 logger = logging.getLogger(__name__)
@@ -94,6 +94,28 @@ def _require_job_tenant_meta(job_id: str) -> dict[str, Any]:
     if not isinstance(tenant_id, str) or not tenant_id.strip():
         raise HTTPException(status_code=409, detail="job tenant metadata missing")
     return job_meta
+
+
+def _write_audit_or_raise_unavailable(
+    *,
+    trace_request_id: str,
+    event: str,
+    **fields: Any,
+) -> None:
+    try:
+        write_audit_event(**fields)
+    except Exception as exc:
+        log_event(
+            logger,
+            event="zpe_audit_write_failed",
+            service="control-plane",
+            stage="audit",
+            status="error",
+            request_id=trace_request_id,
+            source_event=event,
+            error_message=str(exc),
+        )
+        raise HTTPException(status_code=503, detail="audit sink unavailable") from exc
 
 
 @router.post("/parse", response_model=ZPEParseResponse)
@@ -183,6 +205,22 @@ async def zpe_jobs(request: ZPEJobRequest, raw: Request) -> ZPEJobResponse:
         slurm_qos=resolution.mapping.qos if resolution else None,
         backend=settings.compute_mode,
         result_store=settings.result_store,
+    )
+    _write_audit_or_raise_unavailable(
+        trace_request_id=request_id,
+        event="zpe_job_enqueued",
+        event_id=f"zpe_job_enqueued:{outcome.job_id}:{request_id}",
+        request_id=request_id,
+        tenant_id=tenant_id,
+        actor_id=user.user_id,
+        operation="execute",
+        resource_type="zpe_job",
+        resource_id=outcome.job_id,
+        outcome="succeeded",
+        metadata={
+            "calc_mode": request.calc_mode,
+            "queue_name": outcome.resolved_queue_name,
+        },
     )
     return ZPEJobResponse(id=outcome.job_id)
 
@@ -426,7 +464,22 @@ async def zpe_compute_result(
         exit_code=0,
         qe_version=submission.qe_version,
     )
-    return ComputeResultResponse(idempotent=submission.outcome.idempotent)
+    outcome = submission.outcome
+    request_id = str(job_meta.get("request_id", get_request_id(raw)))
+    _write_audit_or_raise_unavailable(
+        trace_request_id=request_id,
+        event="zpe_result_submitted",
+        event_id=f"zpe_result_submitted:{job_id}:{request.lease_id}",
+        request_id=request_id,
+        tenant_id=tenant_id,
+        actor_id=worker_id,
+        operation="update",
+        resource_type="zpe_job",
+        resource_id=job_id,
+        outcome="succeeded",
+        metadata={"idempotent": outcome.idempotent, "endpoint": "result"},
+    )
+    return ComputeResultResponse(idempotent=outcome.idempotent)
 
 
 @router.post("/compute/jobs/{job_id}/failed", response_model=ComputeFailedResponse)
@@ -475,6 +528,25 @@ async def zpe_compute_failed(
         error_code=request.error_code,
         retry_count=outcome.retry_count,
         requeued=outcome.requeued,
+    )
+    request_id = str(job_meta.get("request_id", get_request_id(raw)))
+    _write_audit_or_raise_unavailable(
+        trace_request_id=request_id,
+        event="zpe_result_failed",
+        event_id=f"zpe_result_failed:{job_id}:{request.lease_id}",
+        request_id=request_id,
+        tenant_id=tenant_id,
+        actor_id=worker_id,
+        operation="update",
+        resource_type="zpe_job",
+        resource_id=job_id,
+        outcome="succeeded",
+        metadata={
+            "error_code": request.error_code,
+            "retry_count": outcome.retry_count,
+            "requeued": outcome.requeued,
+            "endpoint": "failed",
+        },
     )
     return ComputeFailedResponse(
         requeued=outcome.requeued,
