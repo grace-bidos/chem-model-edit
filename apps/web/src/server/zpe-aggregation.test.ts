@@ -164,22 +164,22 @@ describe('normalizeAggregatedZpeJobStatusFromSources', () => {
 
 describe('fetchAggregatedZpeJobStatusFromUpstreams', () => {
   it('fans out to projection and adapter endpoints, then merges', async () => {
-    const calls: string[] = []
-    const requester = async (request: { path: string; token: string }) => {
+    const calls: Array<string> = []
+    const requester = (request: { path: string; token: string }) => {
       calls.push(`${request.path}|${request.token}`)
       if (request.path.endsWith('/projection')) {
-        return {
+        return Promise.resolve({
           jobId: 'job-9',
           status: 'finished',
           updatedAt: '2026-02-15T08:20:00Z',
-        }
+        })
       }
-      return {
+      return Promise.resolve({
         jobId: 'job-9',
         status: 'finished',
         detail: 'done',
         updated_at: '2026-02-15T08:19:59Z',
-      }
+      })
     }
 
     const normalized = await fetchAggregatedZpeJobStatusFromUpstreams({
@@ -200,15 +200,15 @@ describe('fetchAggregatedZpeJobStatusFromUpstreams', () => {
   })
 
   it('falls back to adapter payload when projection source fails', async () => {
-    const requester = async (request: { path: string }) => {
+    const requester = (request: { path: string }) => {
       if (request.path.endsWith('/projection')) {
-        throw new Error('projection unavailable')
+        return Promise.reject(new Error('projection unavailable'))
       }
-      return {
+      return Promise.resolve({
         status: 'started',
         detail: 'legacy-running',
         updated_at: '2026-02-15T08:21:00Z',
-      }
+      })
     }
 
     const normalized = await fetchAggregatedZpeJobStatusFromUpstreams({
@@ -225,15 +225,15 @@ describe('fetchAggregatedZpeJobStatusFromUpstreams', () => {
   })
 
   it('falls back to projection payload when adapter source fails', async () => {
-    const requester = async (request: { path: string }) => {
+    const requester = (request: { path: string }) => {
       if (!request.path.endsWith('/projection')) {
-        throw new Error('adapter unavailable')
+        return Promise.reject(new Error('adapter unavailable'))
       }
-      return {
+      return Promise.resolve({
         jobId: 'job-11',
         status: 'queued',
         eventTime: '2026-02-15T08:22:00Z',
-      }
+      })
     }
 
     const normalized = await fetchAggregatedZpeJobStatusFromUpstreams({
@@ -254,9 +254,7 @@ describe('fetchAggregatedZpeJobStatusFromUpstreams', () => {
       fetchAggregatedZpeJobStatusFromUpstreams({
         jobId: 'job-12',
         token: 'token-12',
-        requester: async () => {
-          throw new Error('down')
-        },
+        requester: () => Promise.reject(new Error('down')),
       }),
     ).rejects.toThrow('Failed to fetch upstream job status')
   })
