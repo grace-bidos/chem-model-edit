@@ -524,7 +524,6 @@ def test_zpe_owner_enforcement_blocks_wrong_tenant(monkeypatch):
 
     monkeypatch.setattr(zpe_backends, "get_result_store", lambda: store)
     monkeypatch.setattr(zpe_backends, "get_zpe_settings", lambda: settings)
-    monkeypatch.setattr(zpe_router, "get_result_store", lambda: store)
 
     client = TestClient(main.app)
     owner_headers, _owner_id = _setup_user_and_target(
@@ -561,7 +560,6 @@ def test_zpe_requires_tenant_id(monkeypatch):
 
     monkeypatch.setattr(zpe_backends, "get_result_store", lambda: store)
     monkeypatch.setattr(zpe_backends, "get_zpe_settings", lambda: settings)
-    monkeypatch.setattr(zpe_router, "get_result_store", lambda: store)
 
     client = TestClient(main.app)
     headers, _user_id = _setup_user_and_target(client, monkeypatch, fake)
