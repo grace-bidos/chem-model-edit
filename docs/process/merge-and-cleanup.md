@@ -5,7 +5,9 @@ Prefer the PR auto-loop for routine operations; use manual steps as fallback.
 
 ## Rules
 
-- Prefer `scripts/gh/pr-autoloop.py` with `--merge-when-ready`.
+- Standard split: use `gt` only for stack operations (`sync/restack/submit`) and `gh` scripts for readiness and merge loop.
+- Prefer `scripts/gh/stack_lane_loop.py` for lane-owner routine flow (`--gt-sync` + readiness loop).
+- `scripts/gh/pr-autoloop.py` remains the direct watcher and merge executor.
 - Lane owner (sub-agent) runs the watch loop and CI/review handling for that lane.
 - Main agent should not continuously poll PR/CI for all lanes; it executes milestone-based checks and final merge.
 - In a new worktree, run preflight checks before watch mode: `for tool in node corepack pnpm uv; do command -v "$tool" >/dev/null || { echo "missing: $tool"; exit 1; }; done`, `node -v`, `pnpm -v`, `uv --version`.
@@ -16,19 +18,22 @@ Prefer the PR auto-loop for routine operations; use manual steps as fallback.
 ## Commands
 
 ```bash
-# 0) Optional one-shot readiness summary
+# 0) Preferred lane-owner entrypoint (gt sync + readiness/watch/merge)
+scripts/gh/stack_lane_loop.py <PR_NUMBER> --gt-sync --watch --merge-when-ready --merge-method merge
+
+# 1) Optional one-shot readiness summary
 scripts/gh/pr_readiness.py <PR_NUMBER_OR_URL>
 
-# 1) Preferred: automated review/check/merge loop
+# 2) Direct watcher/merge command (same core loop used by helper entrypoint)
 scripts/gh/pr-autoloop.py <PR_NUMBER> --watch --merge-when-ready --merge-method merge
 
-# 2) Optional manual fallback from main worktree
+# 3) Optional manual fallback from main worktree
 scripts/git/merge_pr.sh <pr-number-or-url>
 
-# 3) Cleanup worktree and local branch
+# 4) Cleanup worktree and local branch
 scripts/git/cleanup_worktree.sh .worktrees/<name> <branch>
 
-# 4) Sync local main
+# 5) Sync local main
 git fetch origin --prune
 git -C "$(git rev-parse --show-toplevel)" merge --ff-only origin/main
 ```

@@ -117,6 +117,16 @@ Optional post-merge checks (expand later):
    - `gt sync` and restack as needed
    - advance Linear status (`Todo` -> `In Progress` -> `In Review` -> `Done`)
 
+### 7.1 Standard command split (lane owner quick reference)
+
+- Stack operations (`gt` only):
+  - `gt create`, `gt submit`, `gt restack`, `gt sync`
+- Readiness and merge loop (`gh` helper scripts):
+  - one-shot: `scripts/gh/pr_readiness.py <PR_NUMBER_OR_URL>`
+  - watch/merge: `scripts/gh/pr-autoloop.py <PR_NUMBER> --watch --merge-when-ready --merge-method merge`
+- Combined helper entrypoint:
+  - `scripts/gh/stack_lane_loop.py <PR_NUMBER> --gt-sync --watch --merge-when-ready --merge-method merge`
+
 ## 8. Main vs sub-agent parallel lanes
 
 - Main agent owns Linear planning/status/dependency management, stack order, and final merge execution.
