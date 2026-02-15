@@ -50,11 +50,11 @@ from services.zpe.backends import (
     get_job_file,
     get_job_result,
     get_job_status,
+    submit_compute_failure,
+    submit_compute_result,
     submit_job,
 )
-from services.zpe.compute_results import submit_failure, submit_result
 from services.zpe.enroll import get_enroll_store
-from services.zpe.job_meta import get_job_meta_store
 from services.zpe.lease import lease_next_job
 from services.zpe.ops_flags import OpsFlags, get_ops_flags, set_ops_flags
 from services.zpe.parse import (
@@ -368,29 +368,22 @@ async def zpe_compute_result(
     worker_id = require_worker(raw)
     flags = get_ops_flags()
     _require_legacy_worker_endpoints(flags)
-    meta_store = get_job_meta_store()
-    job_meta = meta_store.get_meta(job_id)
     try:
-        outcome = submit_result(
+        submission = submit_compute_result(
             job_id=job_id,
             worker_id=worker_id,
             lease_id=request.lease_id,
             result=request.result,
             summary_text=request.summary_text,
             freqs_csv=request.freqs_csv,
+            worker_meta=request.meta,
         )
     except PermissionError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     settings = get_zpe_settings()
-    duration_ms = None
-    qe_version = request.meta.get("qe_version") if request.meta else None
-    if request.meta and "computation_time_seconds" in request.meta:
-        try:
-            duration_ms = int(float(request.meta["computation_time_seconds"]) * 1000)
-        except (TypeError, ValueError):
-            duration_ms = None
+    job_meta = submission.job_meta
     log_event(
         logger,
         event="zpe_result_submitted",
@@ -403,11 +396,11 @@ async def zpe_compute_result(
         user_id=job_meta.get("user_id"),
         backend=settings.compute_mode,
         result_store=settings.result_store,
-        duration_ms=duration_ms,
+        duration_ms=submission.duration_ms,
         exit_code=0,
-        qe_version=qe_version,
+        qe_version=submission.qe_version,
     )
-    return ComputeResultResponse(idempotent=outcome.idempotent)
+    return ComputeResultResponse(idempotent=submission.outcome.idempotent)
 
 
 @router.post("/compute/jobs/{job_id}/failed", response_model=ComputeFailedResponse)
@@ -419,10 +412,8 @@ async def zpe_compute_failed(
     worker_id = require_worker(raw)
     flags = get_ops_flags()
     _require_legacy_worker_endpoints(flags)
-    meta_store = get_job_meta_store()
-    job_meta = meta_store.get_meta(job_id)
     try:
-        outcome = submit_failure(
+        submission = submit_compute_failure(
             job_id=job_id,
             worker_id=worker_id,
             lease_id=request.lease_id,
@@ -435,6 +426,8 @@ async def zpe_compute_failed(
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     settings = get_zpe_settings()
+    job_meta = submission.job_meta
+    outcome = submission.outcome
     log_event(
         logger,
         event="zpe_result_failed",
