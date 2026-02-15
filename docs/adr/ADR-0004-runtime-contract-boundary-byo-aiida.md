@@ -32,6 +32,12 @@ Without a strict runtime contract boundary, parallel implementation lanes (Conve
 - `ExecutionEvent` (`management node` -> `FastAPI`)
 - `ProjectionUpdate` (`FastAPI` -> `Convex`)
 
+Filename mapping in `docs/contracts/`:
+
+- `SubmitJobCommand`: `command-submit-job.md`
+- `ExecutionEvent`: `event-execution-lifecycle.md`
+- `ProjectionUpdate`: `projection-update.md`
+
 Each surface must define: required fields, idempotency key, retry rule, tenant boundary, and error semantics.
 
 Operational note:

@@ -39,9 +39,10 @@ Defines the command accepted by FastAPI to submit an execution request for a reg
 - `idempotency_key` must uniquely identify a submission intent within (`tenant_id`, `workspace_id`).
 - Replays with same key return previous accepted response only when all required fields match exactly:
   - `tenant_id`, `workspace_id`, `job_id`, `management_node_id`, `execution_profile`, `payload_ref.input_uri`, `requested_by.user_id`.
-- Optional fields may differ only for client hints and must not change execution intent:
-  - `requested_by.session_id`.
-- Any differences in other optional fields are treated as intent changes and rejected with conflict.
+- Optional field replay rules:
+  - Allowed to differ without conflict: `requested_by.session_id` only.
+  - Must match for idempotent replay: `execution_profile.qos`, `execution_profile.account`, `payload_ref.artifact_bucket`.
+- Any mismatch outside the allowed set is treated as intent change and rejected with conflict.
 - Replays with same key and different payload return `409 idempotency_conflict`.
 
 ## Retry policy

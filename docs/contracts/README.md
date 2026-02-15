@@ -21,5 +21,6 @@ Every runtime contract document must include:
 - Error semantics
 - Tenant/security boundary
 - Observability fields
+- SoR mapping
 
 Breaking changes are allowed in current pre-production phase, but contract docs must be updated in the same PR as code changes.
