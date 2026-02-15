@@ -1,7 +1,53 @@
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: "en-US"
 reviews:
+  profile: "chill"
+  review_status: true
+  commit_status: true
+  fail_commit_status: true
+  high_level_summary: true
+  changed_files_summary: true
+  collapse_walkthrough: false
+  sequence_diagrams: false
+  estimate_code_review_effort: true
+  assess_linked_issues: true
+  related_issues: false
+  related_prs: false
+  suggested_labels: false
+  auto_apply_labels: false
+  suggested_reviewers: false
+  auto_assign_reviewers: false
+  in_progress_fortune: false
+  poem: false
+  enable_prompt_for_ai_agents: true
+  abort_on_close: true
+  disable_cache: false
+  path_instructions:
+    - path: "apps/api/**"
+      instructions: |
+        Prioritize API contract compatibility, auth/security implications, and behavioral regressions.
+        Highlight breaking changes explicitly and suggest migration-safe alternatives when possible.
+    - path: "apps/web/**"
+      instructions: |
+        Focus on UX regressions, accessibility risks, and runtime/state-management bugs.
+        Avoid nitpicks unless they impact maintainability or correctness.
+    - path: "docs/**"
+      instructions: |
+        Keep feedback lightweight. Flag only factual inaccuracies, contradictions, or missing operational steps.
+  pre_merge_checks:
+    title:
+      mode: warning
+      requirements: "Use clear conventional style: <type>(<scope>): <summary> when applicable."
+    description:
+      mode: warning
   auto_review:
     enabled: true
+    auto_incremental_review: true
+    auto_pause_after_reviewed_commits: 3
+    ignore_title_keywords:
+      - "WIP"
+      - "DO NOT REVIEW"
+      - "NO-CR"
     base_branches:
       - ".*"
     drafts: true
