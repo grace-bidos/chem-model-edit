@@ -1,0 +1,52 @@
+{
+  "cluster_name": "chem-byo-cluster-a",
+  "slurm": {
+    "partitions": [
+      "short",
+      "long",
+      "highmem"
+    ],
+    "accounts": [
+      "chem-default",
+      "chem-premium"
+    ],
+    "qos": [
+      "normal",
+      "priority"
+    ]
+  },
+  "queue_mappings": [
+    {
+      "queue": "standard",
+      "partition": "short",
+      "account": "chem-default",
+      "qos": "normal",
+      "max_walltime_minutes": 240
+    },
+    {
+      "queue": "highmem",
+      "partition": "highmem",
+      "account": "chem-premium",
+      "qos": "priority",
+      "max_walltime_minutes": 720
+    }
+  ],
+  "fallback_policy": {
+    "mode": "route-default",
+    "default_queue": "standard"
+  },
+  "registration_requirements": {
+    "required_node_labels": [
+      "owner",
+      "region",
+      "cpu_arch"
+    ],
+    "required_health_checks": [
+      "sinfo",
+      "sbatch",
+      "squeue",
+      "sacct"
+    ],
+    "deny_if_drain_or_down": true
+  }
+}
