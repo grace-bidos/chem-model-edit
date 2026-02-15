@@ -10,6 +10,7 @@ Goal: build a browser workflow to view, edit, compare, and share QE `.in` struct
 Detailed scope and acceptance criteria: `specs/001-chem-model-webapp/spec.md`.
 
 ## Quickstart
+
 Run from repository root.
 
 ```bash
@@ -22,6 +23,7 @@ cd chem-model-edit
 `just` is recommended for daily development (`just dev`, `just test`, `just typecheck`), but optional.
 
 Install `just` manually:
+
 ```bash
 # Requires Rust/Cargo environment
 cargo install just
@@ -31,12 +33,14 @@ sudo snap install --classic just
 ```
 
 No `just`? start components separately:
+
 ```bash
 pnpm -C apps/web dev
 cd apps/api && uv run uvicorn main:app --reload --port 8000
 ```
 
 If you want to auto-install `just` via `cargo` during setup:
+
 ```bash
 SETUP_INSTALL_JUST=1 ./scripts/setup-dev.sh
 just dev
@@ -52,15 +56,19 @@ Full setup details: `docs/setup.md`
 ZPE worker setup: `docs/zpe-worker-setup.md`
 
 ## Run Components Separately (alternative)
+
 All commands below run from repository root unless noted.
 
 ### Web only
+
 ```bash
 pnpm -C apps/web dev
 ```
+
 Default port is `3000` for direct Vite dev.
 
 ### API only
+
 ```bash
 cd apps/api
 uv sync
@@ -68,11 +76,13 @@ uv run uvicorn main:app --reload --port 8000
 ```
 
 ### Override ports for `just dev`
+
 ```bash
 WEB_PORT=4000 API_PORT=9000 just dev
 ```
 
 ## Quality checks
+
 ```bash
 just style      # web: prettier + eslint, api: ruff
 just typecheck  # web: tsc, api: mypy
@@ -81,6 +91,7 @@ just ci         # nx run-many -t lint,typecheck,test,knip
 ```
 
 ## Repository layout
+
 - `apps/web`: TanStack Start web app (frontend)
 - `apps/api`: FastAPI backend
 - `packages/api-client`: shared API client package
@@ -90,4 +101,5 @@ just ci         # nx run-many -t lint,typecheck,test,knip
 - `samples/qe-in`: sample QE `.in` inputs
 
 ## Notes (sandboxed environments)
+
 - In sandboxed environments (for example, Codex CLI), `uv sync` or `just` may require elevated execution due to filesystem constraints (`EXDEV`).
