@@ -9,6 +9,7 @@
 ## POST /structures (register Structure)
 
 Request:
+
 ```json
 {
   "structure": {
@@ -24,6 +25,7 @@ Request:
 ```
 
 Response:
+
 ```json
 {
   "structureId": "9f1c2d7d0c9a4a6c8c5c34f3b8b5b6e3",
@@ -34,6 +36,7 @@ Response:
 ## POST /structures/import (QE import)
 
 Request:
+
 ```json
 {
   "content": "<QE .in>"
@@ -41,6 +44,7 @@ Request:
 ```
 
 Response:
+
 ```json
 {
   "structureId": "a6b5c4d3e2f1a6b5c4d3e2f1a6b5c4d3",
@@ -59,6 +63,7 @@ Response:
 ## POST /supercell/build
 
 Request:
+
 ```json
 {
   "baseStructureId": "11111111111111111111111111111111",
@@ -66,8 +71,16 @@ Request:
     "rows": 2,
     "cols": 3,
     "tiles": [
-      ["11111111111111111111111111111111", "22222222222222222222222222222222", "11111111111111111111111111111111"],
-      ["33333333333333333333333333333333", "11111111111111111111111111111111", "22222222222222222222222222222222"]
+      [
+        "11111111111111111111111111111111",
+        "22222222222222222222222222222222",
+        "11111111111111111111111111111111"
+      ],
+      [
+        "33333333333333333333333333333333",
+        "11111111111111111111111111111111",
+        "22222222222222222222222222222222"
+      ]
     ],
     "axis": { "row": "b", "col": "a" }
   },
@@ -83,6 +96,7 @@ Request:
 ```
 
 Response:
+
 ```json
 {
   "structureId": "44444444444444444444444444444444",
@@ -113,16 +127,19 @@ Response:
 ### Error responses
 
 Invalid grid dimensions (400):
+
 ```json
 { "detail": "tiles[1] has 2 cols, expected 3" }
 ```
 
 Unknown structureId (404):
+
 ```json
 { "detail": "Structure not found" }
 ```
 
 Missing base lattice (400):
+
 ```json
 { "detail": "base structure has no lattice" }
 ```

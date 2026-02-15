@@ -75,8 +75,8 @@ Optional:
 
 ### User self-service (UI-driven)
 
-1) Sign in on the web UI and generate an enroll token (valid for ~1 hour).
-2) Use the token on the compute server registration call with a queue name:
+1. Sign in on the web UI and generate an enroll token (valid for ~1 hour).
+2. Use the token on the compute server registration call with a queue name:
 
 ```bash
 curl -X POST http://localhost:8000/calc/zpe/compute/servers/register \
@@ -145,14 +145,14 @@ ZPE_WORKER_SYNC=1 ./scripts/run-zpe-worker.sh
 
 ## Smoke test (end-to-end)
 
-1) Start the API (control-plane)
+1. Start the API (control-plane)
 
 ```bash
 cd apps/api
 uv run uvicorn main:app --reload --port 8000
 ```
 
-1) Submit a job (in another terminal, repo root)
+1. Submit a job (in another terminal, repo root)
 
 ```bash
 python - <<'PY'
@@ -179,7 +179,7 @@ print(urllib.request.urlopen(req).read().decode())
 PY
 ```
 
-1) Poll the job and fetch the result
+1. Poll the job and fetch the result
 
 ```bash
 curl http://localhost:8000/calc/zpe/jobs/<JOB_ID>

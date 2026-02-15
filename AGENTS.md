@@ -1,11 +1,13 @@
 # Codex Agent Context (chem-model-edit)
 
 ## Project Summary
+
 Web application for computational chemistry structure visualization and editing.
 Primary capabilities include parallel structure views, partial structure transplant, compare/align, and export/share.
 
 ## Tech Stack
-- Frontend: TanStack Start (SPA) + shadcn/ui + Mol*
+
+- Frontend: TanStack Start (SPA) + shadcn/ui + Mol\*
 - Backend: FastAPI + ASE / pymatgen
 - JS/TS: pnpm
 - Python: uv (+ ruff, mypy, pytest)
@@ -13,18 +15,21 @@ Primary capabilities include parallel structure views, partial structure transpl
 - Deploy: Cloudflare Workers (web), Cloud Run (api)
 
 ## Language and Communication
+
 - Report to the user in Japanese.
 - Public artifacts (GitHub PR/Issue/comments) must be written in English.
 - Inter-agent communication (main agent <-> sub-agents, and sub-agent outputs) must be in English by default.
 - Even when the initiating prompt is in Japanese, sub-agents should answer in English unless explicitly requested otherwise for a specific task.
 
 ## Mandatory Working Rules
+
 - Always create and use a dedicated git worktree before starting implementation work.
 - Keep `main` worktree for review/inspection only; do implementation in `.worktrees/<name>`.
 - Do not develop directly on `main`.
 - `uploads/` user-uploaded files may be moved/cleaned up if needed for the task.
 
 ## Planning and Delivery Model (Current)
+
 - Source of truth for planning/progress: **Linear**.
 - GitHub Issues are optional mirrors or external discussion threads.
 - Delivery style: **Trunk-based + Stacked PR**.
@@ -34,6 +39,7 @@ Primary capabilities include parallel structure views, partial structure transpl
 - Child delivery issues are implementation units. One child issue maps to exactly one PR layer in a stack.
 
 ### Linear operation rules (fixed)
+
 - Treat Linear Project/Issues as canonical. Do not use GitHub Issues as planning source-of-truth.
 - Keep issue hierarchy to one level only (`Parent -> Child`). Do not create deeper nesting.
 - Mandatory metadata for active issues (`Todo`/`In Progress`/`In Review`): `state`, `cycle`, `type:*`, and `size:*`.
@@ -66,6 +72,7 @@ Primary capabilities include parallel structure views, partial structure transpl
 - Promote operational work into a project only when it becomes a bounded, multi-issue initiative with explicit completion criteria.
 
 ### Work-item taxonomy
+
 - Type axis: `Ask` / `Show` / `Ship`
   - Ask: spec/plan/architecture/DB/security-impacting decisions
   - Show: runtime behavior or feature changes
@@ -74,12 +81,14 @@ Primary capabilities include parallel structure views, partial structure transpl
   - `L` must be split before merge queue entry
 
 ### Merge Queue and CI gate policy
+
 - Queue required for runtime-impacting Ask and all Show changes.
 - Queue optional for docs-only Ask/Ship items.
 - Pre-merge required checks should stay fast: lint, typecheck, unit/smoke, policy checks.
 - Heavy suites (if added later) should run post-merge.
 
 ## Tool Roles
+
 - Linear: project/cycle/issue planning and status.
 - Graphite (`gt`): stacked PR workflow (`create`, `submit`, `restack`, `sync`).
 - GitHub CLI (`gh`): PR review/merge/check inspection.
@@ -88,6 +97,7 @@ Primary capabilities include parallel structure views, partial structure transpl
 - `scripts/gh/pr-autoloop.py`: lightweight PR loop helper for watch/blocker detection and optional auto-merge.
 
 ### PR Loop Operation (Recommended)
+
 - Use `scripts/gh/pr-autoloop.py <PR_NUMBER> --watch --merge-when-ready --merge-method merge` to run the review/check/merge loop.
 - Use `--resolve-outdated-threads` only for outdated threads; do not auto-resolve active review discussions.
 - Prefer this script over ad-hoc manual polling when handling repeated CI/review feedback cycles.
@@ -98,11 +108,13 @@ Primary capabilities include parallel structure views, partial structure transpl
   - `git -C "$(git rev-parse --show-toplevel)" merge --ff-only origin/main`
 
 ### Sub-agent ownership policy
+
 - Assign sub-agents only child delivery issues, never parent capability issues.
 - Main agent owns parent issue planning, decomposition, and acceptance checks.
 - Sub-agent handoff must include issue id, owned files, out-of-scope boundaries, and reporting language (`English` for inter-agent communication).
 
 ## Repository Layout
+
 - `apps/web`: TanStack Start frontend
 - `apps/api`: FastAPI backend (`app/routers`, `services`, `tests`)
 - `packages/api-client`: shared API client
@@ -115,6 +127,7 @@ Primary capabilities include parallel structure views, partial structure transpl
 - `ref-legacy`: legacy reference
 
 ## Development and Verification Commands
+
 - Web:
   - `pnpm -C apps/web dev --port 3001`
   - `pnpm -C apps/web typecheck`
@@ -131,18 +144,22 @@ Primary capabilities include parallel structure views, partial structure transpl
   - `pnpm exec nx run-many -t lint,typecheck,test,knip`
 
 ## Domain/Implementation Notes
-- Mol* viewer center: `apps/web/src/components/molstar/MolstarViewer.tsx`
-- Mol* inputs: `pdbText` / `cifUrl` (single and multiple structures)
+
+- Mol\* viewer center: `apps/web/src/components/molstar/MolstarViewer.tsx`
+- Mol\* inputs: `pdbText` / `cifUrl` (single and multiple structures)
 - Main API I/O assumption: Quantum ESPRESSO `.in`
 - pnpm store policy: shared user-level store `~/.pnpm-store` (reuse across worktrees)
 
 ## Naming Rule for API Layers
+
 - Distinguish layers by directory (`app/routers`, `services`).
 - Keep the same domain filename across layers (for example, `routers/supercells.py` and `services/supercells.py`).
 - Do not use singular/plural variation as a layer discriminator.
 
 ## Detailed Process References
+
 Use these docs for full operational details instead of duplicating long instructions here:
+
 - `docs/process/linear-stacked-pr-operating-model.md`
 - `docs/process/coderabbit-parallel-playbook.md`
 - `docs/process/merge-and-cleanup.md`

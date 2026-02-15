@@ -33,8 +33,8 @@ Input contract:
 
 ```ts
 {
-  jobId: string
-  token: string | null
+  jobId: string;
+  token: string | null;
 }
 ```
 
@@ -47,9 +47,9 @@ Output contract (web DTO):
 
 ```ts
 {
-  status: 'queued' | 'started' | 'finished' | 'failed'
-  detail: string | null
-  updated_at: string | null
+  status: "queued" | "started" | "finished" | "failed";
+  detail: string | null;
+  updated_at: string | null;
 }
 ```
 

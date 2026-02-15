@@ -76,8 +76,8 @@ ZPE_PW_PATH=/path/to/pw.x
 
 ### ユーザー自己発行（UI経由）
 
-1) Web UI でサインインし、Enroll token を発行（有効期限は約 1 時間）。
-2) compute-plane 登録時に queue 名を指定して登録:
+1. Web UI でサインインし、Enroll token を発行（有効期限は約 1 時間）。
+2. compute-plane 登録時に queue 名を指定して登録:
 
 ```bash
 curl -X POST http://localhost:8000/calc/zpe/compute/servers/register \
@@ -183,14 +183,14 @@ ZPE_WORKER_SYNC=1 ./scripts/run-zpe-worker.sh
 
 ## スモークテスト（E2E）
 
-1) API 起動（control-plane）
+1. API 起動（control-plane）
 
 ```bash
 cd apps/api
 uv run uvicorn main:app --reload --port 8000
 ```
 
-1) ジョブ投入（別ターミナル・repo root で実行）
+1. ジョブ投入（別ターミナル・repo root で実行）
 
 ```bash
 python - <<'PY'
@@ -217,7 +217,7 @@ print(urllib.request.urlopen(req).read().decode())
 PY
 ```
 
-1) ステータス確認と結果取得
+1. ステータス確認と結果取得
 
 ```bash
 curl http://localhost:8000/calc/zpe/jobs/<JOB_ID>
