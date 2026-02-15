@@ -75,17 +75,33 @@ def get_pr(pr_number: int) -> dict[str, Any]:
 
 def get_unresolved_threads(pr_number: int) -> list[ThreadInfo]:
     owner, repo = get_repo_owner_name()
-    query = (
-        "query($owner:String!,$repo:String!,$num:Int!,$after:String){"
-        "repository(owner:$owner,name:$repo){"
-        "pullRequest(number:$num){"
-        "reviewThreads(first:100, after:$after){"
-        "nodes{"
-        "id isResolved isOutdated "
-        "comments(first:1){nodes{author{login} url}}"
-        "} pageInfo{hasNextPage endCursor}"
-        "}}}}}"
-    )
+    query = """
+query($owner:String!, $repo:String!, $num:Int!, $after:String) {
+  repository(owner:$owner, name:$repo) {
+    pullRequest(number:$num) {
+      reviewThreads(first:100, after:$after) {
+        nodes {
+          id
+          isResolved
+          isOutdated
+          comments(first:1) {
+            nodes {
+              author {
+                login
+              }
+              url
+            }
+          }
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+      }
+    }
+  }
+}
+""".strip()
     unresolved: list[ThreadInfo] = []
     cursor: str | None = None
 
