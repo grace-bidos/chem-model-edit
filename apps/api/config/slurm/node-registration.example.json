@@ -1,0 +1,20 @@
+{
+  "node_id": "byo-login-01",
+  "cluster_name": "chem-byo-cluster-a",
+  "enabled_queues": [
+    "standard",
+    "highmem"
+  ],
+  "node_labels": {
+    "owner": "chem-team",
+    "region": "us-central1",
+    "cpu_arch": "x86_64"
+  },
+  "health_checks": {
+    "sinfo": true,
+    "sbatch": true,
+    "squeue": true,
+    "sacct": true
+  },
+  "slurm_state": "idle"
+}
