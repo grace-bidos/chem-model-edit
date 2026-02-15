@@ -76,16 +76,21 @@ def get_pr(pr_number: int) -> dict[str, Any]:
 def get_unresolved_threads(pr_number: int) -> list[ThreadInfo]:
     owner, repo = get_repo_owner_name()
     query = (
-        "query($owner:String!,$repo:String!,$num:Int!){"
+        "query($owner:String!,$repo:String!,$num:Int!,$after:String){"
         "repository(owner:$owner,name:$repo){"
         "pullRequest(number:$num){"
-        "reviewThreads(first:100){nodes{"
+        "reviewThreads(first:100, after:$after){"
+        "nodes{"
         "id isResolved isOutdated "
         "comments(first:1){nodes{author{login} url}}"
+        "} pageInfo{hasNextPage endCursor}"
         "}}}}}"
     )
-    out = run_gh(
-        [
+    unresolved: list[ThreadInfo] = []
+    cursor: str | None = None
+
+    while True:
+        args = [
             "api",
             "graphql",
             "-f",
@@ -97,25 +102,39 @@ def get_unresolved_threads(pr_number: int) -> list[ThreadInfo]:
             "-F",
             f"num={pr_number}",
         ]
-    )
-    data = json.loads(out)
-    nodes = data["data"]["repository"]["pullRequest"]["reviewThreads"]["nodes"]
-    unresolved: list[ThreadInfo] = []
-    for node in nodes:
-        if node["isResolved"]:
-            continue
-        comment_nodes = node.get("comments", {}).get("nodes", [])
-        if not comment_nodes:
-            continue
-        first = comment_nodes[0]
-        unresolved.append(
-            ThreadInfo(
-                thread_id=node["id"],
-                is_outdated=bool(node.get("isOutdated", False)),
-                author=(first.get("author") or {}).get("login", "unknown"),
-                url=first.get("url", ""),
+        if cursor:
+            args.extend(["-F", f"after={cursor}"])
+        else:
+            args.extend(["-F", "after="])
+
+        out = run_gh(args)
+        data = json.loads(out)
+        threads = data["data"]["repository"]["pullRequest"]["reviewThreads"]
+        nodes = threads.get("nodes", [])
+
+        for node in nodes:
+            if node["isResolved"]:
+                continue
+            comment_nodes = node.get("comments", {}).get("nodes", [])
+            if not comment_nodes:
+                continue
+            first = comment_nodes[0]
+            unresolved.append(
+                ThreadInfo(
+                    thread_id=node["id"],
+                    is_outdated=bool(node.get("isOutdated", False)),
+                    author=(first.get("author") or {}).get("login", "unknown"),
+                    url=first.get("url", ""),
+                )
             )
-        )
+
+        page_info = threads.get("pageInfo") or {}
+        if not page_info.get("hasNextPage"):
+            break
+        cursor = page_info.get("endCursor")
+        if not cursor:
+            break
+
     return unresolved
 
 
