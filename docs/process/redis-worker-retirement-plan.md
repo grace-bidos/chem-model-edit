@@ -132,7 +132,7 @@ submission/lease/result/ownership paths are production-ready.
       `packages/api-client/src/generated/schema.ts`).
 - [ ] Legacy setup/operations docs updated to next-gen runtime instructions.
 - [ ] Redis dependency audit passes for retired domains:
-      `rg -n \"redis|Redis\" apps/api/services/zpe apps/api/app/routers/zpe.py`.
+      `rg -n "redis|Redis" apps/api/services/zpe apps/api/app/routers/zpe.py`.
 - [ ] Validation passes:
       `uv run --project apps/api pytest`,
       `uv run --project apps/api ruff check apps/api`,
