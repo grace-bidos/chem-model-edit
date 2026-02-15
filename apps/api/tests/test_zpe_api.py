@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+
 import fakeredis
 from fastapi.testclient import TestClient
+import pytest
 
 import main
 import app.routers.zpe as zpe_router
@@ -519,6 +521,98 @@ def test_compute_failed_endpoint_retries_after_audit_outage(monkeypatch):
     assert second.retry_count == 1
     assert fake.get(f"zpe:retry_count:{job_id}") == b"1"
     assert fake.hget(f"zpe:status:{job_id}", "status") == b"queued"
+
+
+def test_compute_failed_replay_returns_recorded_outcome_when_lease_already_consumed(
+    monkeypatch,
+):
+    fake = _patch_redis(monkeypatch)
+    job_id = "job-overlap-replay"
+    lease_id = "lease-overlap"
+    worker_id = "compute-1"
+    submit_key = f"zpe:failure_submit:{job_id}:{lease_id}"
+
+    fake.hset(
+        f"zpe:status:{job_id}",
+        mapping={
+            "status": "started",
+            "detail": "",
+            "updated_at": "2026-01-01T00:00:00+00:00",
+        },
+    )
+    fake.hset(
+        f"zpe:lease:{job_id}",
+        mapping={"worker_id": worker_id, "lease_id": lease_id},
+    )
+    monkeypatch.setattr(
+        zpe_compute_results, "_dispatch_runtime_state_transition", lambda **_kwargs: None
+    )
+
+    original_get_lease = zpe_compute_results._get_lease
+    injected = {"done": False}
+
+    def _get_lease_with_overlap(redis_client, target_job_id):
+        if not injected["done"] and target_job_id == job_id:
+            injected["done"] = True
+            redis_client.hset(
+                submit_key,
+                mapping={
+                    "worker_id": worker_id,
+                    "error_code": "ERR_TEMP",
+                    "error_message": "temporary outage",
+                    "traceback": "",
+                    "retry_count": "1",
+                    "requeued": "1",
+                },
+            )
+            redis_client.delete(f"zpe:lease:{job_id}")
+            return {}
+        return original_get_lease(redis_client, target_job_id)
+
+    monkeypatch.setattr(zpe_compute_results, "_get_lease", _get_lease_with_overlap)
+
+    outcome = zpe_compute_results.submit_failure(
+        job_id=job_id,
+        worker_id=worker_id,
+        lease_id=lease_id,
+        error_code="ERR_TEMP",
+        error_message="temporary outage",
+    )
+
+    assert outcome.requeued is True
+    assert outcome.retry_count == 1
+    assert injected["done"] is True
+    assert fake.get(f"zpe:retry_count:{job_id}") is None
+    assert fake.hget(f"zpe:status:{job_id}", "status") == b"started"
+
+
+def test_compute_failed_replay_rejects_same_key_with_different_payload(monkeypatch):
+    fake = _patch_redis(monkeypatch)
+    job_id = "job-replay-mismatch"
+    lease_id = "lease-mismatch"
+    worker_id = "compute-1"
+    submit_key = f"zpe:failure_submit:{job_id}:{lease_id}"
+
+    fake.hset(
+        submit_key,
+        mapping={
+            "worker_id": worker_id,
+            "error_code": "ERR_TEMP",
+            "error_message": "temporary outage",
+            "traceback": "",
+            "retry_count": "1",
+            "requeued": "1",
+        },
+    )
+
+    with pytest.raises(ValueError, match="different payload"):
+        zpe_compute_results.submit_failure(
+            job_id=job_id,
+            worker_id=worker_id,
+            lease_id=lease_id,
+            error_code="ERR_TEMP",
+            error_message="changed message",
+        )
 
 
 def test_zpe_enqueue_returns_503_when_audit_write_fails(monkeypatch):
