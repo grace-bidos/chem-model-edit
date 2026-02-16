@@ -1,0 +1,27 @@
+---
+- name: Slurm BYO wrapper PoC preflight
+  hosts: slurm_cluster
+  gather_facts: false
+  tasks:
+    - name: Show target host and intended roles
+      ansible.builtin.debug:
+        msg:
+          host: "{{ inventory_hostname }}"
+          host_groups: "{{ group_names }}"
+
+- name: Galaxy Slurm baseline variable map
+  hosts: slurmservers
+  gather_facts: false
+  tasks:
+    - name: Show galaxyproject.slurm-compatible inputs
+      ansible.builtin.debug:
+        msg:
+          slurm_roles: "{{ slurm_roles | default([]) }}"
+          slurm_cluster_name: "{{ slurm_config.ClusterName | default('unset') }}"
+          slurm_controller: "{{ slurm_config.SlurmctldHost | default('unset') }}"
+          slurm_nodes: "{{ slurm_nodes | default([]) }}"
+          slurm_partitions: "{{ slurm_partitions | default([]) }}"
+
+# For real bootstrap, replace debug tasks with:
+# roles:
+#   - role: galaxyproject.slurm

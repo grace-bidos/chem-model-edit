@@ -1,0 +1,19 @@
+---
+# Baseline shape aligned to galaxyproject.slurm role conventions.
+slurm_roles:
+  - controller
+
+slurm_config:
+  ClusterName: chem-byo
+  SlurmctldHost: controller
+
+slurm_nodes:
+  - name: worker1
+    State: UNKNOWN
+  - name: worker2
+    State: UNKNOWN
+
+slurm_partitions:
+  - name: compute
+    Default: YES
+    Nodes: "worker1,worker2"
