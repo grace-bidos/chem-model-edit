@@ -121,6 +121,20 @@ api-security:
   uv run pip-audit --progress-spinner off
   popd >/dev/null
 
+api-security-bandit:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pushd apps/api >/dev/null
+  uv run bandit -q -r app services main.py
+  popd >/dev/null
+
+api-security-audit:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pushd apps/api >/dev/null
+  uv run pip-audit --progress-spinner off
+  popd >/dev/null
+
 api-deadcode:
   #!/usr/bin/env bash
   set -euo pipefail
@@ -156,6 +170,20 @@ api-quality-fast:
   just api-ruff
   just api-typecheck-strict
   just api-test
+
+api-quality-security-hygiene:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  just api-security
+  just api-deadcode
+
+api-quality-phase1:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  just api-quality-fast
+  just api-quality-security-hygiene
+  just api-schemathesis-smoke
+  just api-mutation-smoke
 
 api-openapi-export:
   #!/usr/bin/env bash

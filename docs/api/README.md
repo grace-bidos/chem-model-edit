@@ -8,7 +8,11 @@
 - `just api-cov`: pytest coverage レポートを生成
 - `just api-typecheck-strict`: mypy + pyright の厳密型チェック
 - `just api-security`: bandit + pip-audit
+- `just api-security-bandit`: bandit のみ実行
+- `just api-security-audit`: pip-audit のみ実行
 - `just api-deadcode`: deptry + vulture
+- `just api-quality-security-hygiene`: security + deadcode hygiene をまとめて実行
+- `just api-quality-phase1`: 開発向け phase-1 品質ゲート一式を実行
 - `just api-schemathesis-smoke`: Schemathesis（高速スモーク）
 - `just api-schemathesis-broad`: Schemathesis（広範囲探索）
 - `just api-mutation-smoke`: mutmut のスモーク実行
@@ -38,3 +42,9 @@
 - CI: 段階導入で運用する
 - `pyright` / `bandit` / `pip-audit` / `gitleaks` / `deptry` / `vulture` / `mutmut` は phase-1 で non-blocking
 - ノイズ削減後、段階的に required check へ昇格する
+
+## Security/Hygiene Gate Runbook
+
+- 方針と昇格基準: `docs/process/security-hygiene-gate-policy.md`
+- CI では phase-1 を non-blocking としつつ、Bandit/Pip-audit の件数をサマリと artifact で追跡する
+- ローカル実行の推奨順: `just api-security-bandit` → `just api-security-audit` → `just api-quality-security-hygiene`
