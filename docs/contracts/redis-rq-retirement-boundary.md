@@ -89,3 +89,11 @@ For remaining transitional Redis keys/logs, include at minimum:
 - Are ownership and contract docs updated for changed runtime behavior?
 
 If any answer is yes to the first two, PR must be rejected unless this document is explicitly updated with a temporary expiry-bound exception.
+
+## Implemented status (`GRA-77`, February 16, 2026)
+
+- [x] Runtime owner checks no longer require dedicated Redis owner keys in hot paths.
+- [x] Runtime relay owner derivation reads execution metadata (`user_id`) instead of Redis owner keys.
+- [x] Admin ops flags in Redis are bounded by TTL (`ZPE_OPS_FLAG_TTL_SECONDS`).
+- [x] Legacy Redis owner key reads are compatibility fallback only (non-authoritative, pre-cutover support).
+- [x] Product SoR (`Convex`) and Execution SoR (`management node stack`) remain the authoritative boundary model for runtime semantics.

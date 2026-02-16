@@ -10,7 +10,6 @@ from app.schemas.zpe import ZPEJobRequest
 from services.structures import get_structure
 from .io import format_freqs_csv, format_summary
 from .job_meta import get_job_meta_store
-from .job_owner import get_job_owner_store
 from .parse import (
     ensure_mobile_indices,
     extract_fixed_indices,
@@ -197,8 +196,6 @@ def submit_job(
             resolved_queue_name=resolved_queue_name,
         ),
     )
-    owner_store = get_job_owner_store()
-    owner_store.set_owner(job_id, user_id, tenant_id)
     slurm_resolution_meta = {}
     if resolution is not None:
         slurm_resolution_meta = {

@@ -37,5 +37,5 @@ class JobMetaStore:
             return {}
 
 
-def get_job_meta_store() -> JobMetaStore:
-    return JobMetaStore()
+def get_job_meta_store(*, redis: Optional[Redis] = None) -> JobMetaStore:
+    return JobMetaStore(redis=redis)

@@ -41,6 +41,7 @@ class ZPESettings(BaseSettings):
     cutover_submission_route: Literal["redis-worker", "next-gen"] = "redis-worker"
     cutover_result_read_source: Literal["redis", "projection"] = "redis"
     legacy_worker_endpoints_enabled: bool = True
+    ops_flag_ttl_seconds: int = 3600
 
     pw_command: str = "pw.x"
     pw_path: Optional[str] = None
