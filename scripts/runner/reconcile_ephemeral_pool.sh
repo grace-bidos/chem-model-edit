@@ -17,7 +17,7 @@ Options:
   --baseline <n>          Optional. Default: 1
   --max <n>               Optional. Default: 4
   --target <n>            Optional. Default: max
-  --lock-file <path>      Optional. Default: /tmp/chem-model-edit-runner-pool.lock
+  --lock-file <path>      Optional. Default: /run/lock/chem-model-edit-runner-pool.lock
   --dry-run               Print actions without mutating state.
   -h, --help              Show help.
 EOF
@@ -74,6 +74,12 @@ cmd=(
 )
 if [[ "$dry_run" -eq 1 ]]; then
   cmd+=(--dry-run)
+fi
+
+if [[ "$dry_run" -eq 1 ]]; then
+  echo "[dry-run] lock_file=${lock_file}"
+  "${cmd[@]}"
+  exit 0
 fi
 
 exec 9>"$lock_file"

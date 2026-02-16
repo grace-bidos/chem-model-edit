@@ -195,36 +195,36 @@ Notes:
 - Effective target is clamped to `[baseline, max]`.
 - Runner naming remains `home-self-host`, `home-self-host-2`, ...
 
-## 9.2) Keep ephemeral pool replenished automatically
+## 9.2) Keep 4 warm slots with always-on supervisor (recommended)
 
-Install a systemd timer that periodically repopulates consumed ephemeral runners.
+Use supervisor mode to avoid queue gaps between timer ticks.
 
-1) Prepare a GitHub token file (root-readable only):
-
-```bash
-sudo install -d -m 0700 /etc/chem-model-edit
-printf '%s\n' '<GH_TOKEN_WITH_ACTIONS_ADMIN>' | sudo tee /etc/chem-model-edit/gh_runner_token >/dev/null
-sudo chmod 600 /etc/chem-model-edit/gh_runner_token
-```
-
-2) Install and enable timer:
+One-command setup:
 
 ```bash
-scripts/runner/install_pool_reconcile_timer.sh \
+sudo -v
+scripts/runner/setup_pool_supervisor_one_command.sh \
   --repo grace-bidos/chem-model-edit \
   --baseline 1 \
   --max 4 \
   --target 4 \
-  --interval 2min \
-  --gh-token-file /etc/chem-model-edit/gh_runner_token
+  --interval 15
 ```
 
-3) Verify timer:
+Dry-run:
 
 ```bash
-sudo systemctl status chem-runner-pool-reconcile.timer --no-pager
-sudo systemctl list-timers --all | rg chem-runner-pool-reconcile
+scripts/runner/setup_pool_supervisor_one_command.sh --dry-run
 ```
+
+Verify:
+
+```bash
+sudo systemctl status chem-runner-pool-supervisor.service --no-pager
+gh api repos/grace-bidos/chem-model-edit/actions/runners --jq '.runners[] | {name,status,busy}'
+```
+
+Optional: timer mode remains available as fallback, but supervisor mode should be the default for steady 4-slot operation.
 
 ## 10) Emergency fallback to hosted routing
 

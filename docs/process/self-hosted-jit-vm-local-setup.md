@@ -42,6 +42,8 @@ Fallback target is always `ubuntu-latest`.
   - baseline concurrency: `--baseline` (floor)
   - max concurrency: `--max` (ceiling)
   - current desired concurrency: `--target` (optional, clamped to floor/ceiling)
+  - recommended control mode: always-on supervisor
+    - `scripts/runner/setup_pool_supervisor_one_command.sh`
 - Practical impact target:
   - cold start overhead: around tens of seconds to low minutes depending on host and image size
   - warm standby reduces that to near runner registration time plus checkout/dependency setup
@@ -72,6 +74,8 @@ The following requires your action:
   - `scripts/runner/check_local_runner_health.sh --owner <owner> --repo <repo>`
 - local recovery command supports dry-run and reconfigure/restart flow
   - `scripts/runner/recover_base_runner.sh --dry-run`
+- local supervisor command supports dry-run before enabling
+  - `scripts/runner/setup_pool_supervisor_one_command.sh --dry-run`
 
 ## Rollback
 
