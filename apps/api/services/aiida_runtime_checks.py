@@ -170,7 +170,7 @@ def _run_command_probe(*, command: list[str]) -> CommandProbe:
             status="failed",
             detail=f"command launch failed: {command_text}",
             command=command_text,
-            error="command_launch_failed",
+            error="tooling_failure",
             latency_ms=latency_ms,
             stderr=_normalize_output(str(exc)),
             raw_stderr=str(exc),
@@ -248,20 +248,32 @@ def probe_user_managed_deep_readiness(
             probes={},
         )
 
-    probes: dict[str, CommandProbe] = {
-        "scontrol_ping": _run_command_probe(command=["scontrol", "ping"]),
-        "sinfo": _run_command_probe(command=["sinfo"]),
-        "verdi_status": _run_command_probe(command=["verdi", "status"]),
-        "verdi_profile": _run_command_probe(command=["verdi", "profile", "list"]),
-    }
+    probe_specs: list[tuple[str, list[str]]] = [
+        ("scontrol_ping", ["scontrol", "ping"]),
+        ("sinfo", ["sinfo"]),
+        ("verdi_status", ["verdi", "status"]),
+        ("verdi_profile", ["verdi", "profile", "list"]),
+    ]
+    probes: dict[str, CommandProbe] = {}
+    for probe_name, command in probe_specs:
+        probe = _run_command_probe(command=command)
+        probes[probe_name] = probe
+        if probe.status == "failed":
+            return UserManagedDeepReadinessCheck(
+                status="failed",
+                detail="user-managed deep readiness probes failed",
+                probes=probes,
+                error=probe.error,
+                failed_probe=probe_name,
+            )
 
     configured_profile = (os.getenv(_AIIDA_PROFILE_KEY) or "").strip()
-    verdi_profile_probe = probes["verdi_profile"]
-    discovered_profiles = _extract_profile_names(verdi_profile_probe.raw_stdout)
+    verdi_profile_probe = probes.get("verdi_profile")
     if (
-        configured_profile
+        verdi_profile_probe is not None
+        and configured_profile
         and verdi_profile_probe.status == "ok"
-        and configured_profile not in discovered_profiles
+        and configured_profile not in _extract_profile_names(verdi_profile_probe.raw_stdout)
     ):
         probes["verdi_profile"] = CommandProbe(
             status="failed",
@@ -275,15 +287,13 @@ def probe_user_managed_deep_readiness(
             raw_stderr=verdi_profile_probe.raw_stderr,
         )
 
-    for probe_name, probe in probes.items():
-        if probe.status == "failed":
-            return UserManagedDeepReadinessCheck(
-                status="failed",
-                detail="user-managed deep readiness probes failed",
-                probes=probes,
-                error=probe.error,
-                failed_probe=probe_name,
-            )
+        return UserManagedDeepReadinessCheck(
+            status="failed",
+            detail="user-managed deep readiness probes failed",
+            probes=probes,
+            error="misconfigured",
+            failed_probe="verdi_profile",
+        )
 
     return UserManagedDeepReadinessCheck(
         status="ok",

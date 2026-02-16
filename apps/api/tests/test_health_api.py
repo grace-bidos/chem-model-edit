@@ -236,9 +236,11 @@ def test_health_reports_degraded_when_user_managed_deep_readiness_command_fails(
 ) -> None:
     _clear_aiida_env(monkeypatch)
     monkeypatch.setenv("AIIA_USER_MANAGED_DEEP_READY_ENABLED", "true")
+    commands: list[tuple[str, ...]] = []
 
     def _run_probe(command: list[str], **kwargs: Any) -> Any:
         _ = kwargs
+        commands.append(tuple(command))
         if command[0] == "sinfo":
             return subprocess.CompletedProcess(
                 args=command,
@@ -266,6 +268,7 @@ def test_health_reports_degraded_when_user_managed_deep_readiness_command_fails(
     assert check["error"] == "command_failed"
     assert check["failed_probe"] == "sinfo"
     assert check["probes"]["sinfo"]["exit_code"] == 1
+    assert commands == [("scontrol", "ping"), ("sinfo",)]
 
 
 def test_health_reports_degraded_when_user_managed_deep_readiness_command_launch_fails(
@@ -295,9 +298,9 @@ def test_health_reports_degraded_when_user_managed_deep_readiness_command_launch
     check = payload["checks"]["user_managed_deep_readiness"]
     assert payload["status"] == "degraded"
     assert check["status"] == "failed"
-    assert check["error"] == "command_launch_failed"
+    assert check["error"] == "tooling_failure"
     assert check["failed_probe"] == "sinfo"
-    assert check["probes"]["sinfo"]["error"] == "command_launch_failed"
+    assert check["probes"]["sinfo"]["error"] == "tooling_failure"
 
 
 def test_ready_returns_200_when_user_managed_deep_readiness_passes(monkeypatch: Any) -> None:
