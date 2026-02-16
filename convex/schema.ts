@@ -52,6 +52,15 @@ export default defineSchema({
     job_id: v.string(),
     submission_id: v.string(),
     projection_state: projectionStateValidator,
+    incoming_projection_state: v.optional(projectionStateValidator),
     recorded_at: v.string(),
-  }).index('by_projection_event_id', ['projection_event_id']),
+  })
+    .index('by_projection_event_id', ['projection_event_id'])
+    .index('by_target_projection_event_id', [
+      'tenant_id',
+      'workspace_id',
+      'job_id',
+      'submission_id',
+      'projection_event_id',
+    ]),
 })

@@ -10,7 +10,6 @@ from urllib import request as urlrequest
 
 from services.zpe.job_state import JobState
 
-
 @dataclass(frozen=True)
 class AiidaJobEvent:
     """Minimal payload that arrives from AiiDA/Redis for a job projection change."""
@@ -56,7 +55,6 @@ def compute_event_idempotency_key(event: AiidaJobEvent) -> str:
         f"{event.job_id}|{event.event_id}|{event.state}|{event.sequence}".encode("utf-8")
     )
     return digest.hexdigest()
-
 
 def build_convex_projection(event: AiidaJobEvent) -> ConvexJobProjection:
     """Project the AiiDA event onto the Convex projection schema fields."""

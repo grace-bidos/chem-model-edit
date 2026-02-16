@@ -187,8 +187,14 @@ def test_zpe_job_result_not_finished(monkeypatch):
 
     client = TestClient(main.app)
     headers, user_id = _setup_user_and_target(client, monkeypatch, fake)
-    owner_store = zpe_job_owner.JobOwnerStore(redis=fake)
-    owner_store.set_owner(job_id, user_id, headers["X-Tenant-Id"])
+    zpe_job_meta.JobMetaStore(redis=fake).set_meta(
+        job_id,
+        {
+            "tenant_id": headers["X-Tenant-Id"],
+            "user_id": user_id,
+            "request_id": "req-not-finished",
+        },
+    )
     response = client.get(f"/api/zpe/jobs/{job_id}/result", headers=headers)
     assert response.status_code == 409
 
@@ -383,8 +389,13 @@ def test_zpe_result_read_projection_keeps_read_hotpath_available(monkeypatch):
     client = TestClient(main.app)
     headers, user_id = _setup_user_and_target(client, monkeypatch, fake)
     job_id = "job-projection-read"
-    zpe_job_owner.JobOwnerStore(redis=fake).set_owner(
-        job_id, user_id, headers["X-Tenant-Id"]
+    zpe_job_meta.JobMetaStore(redis=fake).set_meta(
+        job_id,
+        {
+            "tenant_id": headers["X-Tenant-Id"],
+            "user_id": user_id,
+            "request_id": "req-projection-read",
+        },
     )
     store.set_status(job_id, "finished")
     zpe_ops_flags.set_ops_flags(result_read_source="projection", redis=fake)
@@ -421,7 +432,7 @@ def test_admin_ops_flags_include_cutover_fields(monkeypatch):
 
 
 def test_admin_ops_flags_partial_update_keeps_other_values(monkeypatch):
-    _patch_redis(monkeypatch)
+    fake = _patch_redis(monkeypatch)
     client = TestClient(main.app)
 
     first = client.patch(
@@ -444,6 +455,10 @@ def test_admin_ops_flags_partial_update_keeps_other_values(monkeypatch):
     assert payload["submission_route"] == "next-gen"
     assert payload["result_read_source"] == "projection"
     assert payload["legacy_worker_endpoints_enabled"] is False
+    assert fake.ttl("zpe:ops:dequeue_enabled") > 0
+    assert fake.ttl("zpe:ops:submission_route") > 0
+    assert fake.ttl("zpe:ops:result_read_source") > 0
+    assert fake.ttl("zpe:ops:legacy_worker_endpoints_enabled") > 0
 
 
 def test_compute_failed_endpoint_maps_invalid_transition_to_conflict(monkeypatch):
@@ -984,6 +999,38 @@ def test_zpe_owner_enforcement_blocks_wrong_tenant(monkeypatch):
 
     forbidden = client.get(f"/api/zpe/jobs/{job_id}", headers=wrong_tenant_headers)
     assert forbidden.status_code == 403
+
+
+def test_zpe_owner_enforcement_prefers_job_meta_over_legacy_owner_key(monkeypatch):
+    fake = _patch_redis(monkeypatch)
+    store = RedisResultStore(redis=fake)
+    settings = ZPESettings(compute_mode="mock", result_store="redis")
+    monkeypatch.setattr(zpe_backends, "get_result_store", lambda: store)
+    monkeypatch.setattr(zpe_backends, "get_zpe_settings", lambda: settings)
+
+    client = TestClient(main.app)
+    headers, user_id = _setup_user_and_target(client, monkeypatch, fake)
+    job_id = "job-owner-priority"
+    zpe_job_meta.JobMetaStore(redis=fake).set_meta(
+        job_id,
+        {
+            "tenant_id": headers["X-Tenant-Id"],
+            "user_id": user_id,
+            "request_id": "req-owner-priority",
+        },
+    )
+    fake.set(
+        f"zpe:job:owner:{job_id}",
+        json.dumps(
+            {"user_id": "legacy-other-user", "tenant_id": "tenant-legacy-other"},
+            ensure_ascii=True,
+            separators=(",", ":"),
+        ),
+    )
+    store.set_status(job_id, "queued")
+
+    allowed = client.get(f"/api/zpe/jobs/{job_id}", headers=headers)
+    assert allowed.status_code == 200
 
 
 def test_zpe_requires_tenant_id(monkeypatch):

@@ -10,7 +10,6 @@ from app.schemas.zpe import ZPEJobRequest
 from services.structures import get_structure
 from .io import format_freqs_csv, format_summary
 from .job_meta import get_job_meta_store
-from .job_owner import get_job_owner_store
 from .parse import (
     ensure_mobile_indices,
     extract_fixed_indices,
@@ -24,8 +23,9 @@ from .queue_targets import get_queue_target_store
 from .result_store import ResultStore, ZPEJobStatus, get_result_store
 from .settings import ZPESettings, get_zpe_settings
 from .slurm_policy import (
+    SlurmAdapterBoundaryStub,
     SlurmQueueResolution,
-    resolve_runtime_slurm_queue,
+    resolve_slurm_adapter_stub,
 )
 from .submit_idempotency import (
     SubmitIdempotencyRecord,
@@ -94,12 +94,14 @@ class SubmitComputeFailureOutcome:
 
 def _resolve_submission_queue(
     requested_queue: str, *, settings: ZPESettings
-) -> SlurmQueueResolution | None:
-    if not settings.slurm_policy_path:
-        return None
-    return resolve_runtime_slurm_queue(
+) -> SlurmAdapterBoundaryStub:
+    if settings.slurm_adapter == "passthrough":
+        return resolve_slurm_adapter_stub(requested_queue, policy_path=None)
+
+    policy_path = Path(settings.slurm_policy_path) if settings.slurm_policy_path else None
+    return resolve_slurm_adapter_stub(
         requested_queue,
-        policy_path=Path(settings.slurm_policy_path),
+        policy_path=policy_path,
     )
 
 
@@ -112,8 +114,18 @@ def submit_job(
     target = target_store.get_active_target(user_id)
     if not target:
         raise NoActiveQueueTargetError("no active queue target")
-    resolution = _resolve_submission_queue(target.queue_name, settings=settings)
-    resolved_queue_name = resolution.resolved_queue if resolution else target.queue_name
+    adapter_resolution = _resolve_submission_queue(target.queue_name, settings=settings)
+    resolution = (
+        SlurmQueueResolution(
+            requested_queue=adapter_resolution.requested_queue,
+            resolved_queue=adapter_resolution.resolved_queue,
+            used_fallback=adapter_resolution.used_fallback,
+            mapping=adapter_resolution.mapping,
+        )
+        if adapter_resolution.mapping is not None
+        else None
+    )
+    resolved_queue_name = adapter_resolution.resolved_queue
     if request.structure_id:
         structure = get_structure(request.structure_id)
         fixed_indices = extract_fixed_indices(request.content)
@@ -197,11 +209,13 @@ def submit_job(
             resolved_queue_name=resolved_queue_name,
         ),
     )
-    owner_store = get_job_owner_store()
-    owner_store.set_owner(job_id, user_id, tenant_id)
-    slurm_resolution_meta = {}
+    slurm_resolution_meta: Dict[str, Any] = {
+        "slurm_adapter": adapter_resolution.adapter,
+        "slurm_contract_version": adapter_resolution.contract_version,
+    }
     if resolution is not None:
         slurm_resolution_meta = {
+            **slurm_resolution_meta,
             "requested_queue_name": resolution.requested_queue,
             "resolved_queue_name": resolution.resolved_queue,
             "used_fallback": resolution.used_fallback,
@@ -278,6 +292,7 @@ def submit_compute_result(
     job_id: str,
     worker_id: str,
     lease_id: str,
+    event_id: str | None,
     result: Dict[str, Any],
     summary_text: str,
     freqs_csv: str,
@@ -288,6 +303,7 @@ def submit_compute_result(
         job_id=job_id,
         worker_id=worker_id,
         lease_id=lease_id,
+        event_id=event_id,
         result=result,
         summary_text=summary_text,
         freqs_csv=freqs_csv,
@@ -312,6 +328,7 @@ def submit_compute_failure(
     job_id: str,
     worker_id: str,
     lease_id: str,
+    event_id: str | None,
     error_code: str,
     error_message: str,
     traceback: str | None = None,
@@ -321,6 +338,7 @@ def submit_compute_failure(
         job_id=job_id,
         worker_id=worker_id,
         lease_id=lease_id,
+        event_id=event_id,
         error_code=error_code,
         error_message=error_message,
         traceback=traceback,
