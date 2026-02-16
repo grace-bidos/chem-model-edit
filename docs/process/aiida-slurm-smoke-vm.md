@@ -25,6 +25,12 @@ Operational assumptions:
 - At least one AiiDA profile is configured on the VM.
 - VM user has permissions for the target Slurm partition/account policy.
 
+Known host-side caveats before VM smoke:
+
+- Avoid VM address plans in `172.17.0.0/16` to prevent route conflicts from WSL/container bridge defaults.
+- If Windows OpenSSH is in the operator path, use canonical key path and strict ACLs (`C:\\ProgramData\\ssh\\administrators_authorized_keys`).
+- If Secure Boot DB hash mismatch blocks boot/runtime, align image signing with firmware template or apply a documented temporary disable/re-enable workaround.
+
 ## Script
 
 - `scripts/aiida-slurm-smoke-vm.sh`
@@ -88,6 +94,20 @@ Typical files:
 - `aiida-computer-test-slurm.log`
 - `diag-verdi-profile-list.log` (when blocked)
 - `fallback-next-steps.txt` (when blocked)
+
+Minimum accepted evidence set for a successful run (`exit 0`):
+
+- `slurm-scontrol-ping.log` shows controller `UP`.
+- `slurm-sinfo.log` shows at least one schedulable node.
+- `aiida-computer-test-slurm.log` ends with all checks succeeded.
+- `aiida-computer-setup-slurm.log` or existing-computer reuse evidence is present.
+- Runtime identity/context logs exist (`env-hostname.log`, `env-uname.log`, `env-whoami.log`).
+
+Optional but recommended:
+
+- `env-verdi-version.log`
+- `env-slurm-version.log`
+- a short operator note recording Secure Boot status and any temporary exception used.
 
 ## Blocked Path Interpretation
 
