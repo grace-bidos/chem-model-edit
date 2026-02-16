@@ -117,7 +117,7 @@ export const applyProjectionUpdate = mutation({
           workspace_id: args.workspace_id,
           job_id: args.job_id,
           submission_id: args.submission_id,
-          projection_state: args.projection_state,
+          projection_state: previousState,
           recorded_at: nowIso,
         })
         return {
