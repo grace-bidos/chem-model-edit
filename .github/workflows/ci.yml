@@ -95,6 +95,8 @@ jobs:
           fi
           echo "trusted=${trusted}" >> "${GITHUB_OUTPUT}"
 
+  # Cache topology is intentionally per lane. Keep cache restore/save close to each
+  # consumer job and do not reintroduce a shared `warm-caches` pre-job.
   web:
     needs:
       - changes
