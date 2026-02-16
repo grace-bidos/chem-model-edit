@@ -310,9 +310,9 @@ validate_runtime() {
   fi
 
   run_runtime_check "munge encode/decode" bash -lc "munge -n | unmunge >/dev/null"
-  run_runtime_check "slurmctld version probe" slurmctld -V
-  run_runtime_check "slurmd capability probe" slurmd -C
-  run_runtime_check "scontrol ping" scontrol ping
+  run_runtime_check "slurmctld version probe (selected slurm.conf)" env "SLURM_CONF=$SLURM_CONF" slurmctld -V
+  run_runtime_check "slurmd capability probe (selected slurm.conf)" env "SLURM_CONF=$SLURM_CONF" slurmd -C
+  run_runtime_check "scontrol ping (selected slurm.conf)" env "SLURM_CONF=$SLURM_CONF" scontrol ping
 
   if have_command systemctl; then
     local service
