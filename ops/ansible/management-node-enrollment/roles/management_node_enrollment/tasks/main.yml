@@ -1,0 +1,62 @@
+---
+- name: Validate enrollment input contract
+  ansible.builtin.assert:
+    that:
+      - management_enrollment_users is iterable
+    fail_msg: "management_enrollment_users must be a list"
+
+- name: Ensure managed group exists
+  ansible.builtin.group:
+    name: "{{ management_enrollment_managed_group }}"
+    state: present
+
+- name: Ensure managed users exist
+  ansible.builtin.user:
+    name: "{{ item.name }}"
+    shell: "{{ item.shell | default(management_enrollment_default_shell) }}"
+    groups: "{{ item.groups | default([management_enrollment_managed_group]) }}"
+    append: true
+    create_home: "{{ item.create_home | default(management_enrollment_create_home) }}"
+    state: present
+  loop: "{{ management_enrollment_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Install SSH public keys for managed users
+  ansible.builtin.authorized_key:
+    user: "{{ item.name }}"
+    key: "{{ item.ssh_public_key }}"
+    state: present
+    manage_dir: true
+  loop: "{{ management_enrollment_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when:
+    - item.ssh_public_key is defined
+    - (item.ssh_public_key | length) > 0
+    - not (ansible_check_mode and (management_enrollment_skip_key_install_in_check_mode | bool))
+
+- name: Configure passwordless sudoers entries
+  ansible.builtin.copy:
+    dest: "/etc/sudoers.d/99-management-enrollment-{{ item.name }}"
+    owner: root
+    group: root
+    mode: "0440"
+    content: "{{ item.name }} ALL=(ALL) NOPASSWD:ALL\n"
+    validate: "visudo -cf %s"
+  loop: "{{ management_enrollment_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.sudo_nopasswd | default(false)
+  notify: Validate sudoers permissions
+
+- name: Remove sudoers entries for users marked as disabled
+  ansible.builtin.file:
+    path: "/etc/sudoers.d/99-management-enrollment-{{ item.name }}"
+    state: absent
+  loop: "{{ management_enrollment_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when:
+    - management_enrollment_remove_missing_sudoers | bool
+    - not (item.sudo_nopasswd | default(false))
