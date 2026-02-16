@@ -189,7 +189,12 @@ def _compute_result_payload_digest(
     freqs_csv: str,
 ) -> str:
     canonical = json.dumps(result, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
-    return sha256(f"{canonical}|{summary_text}|{freqs_csv}".encode("utf-8")).hexdigest()
+    payload = json.dumps(
+        [canonical, summary_text, freqs_csv],
+        ensure_ascii=True,
+        separators=(",", ":"),
+    )
+    return sha256(payload.encode("utf-8")).hexdigest()
 
 
 def _validate_recorded_result_payload(

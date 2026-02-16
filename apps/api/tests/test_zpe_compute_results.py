@@ -123,6 +123,21 @@ def test_submit_result_duplicate_replay_retries_dispatch(monkeypatch):
     assert len(dispatcher.calls) == 2
 
 
+def test_compute_result_payload_digest_is_unambiguous() -> None:
+    digest_a = zpe_results._compute_result_payload_digest(
+        result={"zpe_ev": 0.1},
+        summary_text="a",
+        freqs_csv="b|c",
+    )
+    digest_b = zpe_results._compute_result_payload_digest(
+        result={"zpe_ev": 0.1},
+        summary_text="a|b",
+        freqs_csv="c",
+    )
+
+    assert digest_a != digest_b
+
+
 def test_submit_failure_requeue_and_dlq(monkeypatch):
     fake, dispatcher = _patch(monkeypatch)
     job_id = "job-2"
