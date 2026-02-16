@@ -6,6 +6,13 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   changes:
     runs-on: ubuntu-latest
@@ -16,6 +23,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Detect code changes
         id: filter
         uses: dorny/paths-filter@v3
@@ -86,6 +95,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -96,8 +107,9 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --prefer-offline
       - name: Lint
         run: pnpm exec nx run web:lint
       - name: Typecheck
@@ -122,12 +134,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
       - name: Setup uv
         uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            uv.lock
+            apps/api/pyproject.toml
       - name: Install dependencies
         run: uv sync --dev
         working-directory: apps/api
@@ -153,12 +172,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
       - name: Setup uv
         uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            uv.lock
+            apps/api/pyproject.toml
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -169,11 +195,12 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
       - name: Install Python dependencies
         run: uv sync --dev
         working-directory: apps/api
       - name: Install Node dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --prefer-offline
       - name: Contract lifecycle smoke
         run: uv run pytest tests/test_zpe_submit_event_lifecycle_contract.py tests/test_zpe_http_worker_integration.py
         working-directory: apps/api
