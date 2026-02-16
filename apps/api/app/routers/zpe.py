@@ -58,7 +58,7 @@ from services.zpe.backends import (
 )
 from services.zpe.enroll import get_enroll_store
 from services.zpe.job_meta import get_job_meta_store
-from services.zpe.lease import lease_next_job
+from services.zpe.lease import lease_next_job, release_lease
 from services.zpe.ops_flags import OpsFlags, get_ops_flags, set_ops_flags
 from services.zpe.parse import (
     extract_fixed_indices,
@@ -115,6 +115,19 @@ def _enforce_worker_scope(
             status_code=403,
             detail="worker token workspace scope violation",
         )
+
+
+def _scope_from_job_meta(job_meta: dict[str, Any]) -> tuple[str | None, str | None]:
+    tenant_raw = job_meta.get("tenant_id")
+    tenant_id = tenant_raw.strip() if isinstance(tenant_raw, str) and tenant_raw.strip() else None
+    workspace_raw = job_meta.get("workspace_id")
+    if workspace_raw is None:
+        workspace_id = tenant_id
+    elif isinstance(workspace_raw, str) and workspace_raw.strip():
+        workspace_id = workspace_raw.strip()
+    else:
+        workspace_id = None
+    return tenant_id, workspace_id
 
 
 def _write_audit_or_raise_unavailable(
@@ -406,7 +419,20 @@ async def zpe_compute_lease(raw: Request) -> Response | ComputeLeaseResponse:
             result_store=settings.result_store,
         )
         return Response(status_code=204)
-    lease = lease_next_job(worker_id)
+    lease = None
+    for _ in range(32):
+        candidate = lease_next_job(worker_id)
+        if candidate is None:
+            return Response(status_code=204)
+        tenant_id, workspace_id = _scope_from_job_meta(candidate.meta)
+        if worker.tenant_id is not None and tenant_id != worker.tenant_id:
+            release_lease(candidate.job_id, requeue=True)
+            continue
+        if worker.workspace_id is not None and workspace_id != worker.workspace_id:
+            release_lease(candidate.job_id, requeue=True)
+            continue
+        lease = candidate
+        break
     if lease is None:
         return Response(status_code=204)
     meta = lease.meta

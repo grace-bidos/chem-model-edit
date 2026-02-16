@@ -109,6 +109,7 @@ MANIFEST
 main() {
   parse_args "$@"
   require_command uv
+  require_command git
 
   STARTED_AT_UTC="$(date -u +"%Y%m%dT%H%M%SZ")"
   RUN_DIR="$ARTIFACT_DIR/${STARTED_AT_UTC}-${RUN_LABEL}"

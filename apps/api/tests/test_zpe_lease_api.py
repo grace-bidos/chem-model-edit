@@ -105,3 +105,65 @@ def test_lease_endpoint_legacy_worker_disabled(monkeypatch):
         headers={"Authorization": f"Bearer {worker_token}"},
     )
     assert response.status_code == 503
+
+
+def test_lease_endpoint_skips_out_of_scope_job_for_scoped_worker(monkeypatch):
+    fake = _patch_redis(monkeypatch)
+    settings = ZPESettings(lease_ttl_seconds=60, result_ttl_seconds=60)
+    monkeypatch.setattr(zpe_router, "get_zpe_settings", lambda: settings)
+    monkeypatch.setattr(zpe_lease, "get_zpe_settings", lambda: settings)
+
+    token_store = zpe_worker_auth.WorkerTokenStore(redis=fake)
+    worker_token = token_store.create_token(
+        "compute-1",
+        tenant_id="tenant-1",
+        workspace_id="workspace-1",
+    ).token
+
+    out_of_scope_job = "job-out-of-scope"
+    out_of_scope_payload = {"content": "out", "mobile_indices": [0]}
+    fake.setex(f"zpe:payload:{out_of_scope_job}", 60, json.dumps(out_of_scope_payload))
+    zpe_store.RedisResultStore(redis=fake).set_status(out_of_scope_job, "queued")
+    zpe_job_meta.JobMetaStore(redis=fake).set_meta(
+        out_of_scope_job,
+        {
+            "tenant_id": "tenant-2",
+            "workspace_id": "workspace-2",
+            "request_id": "req-out",
+            "user_id": "user-out",
+        },
+    )
+
+    in_scope_job = "job-in-scope"
+    in_scope_payload = {"content": "in", "mobile_indices": [1]}
+    fake.setex(f"zpe:payload:{in_scope_job}", 60, json.dumps(in_scope_payload))
+    zpe_store.RedisResultStore(redis=fake).set_status(in_scope_job, "queued")
+    zpe_job_meta.JobMetaStore(redis=fake).set_meta(
+        in_scope_job,
+        {
+            "tenant_id": "tenant-1",
+            "workspace_id": "workspace-1",
+            "request_id": "req-in",
+            "user_id": "user-in",
+        },
+    )
+
+    # RPOP consumes the rightmost item first, so enqueue out-of-scope first.
+    fake.lpush("zpe:queue", out_of_scope_job)
+    fake.lpush("zpe:queue", in_scope_job)
+
+    client = TestClient(main.app)
+    response = client.post(
+        "/api/zpe/compute/jobs/lease",
+        headers={"Authorization": f"Bearer {worker_token}"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["job_id"] == in_scope_job
+    assert data["payload"]["content"] == in_scope_payload["content"]
+
+    # Out-of-scope job is requeued and lease state is released.
+    assert fake.hgetall(f"zpe:lease:{out_of_scope_job}") == {}
+    assert fake.zscore("zpe:lease:index", out_of_scope_job) is None
+    assert fake.llen("zpe:queue") == 1
