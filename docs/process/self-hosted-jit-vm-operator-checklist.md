@@ -118,3 +118,67 @@ Immediate rollback:
 Hard rollback:
 
 - remove repository access from the dedicated runner group.
+
+## 8) Local runner health check (incident triage)
+
+Use this to compare local `actions.runner.*` service state against GitHub runner status:
+
+```bash
+scripts/runner/check_local_runner_health.sh \
+  --owner grace-bidos \
+  --repo chem-model-edit \
+  --labels "self-hosted,linux,x64,chem-trusted-pr"
+```
+
+Expected result:
+
+- exit code `0`: healthy
+- non-zero: degraded (service mismatch and/or offline state)
+
+Optional strict mode:
+
+```bash
+scripts/runner/check_local_runner_health.sh \
+  --owner grace-bidos \
+  --repo chem-model-edit \
+  --strict-gh
+```
+
+## 9) One-command local base-runner recovery
+
+When jobs are queued or the local runner is stuck offline, run:
+
+```bash
+RUNNER_OWNER=grace-bidos \
+RUNNER_REPO=chem-model-edit \
+RUNNER_LABELS="self-hosted,linux,x64,chem-trusted-pr" \
+RUNNER_GROUP="Default" \
+scripts/runner/recover_base_runner.sh --runner-home /opt/actions-runner/actions-runner
+```
+
+Dry-run preview (safe):
+
+```bash
+RUNNER_OWNER=grace-bidos \
+RUNNER_REPO=chem-model-edit \
+RUNNER_LABELS="self-hosted,linux,x64,chem-trusted-pr" \
+RUNNER_GROUP="Default" \
+scripts/runner/recover_base_runner.sh \
+  --runner-home /opt/actions-runner/actions-runner \
+  --dry-run
+```
+
+Required env args are always:
+
+- `RUNNER_OWNER`
+- `RUNNER_REPO`
+- `RUNNER_LABELS`
+- `RUNNER_GROUP`
+
+## 10) Emergency fallback to hosted routing
+
+If self-hosted runners are unavailable during an incident, immediately route trusted PRs back to hosted:
+
+- set repository variable `CI_SELF_HOSTED_TRUSTED_ROUTING=false`
+
+This is safe to apply before or during local runner recovery.

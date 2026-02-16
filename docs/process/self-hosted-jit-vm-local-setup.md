@@ -64,8 +64,13 @@ The following requires your action:
 - runner lifecycle is ephemeral (single job then removed)
 - failed jobs still clean up VM and runner registration
 - rollback path works by setting `CI_SELF_HOSTED_TRUSTED_ROUTING=false`
+- local health check command reports `0` when service/GitHub status align
+  - `scripts/runner/check_local_runner_health.sh --owner <owner> --repo <repo>`
+- local recovery command supports dry-run and reconfigure/restart flow
+  - `scripts/runner/recover_base_runner.sh --dry-run`
 
 ## Rollback
 
 - Immediate rollback: set `CI_SELF_HOSTED_TRUSTED_ROUTING=false`.
 - Hard rollback: disable runner group mapping for this repository.
+- Emergency fallback note: always prefer toggling `CI_SELF_HOSTED_TRUSTED_ROUTING=false` first when incidents cause queueing or local runner instability.
