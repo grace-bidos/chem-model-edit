@@ -12,7 +12,6 @@ from services.convex_event_relay import (
     HttpConvexEventDispatcher,
     build_convex_projection,
     compute_event_idempotency_key,
-    map_aiida_state_to_projection_status,
 )
 from services.zpe.job_state import JobState
 
@@ -59,19 +58,12 @@ def test_compute_event_idempotency_key_changes_with_sequence() -> None:
     assert compute_event_idempotency_key(event) != compute_event_idempotency_key(next_event)
 
 
-def test_map_aiida_state_to_projection_status_for_lifecycle_updates() -> None:
-    assert map_aiida_state_to_projection_status(cast(JobState, "queued")) == "queued"
-    assert map_aiida_state_to_projection_status(cast(JobState, "started")) == "running"
-    assert map_aiida_state_to_projection_status(cast(JobState, "finished")) == "succeeded"
-    assert map_aiida_state_to_projection_status(cast(JobState, "failed")) == "failed"
-
-
-def test_build_convex_projection_maps_started_and_finished_states() -> None:
+def test_build_convex_projection_preserves_started_and_finished_states() -> None:
     started_projection = build_convex_projection(make_event(state=cast(JobState, "started")))
     finished_projection = build_convex_projection(make_event(state=cast(JobState, "finished")))
 
-    assert started_projection.status == "running"
-    assert finished_projection.status == "succeeded"
+    assert started_projection.status == "started"
+    assert finished_projection.status == "finished"
 
 
 def test_projection_as_dict_matches_contract() -> None:

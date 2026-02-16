@@ -4,14 +4,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from hashlib import sha256
 import json
-from typing import Any, Literal, Protocol
+from typing import Any, Protocol
 from urllib import error as urlerror
 from urllib import request as urlrequest
 
 from services.zpe.job_state import JobState
-
-ProjectionStatus = Literal["queued", "running", "succeeded", "failed"]
-
 
 @dataclass(frozen=True)
 class AiidaJobEvent:
@@ -33,7 +30,7 @@ class ConvexJobProjection:
 
     job_id: str
     project_id: str
-    status: ProjectionStatus
+    status: JobState
     event_time: datetime
     node_id: str
     owner_id: str | None
@@ -54,24 +51,10 @@ class ConvexJobProjection:
 def compute_event_idempotency_key(event: AiidaJobEvent) -> str:
     """Stable key used before persisting we already wrote this event."""
 
-    projection_status = map_aiida_state_to_projection_status(event.state)
     digest = sha256(
-        (
-            f"{event.job_id}|{event.event_id}|{projection_status}|{event.sequence}"
-        ).encode("utf-8")
+        f"{event.job_id}|{event.event_id}|{event.state}|{event.sequence}".encode("utf-8")
     )
     return digest.hexdigest()
-
-
-def map_aiida_state_to_projection_status(state: JobState) -> ProjectionStatus:
-    state_map: dict[JobState, ProjectionStatus] = {
-        "queued": "queued",
-        "started": "running",
-        "finished": "succeeded",
-        "failed": "failed",
-    }
-    return state_map[state]
-
 
 def build_convex_projection(event: AiidaJobEvent) -> ConvexJobProjection:
     """Project the AiiDA event onto the Convex projection schema fields."""
@@ -79,7 +62,7 @@ def build_convex_projection(event: AiidaJobEvent) -> ConvexJobProjection:
     return ConvexJobProjection(
         job_id=event.job_id,
         project_id=event.project_id,
-        status=map_aiida_state_to_projection_status(event.state),
+        status=event.state,
         event_time=event.timestamp,
         node_id=event.node_id,
         owner_id=event.owner_id,
