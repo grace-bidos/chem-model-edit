@@ -175,7 +175,22 @@ check_commands() {
 check_paths() {
   [[ -f "$SLURM_CONF" ]] || add_blocker "missing slurm.conf: $SLURM_CONF"
   [[ -f "$CGROUP_CONF" ]] || add_blocker "missing cgroup.conf: $CGROUP_CONF"
-  [[ -f "$MUNGE_KEY" ]] || add_blocker "missing munge key: $MUNGE_KEY"
+  if [[ -f "$MUNGE_KEY" ]]; then
+    return 0
+  fi
+
+  # On hardened hosts, /etc/munge may not be traversable by non-root users.
+  # Avoid false blockers if the runtime munge probe already works.
+  if [[ "$MODE" == "vm" && "$(id -u)" -ne 0 ]]; then
+    if have_command munge && have_command unmunge; then
+      if munge -n | unmunge >/dev/null 2>&1; then
+        add_warning "munge key path is not directly readable as non-root: $MUNGE_KEY"
+        return 0
+      fi
+    fi
+  fi
+
+  add_blocker "missing munge key: $MUNGE_KEY"
 }
 
 validate_slurm_conf_static() {
