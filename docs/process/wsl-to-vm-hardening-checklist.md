@@ -77,10 +77,17 @@ ConstrainRAMSpace=yes
 ConstrainDevices=yes
 ```
 
+Set in `slurm.conf` (controller policy distributed to nodes):
+
+```ini
+TaskPlugin=task/cgroup
+```
+
 Reload Slurm services after config distribution.
 
 Pass condition:
 
+- `scontrol show config | rg -i '^TaskPlugin\\s*=\\s*task/cgroup'`
 - `scontrol show config | rg -i cgroup`
 - `srun --mem=128M --cpus-per-task=1 --pty /bin/bash` succeeds and job-level limits are enforced.
 
@@ -138,7 +145,7 @@ ls -l /etc/munge/munge.key
 
 Pass condition:
 
-- Permissions are `-r--------` and owner/group is `munged munged`.
+- Permissions are `-r--------` and owner/group is `munge munge` (or distro-default MUNGE service account if it differs).
 - Clocks are synchronized on all controller/compute nodes before `munged` starts.
 
 ## 4) Networking and name-resolution gate
