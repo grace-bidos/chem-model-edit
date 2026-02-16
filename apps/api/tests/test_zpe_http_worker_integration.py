@@ -5,6 +5,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import threading
 from typing import Any, Dict
 
+from app.schemas.zpe import ComputeFailedRequest, ComputeResultRequest
 from services.zpe import http_worker
 from services.zpe import worker as zpe_worker
 from services.zpe.settings import ZPESettings
@@ -144,6 +145,10 @@ def test_http_worker_success(monkeypatch, tmp_path):
 
     assert handler_cls.result_payload is not None
     assert handler_cls.result_payload["lease_id"] == handler_cls.lease_id
+    # Keep management-node -> FastAPI payload compatibility explicit.
+    validated = ComputeResultRequest(**handler_cls.result_payload)
+    assert validated.tenant_id == "tenant-1"
+    assert validated.lease_id == handler_cls.lease_id
 
 
 def test_http_worker_failed(monkeypatch, tmp_path):
@@ -175,3 +180,6 @@ def test_http_worker_failed(monkeypatch, tmp_path):
 
     assert handler_cls.failed_payload is not None
     assert handler_cls.failed_payload["error_code"] == "TEST_ERROR"
+    validated = ComputeFailedRequest(**handler_cls.failed_payload)
+    assert validated.tenant_id == "tenant-1"
+    assert validated.lease_id == handler_cls.lease_id

@@ -135,9 +135,12 @@ jobs:
         working-directory: apps/api
       - name: Install Node dependencies
         run: pnpm install --frozen-lockfile
+      - name: Contract lifecycle smoke
+        run: uv run pytest tests/test_zpe_submit_event_lifecycle_contract.py tests/test_zpe_http_worker_integration.py
+        working-directory: apps/api
       - name: Export OpenAPI schema
         run: PYTHONPATH=apps/api uv run --project apps/api python apps/api/scripts/export_openapi.py
       - name: Regenerate API client
         run: pnpm -C packages/api-client run generate
       - name: Check generated files are committed
-        run: git diff --exit-code packages/api-client/
+        run: git diff --exit-code -- packages/api-client/openapi/openapi.json packages/api-client/src/generated/schema.ts
