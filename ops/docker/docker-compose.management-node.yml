@@ -1,0 +1,17 @@
+name: management-node-harness
+
+services:
+  management-node:
+    build:
+      context: ./management-node
+      dockerfile: Dockerfile
+    container_name: management-node-harness
+    working_dir: /workspace
+    tty: true
+    stdin_open: true
+    environment:
+      ANSIBLE_CONFIG: /workspace/ops/docker/management-node/ansible.cfg
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - ../../:/workspace
+    command: ["sleep", "infinity"]
