@@ -70,7 +70,7 @@ What this verifies:
 What this intentionally skips:
 
 - Service state checks
-- Runtime checks (`munge -n | unmunge`, `slurmctld -t`, `slurmd -t`, `scontrol ping`)
+- Runtime checks (`munge -n | unmunge`, `SLURM_CONF=<path> slurmctld -V`, `SLURM_CONF=<path> slurmd -C`, `SLURM_CONF=<path> scontrol ping`)
 
 ## Exit Codes
 

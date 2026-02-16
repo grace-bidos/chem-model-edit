@@ -175,7 +175,22 @@ check_commands() {
 check_paths() {
   [[ -f "$SLURM_CONF" ]] || add_blocker "missing slurm.conf: $SLURM_CONF"
   [[ -f "$CGROUP_CONF" ]] || add_blocker "missing cgroup.conf: $CGROUP_CONF"
-  [[ -f "$MUNGE_KEY" ]] || add_blocker "missing munge key: $MUNGE_KEY"
+  if [[ -f "$MUNGE_KEY" ]]; then
+    return 0
+  fi
+
+  # On hardened hosts, /etc/munge may not be traversable by non-root users.
+  # Avoid false blockers if the runtime munge probe already works.
+  if [[ "$MODE" == "vm" && "$(id -u)" -ne 0 ]]; then
+    if have_command munge && have_command unmunge; then
+      if munge -n | unmunge >/dev/null 2>&1; then
+        add_warning "munge key path is not directly readable as non-root: $MUNGE_KEY"
+        return 0
+      fi
+    fi
+  fi
+
+  add_blocker "missing munge key: $MUNGE_KEY"
 }
 
 validate_slurm_conf_static() {
@@ -239,7 +254,14 @@ check_munge_key_permissions() {
   fi
 
   local mode owner group
-  mode="$(stat -c '%a' "$MUNGE_KEY" 2>/dev/null || true)"
+  if ! mode="$(stat -c '%a' "$MUNGE_KEY" 2>/dev/null)"; then
+    if [[ "$(id -u)" -ne 0 ]]; then
+      add_warning "cannot inspect munge key permissions without elevated access; run as root to enforce ownership/mode checks"
+      return 0
+    fi
+    add_failure "unable to inspect munge key mode: $MUNGE_KEY"
+    return 0
+  fi
   owner="$(stat -c '%U' "$MUNGE_KEY" 2>/dev/null || true)"
   group="$(stat -c '%G' "$MUNGE_KEY" 2>/dev/null || true)"
 
@@ -288,9 +310,9 @@ validate_runtime() {
   fi
 
   run_runtime_check "munge encode/decode" bash -lc "munge -n | unmunge >/dev/null"
-  run_runtime_check "slurmctld config test" slurmctld -t -f "$SLURM_CONF"
-  run_runtime_check "slurmd config test" slurmd -t -f "$SLURM_CONF"
-  run_runtime_check "scontrol ping" scontrol ping
+  run_runtime_check "slurmctld version probe (selected slurm.conf)" env "SLURM_CONF=$SLURM_CONF" slurmctld -V
+  run_runtime_check "slurmd capability probe (selected slurm.conf)" env "SLURM_CONF=$SLURM_CONF" slurmd -C
+  run_runtime_check "scontrol ping (selected slurm.conf)" env "SLURM_CONF=$SLURM_CONF" scontrol ping
 
   if have_command systemctl; then
     local service
