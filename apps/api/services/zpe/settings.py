@@ -75,6 +75,7 @@ class ZPESettings(BaseSettings):
     convex_relay_token: Optional[str] = None
     convex_relay_timeout_seconds: int = 5
     slurm_policy_path: Optional[str] = None
+    slurm_adapter: Literal["stub-policy", "passthrough"] = "stub-policy"
 
 
 @lru_cache

@@ -23,8 +23,9 @@ from .queue_targets import get_queue_target_store
 from .result_store import ResultStore, ZPEJobStatus, get_result_store
 from .settings import ZPESettings, get_zpe_settings
 from .slurm_policy import (
+    SlurmAdapterBoundaryStub,
     SlurmQueueResolution,
-    resolve_runtime_slurm_queue,
+    resolve_slurm_adapter_stub,
 )
 from .submit_idempotency import (
     SubmitIdempotencyRecord,
@@ -93,12 +94,14 @@ class SubmitComputeFailureOutcome:
 
 def _resolve_submission_queue(
     requested_queue: str, *, settings: ZPESettings
-) -> SlurmQueueResolution | None:
-    if not settings.slurm_policy_path:
-        return None
-    return resolve_runtime_slurm_queue(
+) -> SlurmAdapterBoundaryStub:
+    if settings.slurm_adapter == "passthrough":
+        return resolve_slurm_adapter_stub(requested_queue, policy_path=None)
+
+    policy_path = Path(settings.slurm_policy_path) if settings.slurm_policy_path else None
+    return resolve_slurm_adapter_stub(
         requested_queue,
-        policy_path=Path(settings.slurm_policy_path),
+        policy_path=policy_path,
     )
 
 
@@ -111,8 +114,18 @@ def submit_job(
     target = target_store.get_active_target(user_id)
     if not target:
         raise NoActiveQueueTargetError("no active queue target")
-    resolution = _resolve_submission_queue(target.queue_name, settings=settings)
-    resolved_queue_name = resolution.resolved_queue if resolution else target.queue_name
+    adapter_resolution = _resolve_submission_queue(target.queue_name, settings=settings)
+    resolution = (
+        SlurmQueueResolution(
+            requested_queue=adapter_resolution.requested_queue,
+            resolved_queue=adapter_resolution.resolved_queue,
+            used_fallback=adapter_resolution.used_fallback,
+            mapping=adapter_resolution.mapping,
+        )
+        if adapter_resolution.mapping is not None
+        else None
+    )
+    resolved_queue_name = adapter_resolution.resolved_queue
     if request.structure_id:
         structure = get_structure(request.structure_id)
         fixed_indices = extract_fixed_indices(request.content)
@@ -196,9 +209,13 @@ def submit_job(
             resolved_queue_name=resolved_queue_name,
         ),
     )
-    slurm_resolution_meta = {}
+    slurm_resolution_meta = {
+        "slurm_adapter": adapter_resolution.adapter,
+        "slurm_contract_version": adapter_resolution.contract_version,
+    }
     if resolution is not None:
         slurm_resolution_meta = {
+            **slurm_resolution_meta,
             "requested_queue_name": resolution.requested_queue,
             "resolved_queue_name": resolution.resolved_queue,
             "used_fallback": resolution.used_fallback,

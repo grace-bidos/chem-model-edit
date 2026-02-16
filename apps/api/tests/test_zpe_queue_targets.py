@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 import fakeredis
 from fastapi.testclient import TestClient
 
@@ -10,6 +12,7 @@ from services.zpe import ops_flags as zpe_ops_flags
 from services.zpe import queue as zpe_queue
 from services.zpe import queue_targets as zpe_queue_targets
 from services.zpe import result_store as zpe_store
+from services.zpe.settings import ZPESettings
 from services.zpe import worker_auth as zpe_worker_auth
 
 
@@ -139,3 +142,49 @@ def test_register_target_activate_flag_can_switch_active(monkeypatch):
     second_id = _register_target(client, headers, "zpe-2", activate_target=True)
     listing = client.get("/api/zpe/targets", headers=headers)
     assert listing.json()["active_target_id"] == second_id
+
+
+def test_queue_target_store_trims_queue_name(monkeypatch):
+    fake = fakeredis.FakeRedis()
+    monkeypatch.setattr(zpe_queue_targets, "get_redis_connection", lambda: fake)
+
+    store = zpe_queue_targets.QueueTargetStore(redis=fake)
+    target = store.add_target(
+        user_id="user-1",
+        queue_name="  queue-a  ",
+        server_id="srv-1",
+    )
+
+    assert target.queue_name == "queue-a"
+    stored = store.get_target(target.target_id)
+    assert stored is not None
+    assert stored.queue_name == "queue-a"
+
+
+def test_queue_target_store_uses_safe_default_for_legacy_blank_queue(monkeypatch):
+    fake = fakeredis.FakeRedis()
+    monkeypatch.setattr(zpe_queue_targets, "get_redis_connection", lambda: fake)
+    monkeypatch.setattr(
+        zpe_queue_targets,
+        "get_zpe_settings",
+        lambda: ZPESettings(queue_name="safe-default"),
+    )
+
+    fake.set(
+        "zpe:queue:target:qt-legacy",
+        json.dumps(
+            {
+                "target_id": "qt-legacy",
+                "user_id": "user-1",
+                "queue_name": "   ",
+                "server_id": "srv-legacy",
+                "registered_at": "2026-01-01T00:00:00+00:00",
+                "name": "legacy",
+            }
+        ),
+    )
+
+    store = zpe_queue_targets.QueueTargetStore(redis=fake)
+    target = store.get_target("qt-legacy")
+    assert target is not None
+    assert target.queue_name == "safe-default"

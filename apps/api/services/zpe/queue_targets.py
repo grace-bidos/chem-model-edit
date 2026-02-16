@@ -9,11 +9,24 @@ from uuid import uuid4
 from redis import Redis
 
 from .queue import get_redis_connection
+from .settings import get_zpe_settings
 
 
 _TARGET_PREFIX = "zpe:queue:target:"
 _USER_TARGETS_PREFIX = "zpe:queue:targets:"
 _USER_ACTIVE_PREFIX = "zpe:queue:active:"
+
+
+def _resolve_default_queue_name() -> str:
+    default_queue = get_zpe_settings().queue_name.strip()
+    return default_queue or "zpe"
+
+
+def _normalize_queue_name(queue_name: str) -> str:
+    normalized = queue_name.strip()
+    if not normalized:
+        raise ValueError("queue_name must be a non-empty string")
+    return normalized
 
 
 def _now() -> datetime:
@@ -46,11 +59,12 @@ class QueueTargetStore:
         server_id: str,
         name: Optional[str] = None,
     ) -> QueueTarget:
+        normalized_queue_name = _normalize_queue_name(queue_name)
         target_id = f"qt-{uuid4().hex}"
         target = QueueTarget(
             target_id=target_id,
             user_id=user_id,
-            queue_name=queue_name,
+            queue_name=normalized_queue_name,
             server_id=server_id,
             registered_at=_now_iso(),
             name=name,
@@ -78,7 +92,15 @@ class QueueTargetStore:
         raw = cast(Optional[bytes], self.redis.get(f"{_TARGET_PREFIX}{target_id}"))
         if not raw:
             return None
-        return QueueTarget(**json.loads(raw))
+        payload = json.loads(raw)
+        if not isinstance(payload, dict):
+            return None
+        queue_name = payload.get("queue_name")
+        if not isinstance(queue_name, str) or not queue_name.strip():
+            payload["queue_name"] = _resolve_default_queue_name()
+        else:
+            payload["queue_name"] = queue_name.strip()
+        return QueueTarget(**payload)
 
     def set_active_target(self, user_id: str, target_id: str) -> None:
         key = f"{_USER_ACTIVE_PREFIX}{user_id}"
