@@ -106,10 +106,25 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
+      - name: Configure pnpm store path
+        run: pnpm config set store-dir "$HOME/.pnpm-store"
+      - name: Restore pnpm store cache
+        id: pnpm-cache-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-node22-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-node22-pnpm-
+            ${{ runner.os }}-pnpm-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --prefer-offline
+      - name: Save pnpm store cache (main only)
+        if: ${{ github.ref == 'refs/heads/main' && steps.pnpm-cache-restore.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ steps.pnpm-cache-restore.outputs.cache-primary-key }}
       - name: Lint
         run: pnpm exec nx run web:lint
       - name: Typecheck
@@ -139,11 +154,14 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.12'
       - name: Setup uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
+          restore-cache: true
+          save-cache: ${{ github.ref == 'refs/heads/main' }}
+          cache-suffix: api-py3.12
           cache-dependency-glob: |
             uv.lock
             apps/api/pyproject.toml
@@ -177,11 +195,14 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.12'
       - name: Setup uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
+          restore-cache: true
+          save-cache: ${{ github.ref == 'refs/heads/main' }}
+          cache-suffix: contract-py3.12
           cache-dependency-glob: |
             uv.lock
             apps/api/pyproject.toml
@@ -194,13 +215,28 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
+      - name: Configure pnpm store path
+        run: pnpm config set store-dir "$HOME/.pnpm-store"
+      - name: Restore pnpm store cache
+        id: pnpm-cache-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-node22-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-node22-pnpm-
+            ${{ runner.os }}-pnpm-
       - name: Install Python dependencies
         run: uv sync --dev
         working-directory: apps/api
       - name: Install Node dependencies
         run: pnpm install --frozen-lockfile --prefer-offline
+      - name: Save pnpm store cache (main only)
+        if: ${{ github.ref == 'refs/heads/main' && steps.pnpm-cache-restore.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ steps.pnpm-cache-restore.outputs.cache-primary-key }}
       - name: Contract lifecycle smoke
         run: uv run pytest tests/test_zpe_submit_event_lifecycle_contract.py tests/test_zpe_http_worker_integration.py
         working-directory: apps/api
