@@ -15,6 +15,11 @@ import sys
 from pathlib import Path
 
 
+DEFAULT_INTERVAL = 20
+DEFAULT_MAX_WAIT = 0
+DEFAULT_MERGE_METHOD = "merge"
+
+
 def run(cmd: list[str], dry_run: bool, allowed_exit_codes: set[int] | None = None) -> int:
     printable = " ".join(shlex.quote(part) for part in cmd)
     print(f"$ {printable}")
@@ -52,7 +57,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--merge-method",
         choices=["merge", "squash", "rebase"],
-        default="merge",
+        default=DEFAULT_MERGE_METHOD,
         help="Merge method used with --merge-when-ready (default: merge)",
     )
     parser.add_argument(
@@ -68,13 +73,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--interval",
         type=int,
-        default=20,
+        default=DEFAULT_INTERVAL,
         help="Polling interval seconds for pr-autoloop.py (default: 20)",
     )
     parser.add_argument(
         "--max-wait",
         type=int,
-        default=0,
+        default=DEFAULT_MAX_WAIT,
         help="Max wait seconds in --watch mode (default: 0, no timeout)",
     )
     parser.add_argument(
@@ -104,9 +109,9 @@ def main() -> int:
             or args.merge_when_ready
             or args.delete_branch
             or args.resolve_outdated_threads
-            or args.interval != 20
-            or args.max_wait != 0
-            or args.merge_method != "merge"
+            or args.interval != DEFAULT_INTERVAL
+            or args.max_wait != DEFAULT_MAX_WAIT
+            or args.merge_method != DEFAULT_MERGE_METHOD
         )
 
         if args.gt_sync:
@@ -126,11 +131,11 @@ def main() -> int:
                 cmd.append("--delete-branch")
             if args.resolve_outdated_threads:
                 cmd.append("--resolve-outdated-threads")
-            if args.interval != 20:
+            if args.interval != DEFAULT_INTERVAL:
                 cmd.extend(["--interval", str(args.interval)])
-            if args.max_wait != 0:
+            if args.max_wait != DEFAULT_MAX_WAIT:
                 cmd.extend(["--max-wait", str(args.max_wait)])
-            if args.merge_method != "merge":
+            if args.merge_method != DEFAULT_MERGE_METHOD:
                 cmd.extend(["--merge-method", args.merge_method])
             run(cmd, dry_run=args.dry_run)
     except Exception as exc:  # noqa: BLE001
