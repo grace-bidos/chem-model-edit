@@ -19,6 +19,7 @@ Options:
   --baseline <n>                    Optional. Default: 1
   --max <n>                         Optional. Default: 4
   --target <n>                      Optional. Default: max
+  --lock-file <path>                Optional. Default: /run/lock/chem-model-edit-runner-pool.lock
   --interval <systemd duration>     Optional. Default: 2min
   --service-name <name>             Optional. Default: chem-runner-pool-reconcile
   --gh-token-file <path>            Required. Root-readable file with GH token.
@@ -32,6 +33,7 @@ repo=""
 baseline="1"
 max_parallel="4"
 target=""
+lock_file="/run/lock/chem-model-edit-runner-pool.lock"
 interval="2min"
 service_name="chem-runner-pool-reconcile"
 gh_token_file=""
@@ -44,6 +46,7 @@ while [[ $# -gt 0 ]]; do
     --baseline) baseline="${2:-}"; shift 2 ;;
     --max) max_parallel="${2:-}"; shift 2 ;;
     --target) target="${2:-}"; shift 2 ;;
+    --lock-file) lock_file="${2:-}"; shift 2 ;;
     --interval) interval="${2:-}"; shift 2 ;;
     --service-name) service_name="${2:-}"; shift 2 ;;
     --gh-token-file) gh_token_file="${2:-}"; shift 2 ;;
@@ -82,7 +85,7 @@ After=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/env bash -lc 'set -euo pipefail; token_file=${gh_token_file}; export GH_TOKEN=\"\$(cat \"\$token_file\")\"; ${reconcile_script} --repo ${repo} --baseline ${baseline} --max ${max_parallel} --target ${target}'
+ExecStart=/usr/bin/env bash -lc 'set -euo pipefail; token_file=${gh_token_file}; export GH_TOKEN=\"\$(cat \"\$token_file\")\"; ${reconcile_script} --repo ${repo} --baseline ${baseline} --max ${max_parallel} --target ${target} --lock-file ${lock_file}'
 "
 
 timer_content="[Unit]

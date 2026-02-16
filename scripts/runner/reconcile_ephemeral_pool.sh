@@ -27,7 +27,7 @@ repo=""
 baseline="1"
 max_parallel="4"
 target=""
-lock_file="/tmp/chem-model-edit-runner-pool.lock"
+lock_file="/run/lock/chem-model-edit-runner-pool.lock"
 dry_run=0
 
 while [[ $# -gt 0 ]]; do
