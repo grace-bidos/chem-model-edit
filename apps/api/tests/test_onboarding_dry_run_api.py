@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 import main
+from app.api import app as api_app
 from app import deps as app_deps
 from services.zpe.settings import ZPESettings
 
@@ -71,6 +72,23 @@ def test_onboarding_dry_run_requires_admin_token(monkeypatch) -> None:
     )
 
     assert response.status_code == 401
+
+
+def test_onboarding_route_available_from_app_api_import(monkeypatch) -> None:
+    settings = ZPESettings(admin_token="secret")
+    monkeypatch.setattr(app_deps, "get_zpe_settings", lambda: settings)
+
+    client = TestClient(api_app)
+    response = client.post(
+        "/api/zpe/admin/onboarding/dry-run",
+        headers={"Authorization": "Bearer secret"},
+        json={
+            "path_mode": "path-a-existing-slurm",
+            "policy": _base_policy(),
+        },
+    )
+
+    assert response.status_code == 200
 
 
 def test_onboarding_dry_run_returns_valid_report_and_queue_decision(monkeypatch) -> None:

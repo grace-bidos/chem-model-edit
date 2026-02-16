@@ -174,6 +174,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/zpe/admin/onboarding/dry-run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Onboarding Dry Run */
+        post: operations["onboarding_dry_run_api_zpe_admin_onboarding_dry_run_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/zpe/admin/ops": {
         parameters: {
             query?: never;
@@ -665,6 +682,85 @@ export interface components {
             a: components["schemas"]["Vector3"];
             b: components["schemas"]["Vector3"];
             c: components["schemas"]["Vector3"];
+        };
+        /** OnboardingDryRunReport */
+        OnboardingDryRunReport: {
+            /** Error Count */
+            error_count: number;
+            /** Policy Error Count */
+            policy_error_count: number;
+            /** Policy Valid */
+            policy_valid: boolean;
+            queue_decision?: components["schemas"]["OnboardingQueueDecision"] | null;
+            /** Queue Resolution Error Count */
+            queue_resolution_error_count: number;
+            /** Queue Resolution Valid */
+            queue_resolution_valid: boolean;
+            /** Registration Error Count */
+            registration_error_count: number;
+            /** Registration Valid */
+            registration_valid: boolean;
+        };
+        /** OnboardingDryRunRequest */
+        OnboardingDryRunRequest: {
+            /**
+             * Path Mode
+             * @enum {string}
+             */
+            path_mode: "path-a-existing-slurm" | "path-b-bootstrap-slurm-aiida";
+            /** Policy */
+            policy: {
+                [key: string]: unknown;
+            };
+            /** Registration */
+            registration?: {
+                [key: string]: unknown;
+            } | null;
+            /** Requested Queue */
+            requested_queue?: string | null;
+            /**
+             * Schema Version
+             * @default byo_onboarding_manifest/v1
+             * @constant
+             */
+            schema_version: "byo_onboarding_manifest/v1";
+        };
+        /** OnboardingDryRunResponse */
+        OnboardingDryRunResponse: {
+            /** Errors */
+            errors?: components["schemas"]["OnboardingValidationIssue"][];
+            normalized_manifest: components["schemas"]["OnboardingDryRunRequest"];
+            report: components["schemas"]["OnboardingDryRunReport"];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "valid" | "invalid";
+        };
+        /** OnboardingQueueDecision */
+        OnboardingQueueDecision: {
+            /** Requested Queue */
+            requested_queue: string;
+            /** Resolved Queue */
+            resolved_queue: string;
+            /** Used Fallback */
+            used_fallback: boolean;
+        };
+        /** OnboardingValidationIssue */
+        OnboardingValidationIssue: {
+            /** Action */
+            action: string;
+            /** Code */
+            code: string;
+            /** Field Path */
+            field_path?: string | null;
+            /** Message */
+            message: string;
+            /**
+             * Section
+             * @enum {string}
+             */
+            section: "manifest" | "policy" | "registration" | "queue_resolution";
         };
         /** OpsFlagsRequest */
         OpsFlagsRequest: {
@@ -1345,6 +1441,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DeltaTransplantResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    onboarding_dry_run_api_zpe_admin_onboarding_dry_run_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnboardingDryRunRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingDryRunResponse"];
                 };
             };
             /** @description Validation Error */

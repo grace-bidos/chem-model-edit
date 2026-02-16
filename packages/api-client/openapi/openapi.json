@@ -698,6 +698,216 @@
         "title": "Lattice",
         "type": "object"
       },
+      "OnboardingDryRunReport": {
+        "additionalProperties": false,
+        "properties": {
+          "error_count": {
+            "title": "Error Count",
+            "type": "integer"
+          },
+          "policy_error_count": {
+            "title": "Policy Error Count",
+            "type": "integer"
+          },
+          "policy_valid": {
+            "title": "Policy Valid",
+            "type": "boolean"
+          },
+          "queue_decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OnboardingQueueDecision"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "queue_resolution_error_count": {
+            "title": "Queue Resolution Error Count",
+            "type": "integer"
+          },
+          "queue_resolution_valid": {
+            "title": "Queue Resolution Valid",
+            "type": "boolean"
+          },
+          "registration_error_count": {
+            "title": "Registration Error Count",
+            "type": "integer"
+          },
+          "registration_valid": {
+            "title": "Registration Valid",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "policy_valid",
+          "registration_valid",
+          "queue_resolution_valid",
+          "error_count",
+          "policy_error_count",
+          "registration_error_count",
+          "queue_resolution_error_count"
+        ],
+        "title": "OnboardingDryRunReport",
+        "type": "object"
+      },
+      "OnboardingDryRunRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "path_mode": {
+            "enum": [
+              "path-a-existing-slurm",
+              "path-b-bootstrap-slurm-aiida"
+            ],
+            "title": "Path Mode",
+            "type": "string"
+          },
+          "policy": {
+            "additionalProperties": true,
+            "title": "Policy",
+            "type": "object"
+          },
+          "registration": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registration"
+          },
+          "requested_queue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested Queue"
+          },
+          "schema_version": {
+            "const": "byo_onboarding_manifest/v1",
+            "default": "byo_onboarding_manifest/v1",
+            "title": "Schema Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path_mode",
+          "policy"
+        ],
+        "title": "OnboardingDryRunRequest",
+        "type": "object"
+      },
+      "OnboardingDryRunResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/OnboardingValidationIssue"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "normalized_manifest": {
+            "$ref": "#/components/schemas/OnboardingDryRunRequest"
+          },
+          "report": {
+            "$ref": "#/components/schemas/OnboardingDryRunReport"
+          },
+          "status": {
+            "enum": [
+              "valid",
+              "invalid"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "normalized_manifest",
+          "report"
+        ],
+        "title": "OnboardingDryRunResponse",
+        "type": "object"
+      },
+      "OnboardingQueueDecision": {
+        "additionalProperties": false,
+        "properties": {
+          "requested_queue": {
+            "title": "Requested Queue",
+            "type": "string"
+          },
+          "resolved_queue": {
+            "title": "Resolved Queue",
+            "type": "string"
+          },
+          "used_fallback": {
+            "title": "Used Fallback",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "requested_queue",
+          "resolved_queue",
+          "used_fallback"
+        ],
+        "title": "OnboardingQueueDecision",
+        "type": "object"
+      },
+      "OnboardingValidationIssue": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "field_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field Path"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "section": {
+            "enum": [
+              "manifest",
+              "policy",
+              "registration",
+              "queue_resolution"
+            ],
+            "title": "Section",
+            "type": "string"
+          }
+        },
+        "required": [
+          "section",
+          "code",
+          "message",
+          "action"
+        ],
+        "title": "OnboardingValidationIssue",
+        "type": "object"
+      },
       "OpsFlagsRequest": {
         "additionalProperties": false,
         "properties": {
@@ -2247,6 +2457,47 @@
         "summary": "Delta Transplant",
         "tags": [
           "transforms"
+        ]
+      }
+    },
+    "/api/zpe/admin/onboarding/dry-run": {
+      "post": {
+        "operationId": "onboarding_dry_run_api_zpe_admin_onboarding_dry_run_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnboardingDryRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnboardingDryRunResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Onboarding Dry Run",
+        "tags": [
+          "zpe"
         ]
       }
     },
