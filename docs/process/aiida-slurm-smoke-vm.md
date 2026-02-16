@@ -36,6 +36,9 @@ Known host-side caveats before VM smoke:
 - `scripts/aiida-slurm-smoke-vm.sh`
 - Remote rerun driver: `scripts/aiida-slurm-smoke-vm-remote.sh`
   - Runbook: `docs/process/aiida-slurm-smoke-vm-remote.md`
+- Tier-2 one-command gate wrapper: `scripts/aiida-tier2-gate-vm.sh`
+  - Runs control-plane validate (`--mode vm`) and this smoke script in sequence.
+  - Produces a machine-readable summary JSON, a human summary markdown, and a deterministic artifact bundle.
 
 Default behavior:
 
@@ -75,6 +78,12 @@ Override artifact directory:
 ```bash
 scripts/aiida-slurm-smoke-vm.sh \
   --artifact-dir investigations/artifacts/gra-89-vm
+```
+
+Run as Tier-2 gate entrypoint (recommended for release/cutover evidence):
+
+```bash
+scripts/aiida-tier2-gate-vm.sh --run-id <run-id>
 ```
 
 ## Exit Codes

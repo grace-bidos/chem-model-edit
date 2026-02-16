@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import os
+import subprocess
 import time
 from typing import Any, Literal
 from urllib import error as urlerror
@@ -17,6 +18,10 @@ _HEALTH_PATH_KEY = "AIIA_MANAGED_HEALTH_PATH"
 _READY_PATH_KEY = "AIIA_MANAGED_READY_PATH"
 _TIMEOUT_SECONDS_KEY = "AIIA_MANAGED_TIMEOUT_SECONDS"
 _TOKEN_KEY = "AIIA_MANAGED_BEARER_TOKEN"
+_DEEP_READY_ENABLED_KEY = "AIIA_USER_MANAGED_DEEP_READY_ENABLED"
+_DEEP_READY_TIMEOUT_SECONDS_KEY = "AIIA_USER_MANAGED_DEEP_READY_TIMEOUT_SECONDS"
+_AIIDA_PROFILE_KEY = "AIIDA_PROFILE"
+_MAX_OUTPUT_LENGTH = 240
 
 
 def _truthy(value: str | None) -> bool:
@@ -32,6 +37,30 @@ def _timeout_seconds() -> int:
     except ValueError:
         return 3
     return parsed if parsed > 0 else 3
+
+
+def _deep_timeout_seconds() -> int:
+    raw = os.getenv(_DEEP_READY_TIMEOUT_SECONDS_KEY, "5").strip()
+    try:
+        parsed = int(raw)
+    except ValueError:
+        return 5
+    return parsed if parsed > 0 else 5
+
+
+def _normalize_output(value: str | bytes | None) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, bytes):
+        text = value.decode("utf-8", errors="replace")
+    else:
+        text = value
+    normalized = text.strip()
+    if not normalized:
+        return None
+    if len(normalized) > _MAX_OUTPUT_LENGTH:
+        return f"{normalized[:_MAX_OUTPUT_LENGTH]}..."
+    return normalized
 
 
 @dataclass(frozen=True)
@@ -57,6 +86,169 @@ class ManagedAiidaCheck:
         if self.latency_ms is not None:
             payload["latency_ms"] = self.latency_ms
         return payload
+
+
+@dataclass(frozen=True)
+class CommandProbe:
+    status: ManagedAiidaStatus
+    detail: str
+    command: str
+    error: str | None = None
+    exit_code: int | None = None
+    latency_ms: int | None = None
+    stdout: str | None = None
+    stderr: str | None = None
+
+    def as_dict(self) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "status": self.status,
+            "detail": self.detail,
+            "command": self.command,
+        }
+        if self.error is not None:
+            payload["error"] = self.error
+        if self.exit_code is not None:
+            payload["exit_code"] = self.exit_code
+        if self.latency_ms is not None:
+            payload["latency_ms"] = self.latency_ms
+        if self.stdout is not None:
+            payload["stdout"] = self.stdout
+        if self.stderr is not None:
+            payload["stderr"] = self.stderr
+        return payload
+
+
+@dataclass(frozen=True)
+class UserManagedDeepReadinessCheck:
+    status: ManagedAiidaStatus
+    detail: str
+    probes: dict[str, CommandProbe]
+    error: str | None = None
+    failed_probe: str | None = None
+
+    def as_dict(self) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "status": self.status,
+            "detail": self.detail,
+            "probes": {
+                probe_name: probe_result.as_dict()
+                for probe_name, probe_result in self.probes.items()
+            },
+        }
+        if self.error is not None:
+            payload["error"] = self.error
+        if self.failed_probe is not None:
+            payload["failed_probe"] = self.failed_probe
+        return payload
+
+
+def _run_command_probe(*, command: list[str]) -> CommandProbe:
+    started = time.perf_counter()
+    command_text = " ".join(command)
+    try:
+        completed = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=_deep_timeout_seconds(),
+        )
+    except FileNotFoundError:
+        latency_ms = int((time.perf_counter() - started) * 1000)
+        return CommandProbe(
+            status="failed",
+            detail=f"required command missing: {command[0]}",
+            command=command_text,
+            error="tooling_missing",
+            latency_ms=latency_ms,
+        )
+    except subprocess.TimeoutExpired as exc:
+        latency_ms = int((time.perf_counter() - started) * 1000)
+        return CommandProbe(
+            status="failed",
+            detail=f"command timed out after {_deep_timeout_seconds()}s: {command_text}",
+            command=command_text,
+            error="timeout",
+            latency_ms=latency_ms,
+            stdout=_normalize_output(exc.stdout),
+            stderr=_normalize_output(exc.stderr),
+        )
+
+    latency_ms = int((time.perf_counter() - started) * 1000)
+    stdout = _normalize_output(completed.stdout)
+    stderr = _normalize_output(completed.stderr)
+    if completed.returncode != 0:
+        return CommandProbe(
+            status="failed",
+            detail=f"command failed with exit {completed.returncode}: {command_text}",
+            command=command_text,
+            error="command_failed",
+            exit_code=int(completed.returncode),
+            latency_ms=latency_ms,
+            stdout=stdout,
+            stderr=stderr,
+        )
+
+    return CommandProbe(
+        status="ok",
+        detail="command succeeded",
+        command=command_text,
+        latency_ms=latency_ms,
+        stdout=stdout,
+    )
+
+
+def probe_user_managed_deep_readiness(
+    *, check_kind: Literal["health", "ready"]
+) -> UserManagedDeepReadinessCheck:
+    _ = check_kind
+    enabled = _truthy(os.getenv(_DEEP_READY_ENABLED_KEY))
+    if not enabled:
+        return UserManagedDeepReadinessCheck(
+            status="skipped",
+            detail="user-managed deep readiness checks disabled",
+            probes={},
+        )
+
+    probes: dict[str, CommandProbe] = {
+        "scontrol_ping": _run_command_probe(command=["scontrol", "ping"]),
+        "sinfo": _run_command_probe(command=["sinfo"]),
+        "verdi_status": _run_command_probe(command=["verdi", "status"]),
+        "verdi_profile": _run_command_probe(command=["verdi", "profile", "list"]),
+    }
+
+    configured_profile = (os.getenv(_AIIDA_PROFILE_KEY) or "").strip()
+    verdi_profile_probe = probes["verdi_profile"]
+    if (
+        configured_profile
+        and verdi_profile_probe.status == "ok"
+        and configured_profile not in (verdi_profile_probe.stdout or "")
+    ):
+        probes["verdi_profile"] = CommandProbe(
+            status="failed",
+            detail=f"{_AIIDA_PROFILE_KEY} is not present in verdi profile list",
+            command=verdi_profile_probe.command,
+            error="misconfigured",
+            latency_ms=verdi_profile_probe.latency_ms,
+            stdout=verdi_profile_probe.stdout,
+            stderr=verdi_profile_probe.stderr,
+        )
+
+    for probe_name, probe in probes.items():
+        if probe.status == "failed":
+            return UserManagedDeepReadinessCheck(
+                status="failed",
+                detail="user-managed deep readiness probes failed",
+                probes=probes,
+                error=probe.error,
+                failed_probe=probe_name,
+            )
+
+    return UserManagedDeepReadinessCheck(
+        status="ok",
+        detail="user-managed deep readiness probes passed",
+        probes=probes,
+    )
 
 
 def probe_managed_aiida_runtime(*, check_kind: Literal["health", "ready"]) -> ManagedAiidaCheck:

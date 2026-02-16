@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from email.message import Message
 from io import BytesIO
+import subprocess
 from typing import Any, Literal
 from urllib import error as urlerror
 
@@ -17,6 +18,9 @@ _AIIA_ENV_KEYS = [
     "AIIA_MANAGED_READY_PATH",
     "AIIA_MANAGED_TIMEOUT_SECONDS",
     "AIIA_MANAGED_BEARER_TOKEN",
+    "AIIA_USER_MANAGED_DEEP_READY_ENABLED",
+    "AIIA_USER_MANAGED_DEEP_READY_TIMEOUT_SECONDS",
+    "AIIDA_PROFILE",
 ]
 
 
@@ -52,6 +56,7 @@ def test_health_reports_skipped_when_managed_aiida_checks_disabled(monkeypatch: 
     payload = response.json()
     assert payload["status"] == "ok"
     assert payload["checks"]["managed_aiida_runtime"]["status"] == "skipped"
+    assert payload["checks"]["user_managed_deep_readiness"]["status"] == "skipped"
 
 
 def test_ready_returns_503_when_managed_aiida_is_misconfigured(monkeypatch: Any) -> None:
@@ -67,6 +72,7 @@ def test_ready_returns_503_when_managed_aiida_is_misconfigured(monkeypatch: Any)
     assert payload["status"] == "not_ready"
     assert check["status"] == "failed"
     assert check["error"] == "misconfigured"
+    assert payload["checks"]["user_managed_deep_readiness"]["status"] == "skipped"
 
 
 def test_ready_returns_503_when_managed_aiida_base_url_is_malformed(
@@ -156,6 +162,7 @@ def test_ready_returns_200_when_managed_aiida_is_healthy(monkeypatch: Any) -> No
     assert payload["status"] == "ready"
     assert check["status"] == "ok"
     assert check["http_status"] == 204
+    assert payload["checks"]["user_managed_deep_readiness"]["status"] == "skipped"
 
 
 def test_health_reports_degraded_when_managed_aiida_returns_http_error(
@@ -190,3 +197,140 @@ def test_health_reports_degraded_when_managed_aiida_returns_http_error(
     assert check["status"] == "failed"
     assert check["error"] == "upstream_unhealthy"
     assert check["http_status"] == 503
+
+
+def test_ready_returns_503_when_user_managed_deep_readiness_tooling_missing(
+    monkeypatch: Any,
+) -> None:
+    _clear_aiida_env(monkeypatch)
+    monkeypatch.setenv("AIIA_USER_MANAGED_DEEP_READY_ENABLED", "true")
+
+    def _run_probe(command: list[str], **kwargs: Any) -> Any:
+        _ = kwargs
+        if command[0] == "scontrol":
+            raise FileNotFoundError("scontrol")
+        return subprocess.CompletedProcess(
+            args=command,
+            returncode=0,
+            stdout="ok",
+            stderr="",
+        )
+
+    monkeypatch.setattr("services.aiida_runtime_checks.subprocess.run", _run_probe)
+    client = TestClient(main.app)
+
+    response = client.get("/api/ready")
+
+    assert response.status_code == 503
+    payload = response.json()
+    check = payload["checks"]["user_managed_deep_readiness"]
+    assert payload["status"] == "not_ready"
+    assert check["status"] == "failed"
+    assert check["error"] == "tooling_missing"
+    assert check["failed_probe"] == "scontrol_ping"
+    assert check["probes"]["scontrol_ping"]["error"] == "tooling_missing"
+
+
+def test_health_reports_degraded_when_user_managed_deep_readiness_command_fails(
+    monkeypatch: Any,
+) -> None:
+    _clear_aiida_env(monkeypatch)
+    monkeypatch.setenv("AIIA_USER_MANAGED_DEEP_READY_ENABLED", "true")
+
+    def _run_probe(command: list[str], **kwargs: Any) -> Any:
+        _ = kwargs
+        if command[0] == "sinfo":
+            return subprocess.CompletedProcess(
+                args=command,
+                returncode=1,
+                stdout="",
+                stderr="slurmctld: down",
+            )
+        return subprocess.CompletedProcess(
+            args=command,
+            returncode=0,
+            stdout="ok",
+            stderr="",
+        )
+
+    monkeypatch.setattr("services.aiida_runtime_checks.subprocess.run", _run_probe)
+    client = TestClient(main.app)
+
+    response = client.get("/api/health")
+
+    assert response.status_code == 200
+    payload = response.json()
+    check = payload["checks"]["user_managed_deep_readiness"]
+    assert payload["status"] == "degraded"
+    assert check["status"] == "failed"
+    assert check["error"] == "command_failed"
+    assert check["failed_probe"] == "sinfo"
+    assert check["probes"]["sinfo"]["exit_code"] == 1
+
+
+def test_ready_returns_200_when_user_managed_deep_readiness_passes(monkeypatch: Any) -> None:
+    _clear_aiida_env(monkeypatch)
+    monkeypatch.setenv("AIIA_USER_MANAGED_DEEP_READY_ENABLED", "true")
+    monkeypatch.setenv("AIIDA_PROFILE", "default")
+
+    def _run_probe(command: list[str], **kwargs: Any) -> Any:
+        _ = kwargs
+        stdout = "ok"
+        if command[:3] == ["verdi", "profile", "list"]:
+            stdout = "* default\n  other"
+        return subprocess.CompletedProcess(
+            args=command,
+            returncode=0,
+            stdout=stdout,
+            stderr="",
+        )
+
+    monkeypatch.setattr("services.aiida_runtime_checks.subprocess.run", _run_probe)
+    client = TestClient(main.app)
+
+    response = client.get("/api/ready")
+
+    assert response.status_code == 200
+    payload = response.json()
+    check = payload["checks"]["user_managed_deep_readiness"]
+    assert payload["status"] == "ready"
+    assert check["status"] == "ok"
+    assert set(check["probes"]) == {
+        "scontrol_ping",
+        "sinfo",
+        "verdi_status",
+        "verdi_profile",
+    }
+
+
+def test_ready_returns_503_when_aiida_profile_is_missing_from_verdi_profile_list(
+    monkeypatch: Any,
+) -> None:
+    _clear_aiida_env(monkeypatch)
+    monkeypatch.setenv("AIIA_USER_MANAGED_DEEP_READY_ENABLED", "true")
+    monkeypatch.setenv("AIIDA_PROFILE", "target-profile")
+
+    def _run_probe(command: list[str], **kwargs: Any) -> Any:
+        _ = kwargs
+        stdout = "ok"
+        if command[:3] == ["verdi", "profile", "list"]:
+            stdout = "* default\n  staging"
+        return subprocess.CompletedProcess(
+            args=command,
+            returncode=0,
+            stdout=stdout,
+            stderr="",
+        )
+
+    monkeypatch.setattr("services.aiida_runtime_checks.subprocess.run", _run_probe)
+    client = TestClient(main.app)
+
+    response = client.get("/api/ready")
+
+    assert response.status_code == 503
+    payload = response.json()
+    check = payload["checks"]["user_managed_deep_readiness"]
+    assert payload["status"] == "not_ready"
+    assert check["status"] == "failed"
+    assert check["error"] == "misconfigured"
+    assert check["failed_probe"] == "verdi_profile"
