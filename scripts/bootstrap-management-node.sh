@@ -158,7 +158,6 @@ if [[ -n "$VARS_FILE" ]]; then
   [[ -f "$VARS_FILE" ]] || die "vars file not found: $VARS_FILE"
 fi
 
-PUBLIC_KEY_CONTENT="$(resolve_public_key "$SSH_PUBLIC_KEY")"
 mkdir -p "$DEFAULT_RUNTIME_DIR"
 
 if [[ -z "$INVENTORY_FILE" ]]; then
@@ -174,6 +173,7 @@ INVENTORY
 fi
 
 if [[ -z "$VARS_FILE" ]]; then
+  PUBLIC_KEY_CONTENT="$(resolve_public_key "$SSH_PUBLIC_KEY")"
   VARS_FILE="$DEFAULT_RUNTIME_DIR/enrollment.vars.yml"
   cat > "$VARS_FILE" <<VARS
 ---
