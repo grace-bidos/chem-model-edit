@@ -80,7 +80,8 @@ def _submit_result(
     summary_text: str,
     freqs_csv: str,
     meta: Dict[str, Any],
-    timeout: int,
+    execution_event: Dict[str, Any] | None = None,
+    timeout: int = 60,
 ) -> None:
     payload = {
         "tenant_id": tenant_id,
@@ -90,6 +91,8 @@ def _submit_result(
         "freqs_csv": freqs_csv,
         "meta": meta,
     }
+    if execution_event is not None:
+        payload["execution_event"] = execution_event
     status, _ = _request_json(
         "POST",
         f"{base_url}/api/zpe/compute/jobs/{job_id}/result",
@@ -110,7 +113,8 @@ def _submit_failed(
     error_code: str,
     error_message: str,
     tb: str,
-    timeout: int,
+    execution_event: Dict[str, Any] | None = None,
+    timeout: int = 60,
 ) -> None:
     payload = {
         "tenant_id": tenant_id,
@@ -119,6 +123,8 @@ def _submit_failed(
         "error_message": error_message,
         "traceback": tb,
     }
+    if execution_event is not None:
+        payload["execution_event"] = execution_event
     _request_json(
         "POST",
         f"{base_url}/api/zpe/compute/jobs/{job_id}/failed",
@@ -201,6 +207,22 @@ def run_http_worker() -> None:
             continue
 
         start = time.monotonic()
+        trace_id = str(request_id or f"trace-{job_id}-{lease_id}")
+        workspace_id = str(meta.get("workspace_id") or tenant_id)
+        submission_id = str(meta.get("submission_id") or request_id or lease_id)
+        management_node_id = str(meta.get("management_node_id") or hostname)
+        execution_id = str(
+            meta.get("execution_id") or f"{management_node_id}:{job_id}:{lease_id}"
+        )
+        scheduler_ref: Dict[str, Any] = {}
+        for key, source in (
+            ("slurm_job_id", "slurm_job_id"),
+            ("partition", "slurm_partition"),
+            ("qos", "slurm_qos"),
+        ):
+            value = meta.get(source)
+            if isinstance(value, str) and value.strip():
+                scheduler_ref[key] = value.strip()
         try:
             log_event(
                 logger,
@@ -233,7 +255,24 @@ def run_http_worker() -> None:
                 artifacts.summary_text,
                 artifacts.freqs_csv,
                 meta,
-                timeout,
+                execution_event={
+                    "event_id": f"execution:{job_id}:{lease_id}:completed",
+                    "tenant_id": tenant_id,
+                    "workspace_id": workspace_id,
+                    "job_id": job_id,
+                    "submission_id": submission_id,
+                    "execution_id": execution_id,
+                    "state": "completed",
+                    "occurred_at": _now_iso(),
+                    "trace_id": trace_id,
+                    "status_detail": "job completed",
+                    "scheduler_ref": scheduler_ref or None,
+                    "result_ref": {
+                        "output_uri": f"zpe://jobs/{job_id}/result",
+                        "metadata_uri": f"zpe://jobs/{job_id}/files/summary",
+                    },
+                },
+                timeout=timeout,
             )
             log_event(
                 logger,
@@ -280,7 +319,25 @@ def run_http_worker() -> None:
                 "COMPUTE_ERROR",
                 str(exc),
                 tb,
-                timeout,
+                execution_event={
+                    "event_id": f"execution:{job_id}:{lease_id}:failed",
+                    "tenant_id": tenant_id,
+                    "workspace_id": workspace_id,
+                    "job_id": job_id,
+                    "submission_id": submission_id,
+                    "execution_id": execution_id,
+                    "state": "failed",
+                    "occurred_at": _now_iso(),
+                    "trace_id": trace_id,
+                    "status_detail": str(exc),
+                    "scheduler_ref": scheduler_ref or None,
+                    "error": {
+                        "code": "COMPUTE_ERROR",
+                        "message": str(exc),
+                        "retryable": True,
+                    },
+                },
+                timeout=timeout,
             )
 
 
