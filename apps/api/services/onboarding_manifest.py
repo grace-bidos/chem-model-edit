@@ -6,6 +6,7 @@ from app.schemas.onboarding import (
     OnboardingDryRunReport,
     OnboardingDryRunRequest,
     OnboardingDryRunResponse,
+    OnboardingIssueSection,
     OnboardingQueueDecision,
     OnboardingValidationIssue,
 )
@@ -33,7 +34,7 @@ def _normalize_json(value: Any) -> Any:
 
 def _issue(
     *,
-    section: str,
+    section: OnboardingIssueSection,
     field_path: str | None,
     message: str,
     action: str,
@@ -50,7 +51,7 @@ def _issue(
 
 def _validate_text_list(
     *,
-    section: str,
+    section: OnboardingIssueSection,
     data: Any,
     field_name: str,
     errors: list[OnboardingValidationIssue],
@@ -184,6 +185,7 @@ def _validate_policy(policy: dict[str, Any]) -> list[OnboardingValidationIssue]:
                 )
             )
         else:
+            assert isinstance(queue, str)
             queue_names.append(queue.strip())
 
         if not _is_non_empty_text(partition):
@@ -498,7 +500,11 @@ def _validate_registration(
                 action="Set current Slurm state (for example, idle).",
             )
         )
-    elif deny_if_drain_or_down and slurm_state.strip().lower() in BLOCKED_STATES:
+    elif (
+        deny_if_drain_or_down
+        and isinstance(slurm_state, str)
+        and slurm_state.strip().lower() in BLOCKED_STATES
+    ):
         errors.append(
             _issue(
                 section="registration",
