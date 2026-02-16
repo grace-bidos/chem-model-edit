@@ -175,6 +175,26 @@ Required env args are always:
 - `RUNNER_LABELS`
 - `RUNNER_GROUP`
 
+## 9.1) Scale local runner pool (baseline/max/target)
+
+Use this when you want to run multiple trusted PR jobs in parallel on local self-hosted runners.
+
+Example: keep floor `1`, allow up to `4`, and scale now to `4`.
+
+```bash
+scripts/runner/scale_local_runner_pool.sh \
+  --repo grace-bidos/chem-model-edit \
+  --baseline 1 \
+  --max 4 \
+  --target 4
+```
+
+Notes:
+
+- `--target` is optional. If omitted, baseline is applied.
+- Effective target is clamped to `[baseline, max]`.
+- Runner naming remains `home-self-host`, `home-self-host-2`, ...
+
 ## 10) Emergency fallback to hosted routing
 
 If self-hosted runners are unavailable during an incident, immediately route trusted PRs back to hosted:

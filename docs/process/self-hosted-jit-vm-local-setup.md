@@ -38,6 +38,10 @@ Fallback target is always `ubuntu-latest`.
 
 - `1 VM = 1 Job` is the safest default and is recommended.
 - Warm standby (`1 idle VM`) typically saves most of boot overhead.
+- For local persistent pool operation, use:
+  - baseline concurrency: `--baseline` (floor)
+  - max concurrency: `--max` (ceiling)
+  - current desired concurrency: `--target` (optional, clamped to floor/ceiling)
 - Practical impact target:
   - cold start overhead: around tens of seconds to low minutes depending on host and image size
   - warm standby reduces that to near runner registration time plus checkout/dependency setup
