@@ -8,15 +8,6 @@ from services.zpe import compute_results as zpe_results
 from services.zpe.settings import ZPESettings
 
 
-class _StaticOwnerStore:
-    def __init__(self, owner_id: str | None) -> None:
-        self._owner_id = owner_id
-
-    def get_owner(self, job_id: str) -> str | None:
-        _ = job_id
-        return self._owner_id
-
-
 class _StaticMetaStore:
     def __init__(self, meta: dict[str, object]) -> None:
         self._meta = meta
@@ -60,13 +51,8 @@ def _patch(monkeypatch, *, dispatcher: _RecordingDispatcher | None = None):
     )
     monkeypatch.setattr(
         zpe_results,
-        "get_job_owner_store",
-        lambda: _StaticOwnerStore("owner-1"),
-    )
-    monkeypatch.setattr(
-        zpe_results,
         "get_job_meta_store",
-        lambda: _StaticMetaStore({"queue_name": "zpe"}),
+        lambda: _StaticMetaStore({"queue_name": "zpe", "user_id": "owner-1"}),
     )
     return fake, used_dispatcher
 
@@ -102,6 +88,7 @@ def test_submit_result_idempotent(monkeypatch):
     assert len(dispatcher.calls) == 1
     assert dispatcher.calls[0][0].status == "finished"
     assert dispatcher.calls[0][0].sequence == 1
+    assert dispatcher.calls[0][0].owner_id == "owner-1"
 
 
 def test_submit_result_duplicate_replay_retries_dispatch(monkeypatch):

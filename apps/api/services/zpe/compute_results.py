@@ -16,7 +16,6 @@ from services.convex_event_relay import (
 )
 
 from .job_meta import get_job_meta_store
-from .job_owner import get_job_owner_store
 from .job_state import JobState, can_transition, coerce_job_state
 from .queue import get_redis_connection
 from .settings import get_zpe_settings
@@ -109,8 +108,8 @@ def _dispatch_runtime_state_transition(
         relay_token=settings.convex_relay_token,
         timeout_seconds=settings.convex_relay_timeout_seconds,
     )
-    owner_id = get_job_owner_store().get_owner(job_id)
     meta = get_job_meta_store().get_meta(job_id)
+    owner_id = _coerce_non_empty(meta.get("user_id"))
     project_id = _coerce_non_empty(meta.get("project_id")) or _coerce_non_empty(
         meta.get("queue_name")
     )

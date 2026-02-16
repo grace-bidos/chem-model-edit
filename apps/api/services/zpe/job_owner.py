@@ -6,6 +6,7 @@ from typing import Optional, cast
 
 from redis import Redis
 
+from .job_meta import get_job_meta_store
 from .queue import get_redis_connection
 from .settings import get_zpe_settings
 
@@ -24,19 +25,30 @@ class JobOwnerStore:
         self.redis = redis or get_redis_connection()
 
     def set_owner(self, job_id: str, user_id: str, tenant_id: str) -> None:
-        settings = get_zpe_settings()
-        key = f"{_OWNER_PREFIX}{job_id}"
-        ttl = settings.result_ttl_seconds
+        ttl = get_zpe_settings().result_ttl_seconds
         payload = json.dumps(
             {"user_id": user_id, "tenant_id": tenant_id},
             ensure_ascii=True,
             separators=(",", ":"),
         )
-        ok = self.redis.setex(key, ttl, payload)
+        ok = self.redis.setex(f"{_OWNER_PREFIX}{job_id}", ttl, payload)
         if not ok:
             raise RuntimeError("failed to set job owner")
 
     def get_owner_record(self, job_id: str) -> Optional[JobOwnerRecord]:
+        # Runtime ownership should come from execution metadata first.
+        meta = get_job_meta_store(redis=self.redis).get_meta(job_id)
+        meta_user_id = meta.get("user_id")
+        if isinstance(meta_user_id, str) and meta_user_id:
+            meta_tenant_id = meta.get("tenant_id")
+            if meta_tenant_id is not None and not isinstance(meta_tenant_id, str):
+                return None
+            return JobOwnerRecord(
+                user_id=meta_user_id,
+                tenant_id=cast(str | None, meta_tenant_id),
+            )
+
+        # Backward-compatible fallback for pre-cutover legacy keys.
         raw = cast(Optional[bytes], self.redis.get(f"{_OWNER_PREFIX}{job_id}"))
         if not raw:
             return None
