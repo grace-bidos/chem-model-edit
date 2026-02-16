@@ -1,0 +1,13 @@
+---
+management_enrollment_users:
+  - name: chemops
+    shell: /bin/bash
+    groups:
+      - sudo
+    ssh_public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEXAMPLE management-admin@local"
+    sudo_nopasswd: true
+
+management_enrollment_create_home: true
+management_enrollment_default_shell: /bin/bash
+management_enrollment_managed_group: sudo
+management_enrollment_remove_missing_sudoers: false

@@ -35,6 +35,11 @@ pnpm-debug.log*
 .xdg-runtime
 .just-runtime
 
+# Local-only VM credential artifacts
+.tmp/vm-validation-secrets/
+.tmp/vm-jit-config/
+.secrets/vm-validation/
+
 # User uploads (temporary)
 /uploads
 
