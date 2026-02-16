@@ -63,6 +63,39 @@ cd /opt/actions-runner
 sudo ./bin/installdependencies.sh
 ```
 
+## 4.1) Repair or bootstrap base runner registration (idempotent)
+
+Use this when a long-lived local runner directory exists but registration was deleted
+or became invalid.
+
+Dry-run first:
+
+```bash
+scripts/runner/bootstrap_local_runner_registration.sh \
+  --owner grace-bidos \
+  --repo chem-model-edit \
+  --runner-home /opt/actions-runner \
+  --labels "self-hosted,linux,x64,chem-trusted-pr" \
+  --dry-run
+```
+
+Apply:
+
+```bash
+scripts/runner/bootstrap_local_runner_registration.sh \
+  --owner grace-bidos \
+  --repo chem-model-edit \
+  --runner-home /opt/actions-runner \
+  --labels "self-hosted,linux,x64,chem-trusted-pr"
+```
+
+Behavior summary:
+
+- checks local `.runner` and GitHub runner inventory by name
+- if missing/invalid, fetches a fresh registration token and runs `config.sh --unattended`
+- reinstalls and starts `svc.sh` systemd service
+- keeps existing work folder and runner name defaults unless explicitly overridden
+
 ## 5) Tear-down guarantees
 
 - Enforce `1 VM = 1 Job`.
