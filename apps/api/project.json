@@ -48,14 +48,14 @@
     "deadcode": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "uv run deptry . && uv run vulture app services --min-confidence 90",
+        "command": "uv run deptry . --extend-exclude \".*/mutants/\" && uv run vulture app services --min-confidence 90 --ignore-names cls",
         "cwd": "apps/api"
       }
     },
     "mutation-smoke": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "uv run mutmut run --paths-to-mutate services/zpe/parse.py --runner \"python -m pytest tests/test_zpe_parse_property.py -q\"",
+        "command": "bash scripts/mutmut_smoke.sh",
         "cwd": "apps/api"
       }
     },

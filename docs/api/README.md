@@ -42,6 +42,8 @@
 - CI: 段階導入で運用する
 - `pyright` / `bandit` / `pip-audit` / `gitleaks` / `deptry` / `vulture` / `mutmut` は phase-1 で non-blocking
 - ノイズ削減後、段階的に required check へ昇格する
+- pytest プラグイン: `pytest-asyncio` / `pytest-cov` / `pytest-mock` / `pytest-sugar` / `pytest-xdist` / `time-machine`
+- `api-mutation-smoke` は実行後に `apps/api/mutants` を `.mutants_local_tmp.*` へ退避し、通常の `pytest` 実行と衝突しないようにする
 
 ## Security/Hygiene Gate Runbook
 

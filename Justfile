@@ -139,8 +139,8 @@ api-deadcode:
   #!/usr/bin/env bash
   set -euo pipefail
   pushd apps/api >/dev/null
-  uv run deptry .
-  uv run vulture app services --min-confidence 90
+  uv run deptry . --extend-exclude ".*/mutants/"
+  uv run vulture app services --min-confidence 90 --ignore-names cls
   popd >/dev/null
 
 api-schemathesis-smoke:
@@ -161,7 +161,7 @@ api-mutation-smoke:
   #!/usr/bin/env bash
   set -euo pipefail
   pushd apps/api >/dev/null
-  uv run mutmut run --paths-to-mutate services/zpe/parse.py --runner "python -m pytest tests/test_zpe_parse_property.py -q"
+  bash scripts/mutmut_smoke.sh
   popd >/dev/null
 
 api-quality-fast:

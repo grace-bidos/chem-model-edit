@@ -319,7 +319,7 @@ jobs:
         run: uv sync --dev
         working-directory: apps/api
       - name: Deptry + Vulture (phase-1 non-blocking)
-        run: uv run deptry . && uv run vulture app services --min-confidence 90
+        run: uv run deptry . --extend-exclude ".*/mutants/" && uv run vulture app services --min-confidence 90 --ignore-names cls
         working-directory: apps/api
 
   mutation-smoke:
@@ -345,7 +345,7 @@ jobs:
         run: uv sync --dev
         working-directory: apps/api
       - name: Mutmut smoke (phase-1 non-blocking)
-        run: uv run mutmut run --paths-to-mutate services/zpe/parse.py --runner "python -m pytest tests/test_zpe_parse_property.py -q"
+        run: bash scripts/mutmut_smoke.sh
         working-directory: apps/api
 
   contract:
