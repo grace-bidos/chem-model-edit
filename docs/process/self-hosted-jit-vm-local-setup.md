@@ -4,6 +4,10 @@
 
 Run CI for trusted pull requests on self-hosted ephemeral runners backed by a local VM pool, while keeping untrusted contexts on GitHub-hosted runners.
 
+For concrete operator commands, see:
+
+- `docs/process/self-hosted-jit-vm-operator-checklist.md`
+
 ## Rollout Model
 
 - Phase 0: keep `CI_SELF_HOSTED_TRUSTED_ROUTING=false` (no traffic, routing logic present).
