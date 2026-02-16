@@ -69,6 +69,14 @@ for tool in gh jq; do
   fi
 done
 
+run_privileged() {
+  if [[ "$dry_run" -eq 1 ]]; then
+    echo "[dry-run] sudo $*"
+    return 0
+  fi
+  sudo "$@"
+}
+
 if [[ ! -d "$runner_home" ]]; then
   echo "Runner home not found: $runner_home" >&2
   exit 1
@@ -120,8 +128,13 @@ fi
 
 cd "$runner_home"
 
-run_cmd ./svc.sh stop || true
-run_cmd ./svc.sh uninstall || true
+# Refresh systemd unit cache if unit files were edited.
+if command -v systemctl >/dev/null 2>&1; then
+  run_privileged systemctl daemon-reload || true
+fi
+
+run_privileged ./svc.sh stop || true
+run_privileged ./svc.sh uninstall || true
 
 # Best effort removal because local config may already be partially broken.
 run_cmd ./config.sh remove --unattended --token "$remove_token" || true
@@ -136,7 +149,7 @@ run_cmd ./config.sh \
   --unattended \
   --replace
 
-run_cmd ./svc.sh install "$runner_service_user"
-run_cmd ./svc.sh start
+run_privileged ./svc.sh install "$runner_service_user"
+run_privileged ./svc.sh start
 
 echo "Recovery flow complete."
