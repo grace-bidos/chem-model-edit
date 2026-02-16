@@ -129,12 +129,53 @@ class ComputeLeaseResponse(ApiModel):
     meta: Dict[str, Any] = Field(default_factory=dict)
 
 
+class ExecutionEventSchedulerRef(ApiModel):
+    slurm_job_id: Optional[str] = None
+    partition: Optional[str] = None
+    qos: Optional[str] = None
+
+
+class ExecutionEventResultRef(ApiModel):
+    output_uri: str
+    metadata_uri: Optional[str] = None
+
+
+class ExecutionEventError(ApiModel):
+    code: str
+    message: str
+    retryable: bool
+
+
+class ExecutionEventBase(ApiModel):
+    event_id: str
+    tenant_id: str
+    workspace_id: str
+    job_id: str
+    submission_id: str
+    execution_id: str
+    occurred_at: str
+    trace_id: str
+    status_detail: Optional[str] = None
+    scheduler_ref: Optional[ExecutionEventSchedulerRef] = None
+
+
+class ExecutionCompletedEvent(ExecutionEventBase):
+    state: Literal["completed"]
+    result_ref: ExecutionEventResultRef
+
+
+class ExecutionFailedEvent(ExecutionEventBase):
+    state: Literal["failed"]
+    error: ExecutionEventError
+
+
 class ComputeResultRequest(ApiModel):
     tenant_id: str
     lease_id: str
     result: Dict[str, Any]
     summary_text: str
     freqs_csv: str
+    execution_event: Optional[ExecutionCompletedEvent] = None
     meta: Dict[str, Any] = Field(default_factory=dict)
 
 
@@ -149,6 +190,7 @@ class ComputeFailedRequest(ApiModel):
     error_code: str
     error_message: str
     traceback: Optional[str] = None
+    execution_event: Optional[ExecutionFailedEvent] = None
 
 
 class ComputeFailedResponse(ApiModel):

@@ -123,6 +123,21 @@ def test_submit_result_duplicate_replay_retries_dispatch(monkeypatch):
     assert len(dispatcher.calls) == 2
 
 
+def test_compute_result_payload_digest_is_unambiguous() -> None:
+    digest_a = zpe_results._compute_result_payload_digest(
+        result={"zpe_ev": 0.1},
+        summary_text="a",
+        freqs_csv="b|c",
+    )
+    digest_b = zpe_results._compute_result_payload_digest(
+        result={"zpe_ev": 0.1},
+        summary_text="a|b",
+        freqs_csv="c",
+    )
+
+    assert digest_a != digest_b
+
+
 def test_submit_failure_requeue_and_dlq(monkeypatch):
     fake, dispatcher = _patch(monkeypatch)
     job_id = "job-2"
@@ -224,3 +239,124 @@ def test_submit_result_rejects_transition_from_failed(monkeypatch):
             summary_text="summary",
             freqs_csv="freqs",
         )
+
+
+def test_submit_result_event_id_replay_is_idempotent_and_payload_safe(monkeypatch):
+    fake, _dispatcher = _patch(monkeypatch)
+    job_id = "job-result-event-replay"
+    lease_id = "lease-result-event-replay"
+    event_id = "event-result-1"
+    fake.hset(
+        f"zpe:lease:{job_id}",
+        mapping={"worker_id": "worker-1", "lease_id": lease_id, "expires_at": "x"},
+    )
+
+    first = zpe_results.submit_result(
+        job_id=job_id,
+        worker_id="worker-1",
+        lease_id=lease_id,
+        event_id=event_id,
+        result={"zpe_ev": 0.1},
+        summary_text="summary",
+        freqs_csv="freqs",
+    )
+    assert first.idempotent is False
+
+    replay = zpe_results.submit_result(
+        job_id=job_id,
+        worker_id="worker-1",
+        lease_id=lease_id,
+        event_id=event_id,
+        result={"zpe_ev": 0.1},
+        summary_text="summary",
+        freqs_csv="freqs",
+    )
+    assert replay.idempotent is True
+
+    with pytest.raises(ValueError, match="different payload"):
+        zpe_results.submit_result(
+            job_id=job_id,
+            worker_id="worker-1",
+            lease_id=lease_id,
+            event_id=event_id,
+            result={"zpe_ev": 0.2},
+            summary_text="changed",
+            freqs_csv="freqs",
+        )
+
+
+def test_submit_failure_event_id_replay_is_idempotent_and_payload_safe(monkeypatch):
+    fake, _dispatcher = _patch(monkeypatch)
+    job_id = "job-failure-event-replay"
+    lease_id = "lease-failure-event-replay"
+    event_id = "event-failure-1"
+    fake.hset(
+        f"zpe:lease:{job_id}",
+        mapping={"worker_id": "worker-1", "lease_id": lease_id, "expires_at": "x"},
+    )
+
+    first = zpe_results.submit_failure(
+        job_id=job_id,
+        worker_id="worker-1",
+        lease_id=lease_id,
+        event_id=event_id,
+        error_code="ERR_TEMP",
+        error_message="temporary outage",
+    )
+    assert first.requeued is True
+    assert first.retry_count == 1
+    assert fake.get(f"zpe:retry_count:{job_id}") == b"1"
+
+    replay = zpe_results.submit_failure(
+        job_id=job_id,
+        worker_id="worker-1",
+        lease_id=lease_id,
+        event_id=event_id,
+        error_code="ERR_TEMP",
+        error_message="temporary outage",
+    )
+    assert replay.requeued is True
+    assert replay.retry_count == 1
+    assert fake.get(f"zpe:retry_count:{job_id}") == b"1"
+
+    with pytest.raises(ValueError, match="different payload"):
+        zpe_results.submit_failure(
+            job_id=job_id,
+            worker_id="worker-1",
+            lease_id=lease_id,
+            event_id=event_id,
+            error_code="ERR_TEMP",
+            error_message="changed message",
+        )
+
+
+def test_submit_failure_event_id_replay_falls_back_to_legacy_lease_submit_key(monkeypatch):
+    fake, _dispatcher = _patch(monkeypatch)
+    job_id = "job-failure-event-fallback"
+    lease_id = "lease-failure-event-fallback"
+    event_id = "event-failure-fallback-1"
+    fake.hset(
+        f"zpe:lease:{job_id}",
+        mapping={"worker_id": "worker-1", "lease_id": lease_id, "expires_at": "x"},
+    )
+
+    first = zpe_results.submit_failure(
+        job_id=job_id,
+        worker_id="worker-1",
+        lease_id=lease_id,
+        error_code="ERR_TEMP",
+        error_message="temporary outage",
+    )
+    assert first.requeued is True
+    assert first.retry_count == 1
+
+    replay = zpe_results.submit_failure(
+        job_id=job_id,
+        worker_id="worker-1",
+        lease_id=lease_id,
+        event_id=event_id,
+        error_code="ERR_TEMP",
+        error_message="temporary outage",
+    )
+    assert replay.requeued is True
+    assert replay.retry_count == 1
