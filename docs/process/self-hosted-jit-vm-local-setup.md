@@ -48,9 +48,9 @@ Fallback target is always `ubuntu-latest`.
 
 ## Cache Strategy
 
-- Keep pnpm cache on `actions/setup-node`.
-- Enable uv cache on `astral-sh/setup-uv`.
-- Save cache primarily on `main`; restore on PRs.
+- Keep pnpm store cache at `~/.pnpm-store`.
+- Keep uv cache at `~/.cache/uv`.
+- Save cache on `main` only; restore on PRs and other branches.
 - Do not cache `node_modules` or `.venv`.
 
 ## Required Operator Inputs

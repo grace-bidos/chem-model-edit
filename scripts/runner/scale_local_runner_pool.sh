@@ -60,6 +60,10 @@ run_cmd() {
 }
 
 run_sudo() {
+  if [[ "${EUID}" -eq 0 ]]; then
+    run_cmd "$@"
+    return 0
+  fi
   if [[ "$DRY_RUN" == "true" ]]; then
     echo "[dry-run] sudo $*"
     return 0
@@ -268,13 +272,15 @@ fi
 
 require_cmd gh
 require_cmd jq
-require_cmd sudo
 require_cmd systemctl
 require_cmd rsync
 
-if [[ "$DRY_RUN" != "true" ]] && ! sudo -n true >/dev/null 2>&1; then
-  echo "sudo auth is required. Run: sudo -v" >&2
-  exit 1
+if [[ "${EUID}" -ne 0 ]]; then
+  require_cmd sudo
+  if [[ "$DRY_RUN" != "true" ]] && ! sudo -n true >/dev/null 2>&1; then
+    echo "sudo auth is required. Run: sudo -v" >&2
+    exit 1
+  fi
 fi
 
 echo "Scaling runner pool for ${REPO}"

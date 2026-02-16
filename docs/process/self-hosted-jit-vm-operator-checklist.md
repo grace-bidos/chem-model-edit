@@ -195,6 +195,37 @@ Notes:
 - Effective target is clamped to `[baseline, max]`.
 - Runner naming remains `home-self-host`, `home-self-host-2`, ...
 
+## 9.2) Keep ephemeral pool replenished automatically
+
+Install a systemd timer that periodically repopulates consumed ephemeral runners.
+
+1) Prepare a GitHub token file (root-readable only):
+
+```bash
+sudo install -d -m 0700 /etc/chem-model-edit
+printf '%s\n' '<GH_TOKEN_WITH_ACTIONS_ADMIN>' | sudo tee /etc/chem-model-edit/gh_runner_token >/dev/null
+sudo chmod 600 /etc/chem-model-edit/gh_runner_token
+```
+
+2) Install and enable timer:
+
+```bash
+scripts/runner/install_pool_reconcile_timer.sh \
+  --repo grace-bidos/chem-model-edit \
+  --baseline 1 \
+  --max 4 \
+  --target 4 \
+  --interval 2min \
+  --gh-token-file /etc/chem-model-edit/gh_runner_token
+```
+
+3) Verify timer:
+
+```bash
+sudo systemctl status chem-runner-pool-reconcile.timer --no-pager
+sudo systemctl list-timers --all | rg chem-runner-pool-reconcile
+```
+
 ## 10) Emergency fallback to hosted routing
 
 If self-hosted runners are unavailable during an incident, immediately route trusted PRs back to hosted:
