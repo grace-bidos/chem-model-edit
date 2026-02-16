@@ -114,8 +114,10 @@ if ((RESOLVE_OUTDATED == 1 && CONFIRM_OUTDATED == 0)); then
   exit 1
 fi
 
-require_cmd gh
-gh auth status >/dev/null
+if ((DRY_RUN == 0)); then
+  require_cmd gh
+  gh auth status >/dev/null
+fi
 
 if [[ ! -x "${STACK_LOOP}" ]]; then
   echo "error: executable not found: ${STACK_LOOP}" >&2
