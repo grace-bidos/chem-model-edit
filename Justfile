@@ -159,7 +159,7 @@ api-test-coverage:
   #!/usr/bin/env bash
   set -euo pipefail
   pushd apps/api >/dev/null
-  uv run pytest -m "not e2e and not schemathesis" --cov=app --cov=services --cov-report=term-missing --cov-report=html:htmlcov --cov-report=xml:coverage.xml
+  uv run pytest -m "not e2e and not schemathesis" --cov=app --cov=services --cov-report=term-missing --cov-report=html:htmlcov --cov-report=xml:coverage.xml --cov-fail-under=75.5
   popd >/dev/null
   echo "generated: apps/api/htmlcov/index.html"
   echo "generated: apps/api/coverage.xml"

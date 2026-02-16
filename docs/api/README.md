@@ -6,10 +6,20 @@ API tests are executed with `pytest` profiles below.
 
 - `just api-test`: default full API test run (backward-compatible command)
 - `just api-test-fast`: local fast profile (`-n auto`, excludes `e2e/contract/slow/schemathesis`)
-- `just api-test-coverage`: coverage profile, generates HTML/XML reports
+- `just api-test-coverage`: coverage profile, generates HTML/XML reports (`--cov-fail-under=75.5`, phase-1 gate)
 - `just api-cov`: compatibility alias to `just api-test-coverage`
 - `pnpm nx test api --configuration=fast`: Nx fast profile
 - `pnpm nx test api --configuration=coverage`: Nx coverage profile
+
+Coverage gate roadmap (phase plan):
+
+- Phase 1 (current): `--cov-fail-under=75.5` (locked to current measured baseline)
+- Phase 2 (next cycle target): `--cov-fail-under=76`
+- Phase 3 (target): `--cov-fail-under=80`
+
+Plugin note:
+
+- `pytest-time-machine` package does not exist on PyPI; this repo uses `time-machine` (pytest-compatible) for time-travel tests.
 
 バックエンドの仕様・構造可視化は次のレシピで生成する。
 

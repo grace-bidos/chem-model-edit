@@ -88,7 +88,7 @@ case "${SCHEMATHESIS_MODE}" in
   smoke)
     max_examples="${max_examples:-5}"
     max_failures="${max_failures:-10}"
-    phases="${phases:-examples}"
+    phases="${phases:-coverage}"
     ;;
   deep)
     max_examples="${max_examples:-30}"

@@ -185,9 +185,16 @@ jobs:
       - name: Mypy
         run: uv run mypy .
         working-directory: apps/api
-      - name: Pytest
-        run: uv run pytest
+      - name: Pytest + Coverage gate (phase-1)
+        run: uv run pytest -m "not e2e and not schemathesis" --cov=app --cov=services --cov-report=term-missing --cov-report=xml:coverage.xml --cov-fail-under=75.5
         working-directory: apps/api
+      - name: Upload API coverage artifact
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-coverage-report
+          path: apps/api/coverage.xml
+          if-no-files-found: error
       - name: Schemathesis
         run: uv run bash scripts/schemathesis.sh
         working-directory: apps/api
