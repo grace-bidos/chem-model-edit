@@ -46,3 +46,7 @@ markers = [
     "slow: long-running tests",
     "schemathesis: schema-based API fuzzing tests",
 ]
+filterwarnings = [
+    "error::pytest.PytestUnhandledThreadExceptionWarning",
+    "error::pytest.PytestUnraisableExceptionWarning",
+]

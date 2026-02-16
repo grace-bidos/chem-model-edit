@@ -405,11 +405,11 @@ def test_zpe_result_read_projection_keeps_read_hotpath_available(monkeypatch):
     assert status.json()["status"] == "finished"
 
 
-def test_admin_ops_flags_include_cutover_fields(monkeypatch):
+def test_admin_ops_flags_include_cutover_fields(monkeypatch, admin_auth_headers):
     _patch_redis(monkeypatch)
     client = TestClient(main.app)
 
-    current = client.get("/api/zpe/admin/ops")
+    current = client.get("/api/zpe/admin/ops", headers=admin_auth_headers)
     assert current.status_code == 200
     payload = current.json()
     assert payload["submission_route"] == "redis-worker"
@@ -423,6 +423,7 @@ def test_admin_ops_flags_include_cutover_fields(monkeypatch):
             "result_read_source": "projection",
             "legacy_worker_endpoints_enabled": False,
         },
+        headers=admin_auth_headers,
     )
     assert updated.status_code == 200
     out = updated.json()
@@ -431,7 +432,9 @@ def test_admin_ops_flags_include_cutover_fields(monkeypatch):
     assert out["legacy_worker_endpoints_enabled"] is False
 
 
-def test_admin_ops_flags_partial_update_keeps_other_values(monkeypatch):
+def test_admin_ops_flags_partial_update_keeps_other_values(
+    monkeypatch, admin_auth_headers
+):
     fake = _patch_redis(monkeypatch)
     client = TestClient(main.app)
 
@@ -442,12 +445,14 @@ def test_admin_ops_flags_partial_update_keeps_other_values(monkeypatch):
             "result_read_source": "projection",
             "legacy_worker_endpoints_enabled": False,
         },
+        headers=admin_auth_headers,
     )
     assert first.status_code == 200
 
     partial = client.patch(
         "/api/zpe/admin/ops",
         json={"dequeue_enabled": False},
+        headers=admin_auth_headers,
     )
     assert partial.status_code == 200
     payload = partial.json()
