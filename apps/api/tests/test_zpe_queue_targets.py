@@ -188,3 +188,7 @@ def test_queue_target_store_uses_safe_default_for_legacy_blank_queue(monkeypatch
     target = store.get_target("qt-legacy")
     assert target is not None
     assert target.queue_name == "safe-default"
+    persisted_raw = fake.get("zpe:queue:target:qt-legacy")
+    assert persisted_raw is not None
+    persisted_payload = json.loads(persisted_raw)
+    assert persisted_payload["queue_name"] == "safe-default"

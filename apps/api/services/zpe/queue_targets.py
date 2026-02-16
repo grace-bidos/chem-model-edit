@@ -95,11 +95,20 @@ class QueueTargetStore:
         payload = json.loads(raw)
         if not isinstance(payload, dict):
             return None
+        did_normalize = False
         queue_name = payload.get("queue_name")
         if not isinstance(queue_name, str) or not queue_name.strip():
             payload["queue_name"] = _resolve_default_queue_name()
+            did_normalize = True
         else:
-            payload["queue_name"] = queue_name.strip()
+            normalized_queue_name = queue_name.strip()
+            payload["queue_name"] = normalized_queue_name
+            did_normalize = normalized_queue_name != queue_name
+        if did_normalize:
+            self.redis.set(
+                f"{_TARGET_PREFIX}{target_id}",
+                json.dumps(payload),
+            )
         return QueueTarget(**payload)
 
     def set_active_target(self, user_id: str, target_id: str) -> None:
