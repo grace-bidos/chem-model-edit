@@ -12,6 +12,7 @@ Scope of this slice (`GRA-15`):
 Related baseline:
 
 - `docs/process/aiida-runtime-bootstrap.md` (AiiDA runtime bootstrap safety model)
+- `docs/process/management-node-user-enrollment-bootstrap.md` (one-command management-node enrollment setup)
 
 ## Onboarding Requirements
 
