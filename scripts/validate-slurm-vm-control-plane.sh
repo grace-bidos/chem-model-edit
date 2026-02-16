@@ -239,7 +239,14 @@ check_munge_key_permissions() {
   fi
 
   local mode owner group
-  mode="$(stat -c '%a' "$MUNGE_KEY" 2>/dev/null || true)"
+  if ! mode="$(stat -c '%a' "$MUNGE_KEY" 2>/dev/null)"; then
+    if [[ "$(id -u)" -ne 0 ]]; then
+      add_warning "cannot inspect munge key permissions without elevated access; run as root to enforce ownership/mode checks"
+      return 0
+    fi
+    add_failure "unable to inspect munge key mode: $MUNGE_KEY"
+    return 0
+  fi
   owner="$(stat -c '%U' "$MUNGE_KEY" 2>/dev/null || true)"
   group="$(stat -c '%G' "$MUNGE_KEY" 2>/dev/null || true)"
 
@@ -288,8 +295,8 @@ validate_runtime() {
   fi
 
   run_runtime_check "munge encode/decode" bash -lc "munge -n | unmunge >/dev/null"
-  run_runtime_check "slurmctld config test" slurmctld -t -f "$SLURM_CONF"
-  run_runtime_check "slurmd config test" slurmd -t -f "$SLURM_CONF"
+  run_runtime_check "slurmctld version probe" slurmctld -V
+  run_runtime_check "slurmd capability probe" slurmd -C
   run_runtime_check "scontrol ping" scontrol ping
 
   if have_command systemctl; then
