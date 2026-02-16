@@ -76,6 +76,33 @@ After one successful dry run:
 - set `CI_SELF_HOSTED_TRUSTED_ROUTING=true`
 - open a trusted PR and verify route job selects self-hosted label target
 
+## 6.1) Scale local runner count quickly
+
+Use this helper to converge local runner instances to a target count:
+
+```bash
+scripts/runner/scale_local_runner_pool.sh \
+  --repo grace-bidos/chem-model-edit \
+  --target 2
+```
+
+Increase parallelism:
+
+```bash
+scripts/runner/scale_local_runner_pool.sh \
+  --repo grace-bidos/chem-model-edit \
+  --target 4
+```
+
+Dry-run:
+
+```bash
+scripts/runner/scale_local_runner_pool.sh \
+  --repo grace-bidos/chem-model-edit \
+  --target 4 \
+  --dry-run
+```
+
 ## 7) Fast rollback
 
 Immediate rollback:
