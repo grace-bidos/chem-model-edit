@@ -38,15 +38,21 @@ Fallback target is always `ubuntu-latest`.
 
 - `1 VM = 1 Job` is the safest default and is recommended.
 - Warm standby (`1 idle VM`) typically saves most of boot overhead.
+- For local persistent pool operation, use:
+  - baseline concurrency: `--baseline` (floor)
+  - max concurrency: `--max` (ceiling)
+  - current desired concurrency: `--target` (optional, clamped to floor/ceiling)
+  - recommended control mode: always-on supervisor
+    - `scripts/runner/setup_pool_supervisor_one_command.sh`
 - Practical impact target:
   - cold start overhead: around tens of seconds to low minutes depending on host and image size
   - warm standby reduces that to near runner registration time plus checkout/dependency setup
 
 ## Cache Strategy
 
-- Keep pnpm cache on `actions/setup-node`.
-- Enable uv cache on `astral-sh/setup-uv`.
-- Save cache primarily on `main`; restore on PRs.
+- Keep pnpm store cache at `~/.pnpm-store`.
+- Keep uv cache at `~/.cache/uv`.
+- Save cache on `main` only; restore on PRs and other branches.
 - Do not cache `node_modules` or `.venv`.
 
 ## Required Operator Inputs
@@ -64,8 +70,15 @@ The following requires your action:
 - runner lifecycle is ephemeral (single job then removed)
 - failed jobs still clean up VM and runner registration
 - rollback path works by setting `CI_SELF_HOSTED_TRUSTED_ROUTING=false`
+- local health check command reports `0` when service/GitHub status align
+  - `scripts/runner/check_local_runner_health.sh --owner <owner> --repo <repo>`
+- local recovery command supports dry-run and reconfigure/restart flow
+  - `RUNNER_OWNER=<owner> RUNNER_REPO=<repo> RUNNER_LABELS=<labels> RUNNER_GROUP=<group> scripts/runner/recover_base_runner.sh --dry-run`
+- local supervisor command supports dry-run before enabling
+  - `scripts/runner/setup_pool_supervisor_one_command.sh --dry-run`
 
 ## Rollback
 
 - Immediate rollback: set `CI_SELF_HOSTED_TRUSTED_ROUTING=false`.
 - Hard rollback: disable runner group mapping for this repository.
+- Emergency fallback note: always prefer toggling `CI_SELF_HOSTED_TRUSTED_ROUTING=false` first when incidents cause queueing or local runner instability.
