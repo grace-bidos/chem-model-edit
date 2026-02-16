@@ -155,7 +155,8 @@ run_privileged ./svc.sh stop || true
 run_privileged ./svc.sh uninstall || true
 
 # Best effort removal because local config may already be partially broken.
-run_as_runner_user ./config.sh remove --unattended --token "$remove_token" || true
+# `remove` does not accept `--unattended` on current runner versions.
+run_as_runner_user ./config.sh remove --token "$remove_token" || true
 
 run_as_runner_user ./config.sh \
   --url "https://github.com/${repo_slug}" \
