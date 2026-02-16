@@ -151,17 +151,23 @@ ensure_slurm_computer() {
     return 0
   fi
 
-  run_capture "aiida-computer-setup-slurm" \
+  if ! run_capture "aiida-computer-setup-slurm" \
     verdi -p "$PROFILE" computer setup --non-interactive \
     --label "$COMPUTER_LABEL" \
     --hostname localhost \
     --transport core.local \
     --scheduler core.slurm \
-    --work-dir "$WORKDIR_TEMPLATE"
+    --work-dir "$WORKDIR_TEMPLATE"; then
+    return 1
+  fi
 
-  run_capture "aiida-computer-configure-local" \
+  if ! run_capture "aiida-computer-configure-local" \
     verdi -p "$PROFILE" computer configure core.local --non-interactive \
-    --safe-interval 0 "$COMPUTER_LABEL"
+    --safe-interval 0 "$COMPUTER_LABEL"; then
+    return 1
+  fi
+
+  return 0
 }
 
 collect_blocker_evidence() {
@@ -257,10 +263,13 @@ main() {
     EXIT_CODE=2
   fi
 
-  ensure_slurm_computer
+  if ! ensure_slurm_computer; then
+    log "blocker: unable to set up/configure AiiDA computer ${COMPUTER_LABEL}."
+    EXIT_CODE=2
+  fi
 
   if run_capture "aiida-computer-test-slurm" verdi -p "$PROFILE" computer test "$COMPUTER_LABEL" && computer_test_clean; then
-    EXIT_CODE=0
+    :
   else
     log "blocker: verdi computer test failed for ${COMPUTER_LABEL}."
     EXIT_CODE=2
