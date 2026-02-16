@@ -21,6 +21,8 @@ jobs:
       web: ${{ steps.filter.outputs.web == 'true' || steps.filter.outputs.ci == 'true' }}
       api: ${{ steps.filter.outputs.api == 'true' || steps.filter.outputs.ci == 'true' }}
       contract: ${{ steps.filter.outputs.contract == 'true' || steps.filter.outputs.ci == 'true' }}
+      # Intentionally independent from `ci` global toggle: keep this lane opt-in and scoped.
+      projection_smoke: ${{ steps.filter.outputs.projection_smoke == 'true' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -53,6 +55,12 @@ jobs:
               - 'pnpm-workspace.yaml'
               - 'pyproject.toml'
               - 'uv.lock'
+            projection_smoke:
+              - 'apps/api/**'
+              - 'packages/api-client/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - 'scripts/submit-event-projection-smoke.sh'
 
   route:
     runs-on: ubuntu-latest
@@ -247,3 +255,24 @@ jobs:
         run: pnpm -C packages/api-client run generate
       - name: Check generated API client schema is committed
         run: git diff --exit-code -- packages/api-client/src/generated/schema.ts
+
+  projection-smoke:
+    # Optional signal only; this job must not change required gate semantics.
+    needs:
+      - changes
+      - route
+    if: ${{ needs.changes.outputs.projection_smoke == 'true' }}
+    continue-on-error: true
+    timeout-minutes: 10
+    runs-on: ${{ fromJSON(needs.route.outputs.runner) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+      - name: Submit event projection smoke (optional)
+        run: bash scripts/submit-event-projection-smoke.sh
