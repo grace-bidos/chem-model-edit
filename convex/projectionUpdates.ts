@@ -65,8 +65,11 @@ export const applyProjectionUpdate = mutation({
         existingReceipt.workspace_id === target.workspace_id &&
         existingReceipt.job_id === target.job_id &&
         existingReceipt.submission_id === target.submission_id
+      const existingIncomingState =
+        existingReceipt.incoming_projection_state ??
+        existingReceipt.projection_state
       const isSameState =
-        existingReceipt.projection_state === args.projection_state
+        existingIncomingState === args.projection_state
 
       if (!isSameTarget || !isSameState) {
         throw new ConvexError({
@@ -81,6 +84,7 @@ export const applyProjectionUpdate = mutation({
           },
           incoming_target: target,
           existing_projection_state: existingReceipt.projection_state,
+          existing_incoming_projection_state: existingIncomingState,
           incoming_projection_state: args.projection_state,
         })
       }
@@ -118,6 +122,7 @@ export const applyProjectionUpdate = mutation({
           job_id: args.job_id,
           submission_id: args.submission_id,
           projection_state: previousState,
+          incoming_projection_state: args.projection_state,
           recorded_at: nowIso,
         })
         return {
@@ -173,6 +178,7 @@ export const applyProjectionUpdate = mutation({
       job_id: args.job_id,
       submission_id: args.submission_id,
       projection_state: args.projection_state,
+      incoming_projection_state: args.projection_state,
       recorded_at: nowIso,
     })
 
