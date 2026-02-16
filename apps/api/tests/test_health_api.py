@@ -188,6 +188,24 @@ def test_ready_returns_503_when_real_adapter_policy_path_is_missing(monkeypatch:
     assert check["failed_probe"] == "policy_file"
 
 
+def test_ready_uses_zpe_settings_env_file_for_real_adapter(monkeypatch: Any, tmp_path: Any) -> None:
+    _clear_aiida_env(monkeypatch)
+    env_file = tmp_path / ".env.pr-check"
+    env_file.write_text("ZPE_SLURM_ADAPTER=real-policy\n", encoding="utf-8")
+    monkeypatch.setenv("ZPE_ENV_FILE", str(env_file))
+    monkeypatch.delenv("ZPE_SLURM_ADAPTER", raising=False)
+    monkeypatch.delenv("ZPE_SLURM_POLICY_PATH", raising=False)
+    client = TestClient(main.app)
+
+    response = client.get("/api/ready")
+
+    assert response.status_code == 503
+    payload = response.json()
+    check = payload["checks"]["slurm_real_adapter_preconditions"]
+    assert check["status"] == "failed"
+    assert check["failed_probe"] == "policy_file"
+
+
 def test_ready_returns_503_when_real_adapter_guard_forces_fallback(monkeypatch: Any) -> None:
     _clear_aiida_env(monkeypatch)
     monkeypatch.setenv("ZPE_SLURM_ADAPTER", "real-policy")

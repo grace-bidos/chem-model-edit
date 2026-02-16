@@ -29,6 +29,8 @@ Both endpoints include:
   - `policy_file` (policy schema/path validation)
   - `scontrol_ping`
   - `sinfo`
+- `checks.slurm_real_adapter_preconditions.error` (optional: `misconfigured`, `rollback_guard_active`, probe-level errors)
+- `checks.slurm_real_adapter_preconditions.failed_probe` (optional: first failing probe key)
 - `checks.user_managed_deep_readiness.probes` with per-command probe results:
   - `scontrol_ping` (`scontrol ping`)
   - `sinfo` (`sinfo`)

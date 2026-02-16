@@ -10,6 +10,7 @@ from urllib import error as urlerror
 from urllib import parse as urlparse
 from urllib import request as urlrequest
 
+from services.zpe.settings import ZPESettings, _resolve_env_file
 from services.zpe.slurm_policy import (
     SlurmPolicyConfigError,
     parse_slurm_adapter_mode,
@@ -30,10 +31,18 @@ _TOKEN_KEY = "AIIA_MANAGED_BEARER_TOKEN"
 _DEEP_READY_ENABLED_KEY = "AIIA_USER_MANAGED_DEEP_READY_ENABLED"
 _DEEP_READY_TIMEOUT_SECONDS_KEY = "AIIA_USER_MANAGED_DEEP_READY_TIMEOUT_SECONDS"
 _AIIDA_PROFILE_KEY = "AIIDA_PROFILE"
-_SLURM_ADAPTER_KEY = "ZPE_SLURM_ADAPTER"
-_SLURM_ADAPTER_GUARD_KEY = "ZPE_SLURM_ADAPTER_ROLLBACK_GUARD"
 _SLURM_POLICY_PATH_KEY = "ZPE_SLURM_POLICY_PATH"
 _MAX_OUTPUT_LENGTH = 240
+
+
+def _load_slurm_adapter_config() -> tuple[str | None, str | None, str]:
+    """Load adapter config via ZPESettings so .env-backed values are respected."""
+    settings = ZPESettings(_env_file=_resolve_env_file())  # type: ignore[call-arg]
+    return (
+        settings.slurm_adapter,
+        settings.slurm_adapter_rollback_guard,
+        (settings.slurm_policy_path or "").strip(),
+    )
 
 
 def _truthy(value: str | None) -> bool:
@@ -373,9 +382,7 @@ def probe_slurm_real_adapter_preconditions(
     *, check_kind: Literal["health", "ready"]
 ) -> SlurmRealAdapterPreconditionCheck:
     _ = check_kind
-    adapter_value = os.getenv(_SLURM_ADAPTER_KEY)
-    guard_value = os.getenv(_SLURM_ADAPTER_GUARD_KEY)
-    policy_path_value = (os.getenv(_SLURM_POLICY_PATH_KEY) or "").strip()
+    adapter_value, guard_value, policy_path_value = _load_slurm_adapter_config()
     try:
         configured = parse_slurm_adapter_mode(adapter_value)
         guard = parse_slurm_adapter_rollback_guard(guard_value)

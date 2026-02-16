@@ -162,6 +162,24 @@ def _resolve_unknown_queue(
     policy: Mapping[str, Any],
     mappings: Mapping[str, SlurmQueueMapping],
 ) -> SlurmQueueResolution:
+    mode, default_queue_name = _validate_fallback_policy(policy=policy, mappings=mappings)
+    if mode == "deny":
+        raise SlurmPolicyDeniedError(
+            f"requested queue '{requested_queue}' is not allowed by slurm fallback policy"
+        )
+
+    mapping = mappings[default_queue_name]
+    return SlurmQueueResolution(
+        requested_queue=requested_queue,
+        resolved_queue=default_queue_name,
+        used_fallback=True,
+        mapping=mapping,
+    )
+
+
+def _validate_fallback_policy(
+    *, policy: Mapping[str, Any], mappings: Mapping[str, SlurmQueueMapping]
+) -> tuple[Literal["deny", "route-default"], str]:
     fallback_policy = policy.get("fallback_policy")
     if not isinstance(fallback_policy, dict):
         raise SlurmPolicyConfigError("fallback_policy must be an object")
@@ -179,17 +197,10 @@ def _resolve_unknown_queue(
             raise SlurmPolicyConfigError(
                 "fallback_policy.default_queue must match a queue_mappings.queue"
             )
-        return SlurmQueueResolution(
-            requested_queue=requested_queue,
-            resolved_queue=default_queue_name,
-            used_fallback=True,
-            mapping=mapping,
-        )
+        return ("route-default", default_queue_name)
 
     if mode == "deny":
-        raise SlurmPolicyDeniedError(
-            f"requested queue '{requested_queue}' is not allowed by slurm fallback policy"
-        )
+        return ("deny", "")
 
     raise SlurmPolicyConfigError(
         "fallback_policy.mode must be one of: deny, route-default"
@@ -221,8 +232,8 @@ def resolve_runtime_slurm_queue(
 
 def validate_slurm_policy_file(*, policy_path: Path) -> None:
     policy = _load_policy(policy_path)
-    _parse_queue_mappings(policy)
-    _ = policy.get("fallback_policy")
+    mappings = _parse_queue_mappings(policy)
+    _validate_fallback_policy(policy=policy, mappings=mappings)
 
 
 def resolve_slurm_adapter_stub(

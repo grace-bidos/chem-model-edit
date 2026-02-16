@@ -16,6 +16,7 @@ from services.zpe.slurm_policy import (
     resolve_slurm_adapter_real,
     resolve_slurm_adapter_stub,
     resolve_runtime_slurm_queue,
+    validate_slurm_policy_file,
 )
 
 
@@ -158,3 +159,36 @@ def test_resolve_effective_slurm_adapter_mode_uses_guard_override() -> None:
         )
         == "stub-policy"
     )
+
+
+def test_validate_slurm_policy_file_rejects_invalid_route_default_fallback(
+    tmp_path: Path,
+) -> None:
+    policy_path = tmp_path / "policy.json"
+    policy_path.write_text(
+        json.dumps(
+            {
+                "queue_mappings": [
+                    {
+                        "queue": "standard",
+                        "partition": "short",
+                        "account": "chem-default",
+                        "qos": "normal",
+                        "max_walltime_minutes": 120,
+                    }
+                ],
+                "fallback_policy": {"mode": "route-default", "default_queue": "legacy"},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(SlurmPolicyConfigError):
+        validate_slurm_policy_file(policy_path=policy_path)
+
+
+def test_validate_slurm_policy_file_accepts_deny_fallback(tmp_path: Path) -> None:
+    policy_path = tmp_path / "policy.json"
+    _write_policy(policy_path, fallback_mode="deny")
+
+    validate_slurm_policy_file(policy_path=policy_path)
