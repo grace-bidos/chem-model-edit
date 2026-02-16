@@ -19,6 +19,23 @@ Scope of this slice (`GRA-88`):
 - Ubuntu/Debian VM with `sudo` access
 - `uv` installed
 - AiiDA dependency group available in API project (`apps/api`)
+- Compatibility policy reviewed: `docs/process/aiida-slurm-compatibility-matrix.md`
+
+## Compatibility Preflight (before apply)
+
+Capture runtime versions before bootstrap apply or upgrade canary:
+
+```bash
+python3 --version
+uv run --project apps/api --group aiida verdi --version
+psql --version
+rabbitmqctl version
+scontrol -V
+```
+
+Operational rule:
+
+- If any component is outside supported ranges in `docs/process/aiida-slurm-compatibility-matrix.md`, do not treat this run as promotion-ready. Run explicit canary + rollback policy first.
 
 ## 1) Prepare Environment
 

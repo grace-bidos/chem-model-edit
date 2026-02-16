@@ -26,6 +26,7 @@ Required prerequisites:
 
 - VM bootstrap baseline completed via `docs/process/aiida-vm-bootstrap.md`.
 - Slurm connectivity smoke path available via `docs/process/aiida-slurm-smoke-vm.md`.
+- Compatibility/canary policy prepared via `docs/process/aiida-slurm-compatibility-matrix.md`.
 - Runtime contract boundary remains aligned with `docs/adr/ADR-0001-system-of-record-boundaries.md` and `docs/adr/ADR-0004-runtime-contract-boundary-byo-aiida.md`.
 
 ## Executable checklist
@@ -115,7 +116,9 @@ Required evidence:
 ### 4) AiiDA -> Slurm VM smoke
 
 ```bash
-scripts/aiida-slurm-smoke-vm.sh --artifact-dir investigations/artifacts/gra-125/<timestamp>/slurm-smoke
+scripts/aiida-tier2-gate-vm.sh \
+  --run-id <run-id> \
+  --artifact-base investigations/artifacts/gra-125
 ```
 
 Pass threshold:
@@ -128,11 +131,14 @@ Pass threshold:
 Fallback criteria:
 
 - script exits `2` (blocked) or any required check missing -> `HOLD`
+- script exits `1` (hard failure) -> `HOLD` and fix orchestration/runtime failure before rerun
 
 Required evidence:
 
 - full artifact directory from the script run
-- `04-slurm-smoke-summary.md` with pass/fail mapping
+- `tier2-gate-vm-summary.json`
+- `tier2-gate-vm-summary.md`
+- short operator note mapping the final gate decision to Tier-2 summary fields (`status`, `exit_code`)
 
 ### 4b) Remote VM rerun automation for gates 3/4
 
@@ -241,6 +247,7 @@ Fallback criteria:
 - Runtime readiness: VM bootstrap sanity-check and AiiDA/Slurm smoke both pass.
 - Contract safety: OpenAPI/client drift checks pass and Convex relay boundary tests pass.
 - Evidence quality: every gate has machine-generated logs plus short operator summary.
+- Version safety: each component version is within supported range, or a documented Tier-2 + Tier-3 canary exception is approved per `docs/process/aiida-slurm-compatibility-matrix.md`.
 
 ## Fallback and rollback policy
 
@@ -254,6 +261,7 @@ When gate result is `HOLD`:
   - explicit unblock condition
 - Re-run only the failed gates after remediation; retain previous passing evidence.
 - For VM-side gate 3/4 reruns, use `scripts/aiida-promotion-gate-vm-remote.sh` and preserve `promotion-gate-vm-summary.md` plus `fallback-next-steps.txt` in the issue evidence comment.
+- If the hold is caused by dependency/version upgrade canary failure, apply rollback criteria from `docs/process/aiida-slurm-compatibility-matrix.md` and attach rollback evidence before re-attempt.
 
 ## Implications for FastAPI/Convex validation flow
 
