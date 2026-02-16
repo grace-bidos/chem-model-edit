@@ -268,6 +268,38 @@ def test_health_reports_degraded_when_user_managed_deep_readiness_command_fails(
     assert check["probes"]["sinfo"]["exit_code"] == 1
 
 
+def test_health_reports_degraded_when_user_managed_deep_readiness_command_launch_fails(
+    monkeypatch: Any,
+) -> None:
+    _clear_aiida_env(monkeypatch)
+    monkeypatch.setenv("AIIA_USER_MANAGED_DEEP_READY_ENABLED", "true")
+
+    def _run_probe(command: list[str], **kwargs: Any) -> Any:
+        _ = kwargs
+        if command[0] == "sinfo":
+            raise PermissionError("permission denied")
+        return subprocess.CompletedProcess(
+            args=command,
+            returncode=0,
+            stdout="ok",
+            stderr="",
+        )
+
+    monkeypatch.setattr("services.aiida_runtime_checks.subprocess.run", _run_probe)
+    client = TestClient(main.app)
+
+    response = client.get("/api/health")
+
+    assert response.status_code == 200
+    payload = response.json()
+    check = payload["checks"]["user_managed_deep_readiness"]
+    assert payload["status"] == "degraded"
+    assert check["status"] == "failed"
+    assert check["error"] == "command_launch_failed"
+    assert check["failed_probe"] == "sinfo"
+    assert check["probes"]["sinfo"]["error"] == "command_launch_failed"
+
+
 def test_ready_returns_200_when_user_managed_deep_readiness_passes(monkeypatch: Any) -> None:
     _clear_aiida_env(monkeypatch)
     monkeypatch.setenv("AIIA_USER_MANAGED_DEEP_READY_ENABLED", "true")
@@ -334,3 +366,70 @@ def test_ready_returns_503_when_aiida_profile_is_missing_from_verdi_profile_list
     assert check["status"] == "failed"
     assert check["error"] == "misconfigured"
     assert check["failed_probe"] == "verdi_profile"
+
+
+def test_ready_returns_503_when_aiida_profile_matches_only_as_substring(
+    monkeypatch: Any,
+) -> None:
+    _clear_aiida_env(monkeypatch)
+    monkeypatch.setenv("AIIA_USER_MANAGED_DEEP_READY_ENABLED", "true")
+    monkeypatch.setenv("AIIDA_PROFILE", "fault")
+
+    def _run_probe(command: list[str], **kwargs: Any) -> Any:
+        _ = kwargs
+        stdout = "ok"
+        if command[:3] == ["verdi", "profile", "list"]:
+            stdout = "* default\n  staging"
+        return subprocess.CompletedProcess(
+            args=command,
+            returncode=0,
+            stdout=stdout,
+            stderr="",
+        )
+
+    monkeypatch.setattr("services.aiida_runtime_checks.subprocess.run", _run_probe)
+    client = TestClient(main.app)
+
+    response = client.get("/api/ready")
+
+    assert response.status_code == 503
+    payload = response.json()
+    check = payload["checks"]["user_managed_deep_readiness"]
+    assert payload["status"] == "not_ready"
+    assert check["status"] == "failed"
+    assert check["error"] == "misconfigured"
+    assert check["failed_probe"] == "verdi_profile"
+
+
+def test_ready_returns_200_when_aiida_profile_exists_beyond_truncation_boundary(
+    monkeypatch: Any,
+) -> None:
+    _clear_aiida_env(monkeypatch)
+    monkeypatch.setenv("AIIA_USER_MANAGED_DEEP_READY_ENABLED", "true")
+    monkeypatch.setenv("AIIDA_PROFILE", "target-profile")
+
+    long_profile_list = "\n".join([f"  profile-{idx:03d}" for idx in range(45)])
+    long_profile_list = f"{long_profile_list}\n* target-profile"
+
+    def _run_probe(command: list[str], **kwargs: Any) -> Any:
+        _ = kwargs
+        stdout = "ok"
+        if command[:3] == ["verdi", "profile", "list"]:
+            stdout = long_profile_list
+        return subprocess.CompletedProcess(
+            args=command,
+            returncode=0,
+            stdout=stdout,
+            stderr="",
+        )
+
+    monkeypatch.setattr("services.aiida_runtime_checks.subprocess.run", _run_probe)
+    client = TestClient(main.app)
+
+    response = client.get("/api/ready")
+
+    assert response.status_code == 200
+    payload = response.json()
+    check = payload["checks"]["user_managed_deep_readiness"]
+    assert payload["status"] == "ready"
+    assert check["status"] == "ok"

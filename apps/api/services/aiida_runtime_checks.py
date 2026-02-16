@@ -98,6 +98,8 @@ class CommandProbe:
     latency_ms: int | None = None
     stdout: str | None = None
     stderr: str | None = None
+    raw_stdout: str | None = None
+    raw_stderr: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -162,6 +164,17 @@ def _run_command_probe(*, command: list[str]) -> CommandProbe:
             error="tooling_missing",
             latency_ms=latency_ms,
         )
+    except OSError as exc:
+        latency_ms = int((time.perf_counter() - started) * 1000)
+        return CommandProbe(
+            status="failed",
+            detail=f"command launch failed: {command_text}",
+            command=command_text,
+            error="command_launch_failed",
+            latency_ms=latency_ms,
+            stderr=_normalize_output(str(exc)),
+            raw_stderr=str(exc),
+        )
     except subprocess.TimeoutExpired as exc:
         latency_ms = int((time.perf_counter() - started) * 1000)
         return CommandProbe(
@@ -172,9 +185,13 @@ def _run_command_probe(*, command: list[str]) -> CommandProbe:
             latency_ms=latency_ms,
             stdout=_normalize_output(exc.stdout),
             stderr=_normalize_output(exc.stderr),
+            raw_stdout=_normalize_output(exc.stdout),
+            raw_stderr=_normalize_output(exc.stderr),
         )
 
     latency_ms = int((time.perf_counter() - started) * 1000)
+    raw_stdout = completed.stdout
+    raw_stderr = completed.stderr
     stdout = _normalize_output(completed.stdout)
     stderr = _normalize_output(completed.stderr)
     if completed.returncode != 0:
@@ -187,6 +204,8 @@ def _run_command_probe(*, command: list[str]) -> CommandProbe:
             latency_ms=latency_ms,
             stdout=stdout,
             stderr=stderr,
+            raw_stdout=raw_stdout,
+            raw_stderr=raw_stderr,
         )
 
     return CommandProbe(
@@ -195,7 +214,26 @@ def _run_command_probe(*, command: list[str]) -> CommandProbe:
         command=command_text,
         latency_ms=latency_ms,
         stdout=stdout,
+        raw_stdout=raw_stdout,
+        raw_stderr=raw_stderr,
     )
+
+
+def _extract_profile_names(output: str | None) -> set[str]:
+    names: set[str] = set()
+    if output is None:
+        return names
+
+    for raw_line in output.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if line.startswith("*"):
+            line = line[1:].strip()
+        if not line:
+            continue
+        names.add(line.split()[0])
+    return names
 
 
 def probe_user_managed_deep_readiness(
@@ -219,10 +257,11 @@ def probe_user_managed_deep_readiness(
 
     configured_profile = (os.getenv(_AIIDA_PROFILE_KEY) or "").strip()
     verdi_profile_probe = probes["verdi_profile"]
+    discovered_profiles = _extract_profile_names(verdi_profile_probe.raw_stdout)
     if (
         configured_profile
         and verdi_profile_probe.status == "ok"
-        and configured_profile not in (verdi_profile_probe.stdout or "")
+        and configured_profile not in discovered_profiles
     ):
         probes["verdi_profile"] = CommandProbe(
             status="failed",
@@ -232,6 +271,8 @@ def probe_user_managed_deep_readiness(
             latency_ms=verdi_profile_probe.latency_ms,
             stdout=verdi_profile_probe.stdout,
             stderr=verdi_profile_probe.stderr,
+            raw_stdout=verdi_profile_probe.raw_stdout,
+            raw_stderr=verdi_profile_probe.raw_stderr,
         )
 
     for probe_name, probe in probes.items():
