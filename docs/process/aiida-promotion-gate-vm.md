@@ -134,6 +134,55 @@ Required evidence:
 - full artifact directory from the script run
 - `04-slurm-smoke-summary.md` with pass/fail mapping
 
+### 4b) Remote VM rerun automation for gates 3/4
+
+Use the remote runner when gate 3/4 needs deterministic VM rerun evidence from a lane machine:
+
+```bash
+REMOTE_VM_HOST=operator@vm-controller \
+REMOTE_VM_REPO_DIR=/home/operator/chem-model-edit \
+scripts/aiida-promotion-gate-vm-remote.sh
+```
+
+First-run profile bootstrap path (includes package/service apply and profile initialization):
+
+```bash
+REMOTE_VM_HOST=operator@vm-controller \
+REMOTE_VM_REPO_DIR=/home/operator/chem-model-edit \
+REMOTE_AIIDA_ENV_FILE=ops/aiida-vm/aiida-vm.env \
+scripts/aiida-promotion-gate-vm-remote.sh \
+  --bootstrap-apply \
+  --bootstrap-init-profile
+```
+
+Dry-run planning only:
+
+```bash
+REMOTE_VM_HOST=operator@vm-controller \
+REMOTE_VM_REPO_DIR=/home/operator/chem-model-edit \
+scripts/aiida-promotion-gate-vm-remote.sh --dry-run
+```
+
+Blocked path rerun command (same run id for deterministic naming):
+
+```bash
+GRA126_RUN_ID=20260216T120000Z \
+REMOTE_VM_HOST=operator@vm-controller \
+REMOTE_VM_REPO_DIR=/home/operator/chem-model-edit \
+scripts/aiida-promotion-gate-vm-remote.sh
+```
+
+Blocker interpretation:
+
+- exit `0`: gate 3/4 passed and evidence collected.
+- exit `2`: `HOLD` (SSH/preflight failure, gate 3 failure, gate 4 blocked, or artifact collection failure).
+- exit `1`: hard failure (script/operator error) requiring fix before rerun.
+
+Evidence roots:
+
+- local summary: `investigations/artifacts/gra-126/<target>/<run-id>-<target>-promotion-gate-vm/promotion-gate-vm-summary.md`
+- remote-run logs: `.../remote-artifacts/<run-name>/03-*.log` and `.../remote-artifacts/<run-name>/04-*.log`
+
 ### 5) FastAPI/Convex validation-flow compatibility gate
 
 This promotion gate must not blur ownership boundaries.
@@ -204,6 +253,7 @@ When gate result is `HOLD`:
   - copied evidence paths
   - explicit unblock condition
 - Re-run only the failed gates after remediation; retain previous passing evidence.
+- For VM-side gate 3/4 reruns, use `scripts/aiida-promotion-gate-vm-remote.sh` and preserve `promotion-gate-vm-summary.md` plus `fallback-next-steps.txt` in the issue evidence comment.
 
 ## Implications for FastAPI/Convex validation flow
 
