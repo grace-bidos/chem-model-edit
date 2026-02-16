@@ -41,6 +41,7 @@ class ZPESettings(BaseSettings):
     cutover_submission_route: Literal["redis-worker", "next-gen"] = "redis-worker"
     cutover_result_read_source: Literal["redis", "projection"] = "redis"
     legacy_worker_endpoints_enabled: bool = True
+    ops_flag_ttl_seconds: int = 3600
 
     pw_command: str = "pw.x"
     pw_path: Optional[str] = None
@@ -74,6 +75,7 @@ class ZPESettings(BaseSettings):
     convex_relay_token: Optional[str] = None
     convex_relay_timeout_seconds: int = 5
     slurm_policy_path: Optional[str] = None
+    slurm_adapter: Literal["stub-policy", "passthrough"] = "stub-policy"
 
 
 @lru_cache

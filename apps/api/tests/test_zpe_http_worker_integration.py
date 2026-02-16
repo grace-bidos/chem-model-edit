@@ -5,6 +5,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import threading
 from typing import Any, Dict
 
+from app.schemas.zpe import ComputeFailedRequest, ComputeResultRequest
 from services.zpe import http_worker
 from services.zpe import worker as zpe_worker
 from services.zpe.settings import ZPESettings
@@ -70,7 +71,16 @@ def _make_handler() -> type[BaseHTTPRequestHandler]:
                     "job_id": self.job_id,
                     "lease_id": self.lease_id,
                     "lease_ttl_seconds": 30,
-                    "meta": {"tenant_id": "tenant-1"},
+                    "meta": {
+                        "tenant_id": "tenant-1",
+                        "request_id": "trace-req-1",
+                        "workspace_id": "workspace-1",
+                        "submission_id": "submission-1",
+                        "management_node_id": "node-1",
+                        "slurm_job_id": "12345",
+                        "slurm_partition": "short",
+                        "slurm_qos": "normal",
+                    },
                     "payload": {
                         "content": QE_INPUT,
                         "mobile_indices": [0],
@@ -137,6 +147,26 @@ def test_http_worker_success(monkeypatch, tmp_path):
             artifacts.summary_text,
             artifacts.freqs_csv,
             meta={"worker_hostname": "test"},
+            execution_event={
+                "event_id": f"execution:{lease['job_id']}:{lease['lease_id']}:completed",
+                "tenant_id": "tenant-1",
+                "workspace_id": "workspace-1",
+                "job_id": lease["job_id"],
+                "submission_id": "submission-1",
+                "execution_id": "node-1:job-1:lease-1",
+                "state": "completed",
+                "occurred_at": "2026-01-01T00:00:00+00:00",
+                "trace_id": "trace-req-1",
+                "scheduler_ref": {
+                    "slurm_job_id": "12345",
+                    "partition": "short",
+                    "qos": "normal",
+                },
+                "result_ref": {
+                    "output_uri": f"zpe://jobs/{lease['job_id']}/result",
+                    "metadata_uri": f"zpe://jobs/{lease['job_id']}/files/summary",
+                },
+            },
             timeout=5,
         )
     finally:
@@ -144,6 +174,19 @@ def test_http_worker_success(monkeypatch, tmp_path):
 
     assert handler_cls.result_payload is not None
     assert handler_cls.result_payload["lease_id"] == handler_cls.lease_id
+    # Keep management-node -> FastAPI payload compatibility explicit.
+    validated = ComputeResultRequest(**handler_cls.result_payload)
+    assert validated.tenant_id == "tenant-1"
+    assert validated.lease_id == handler_cls.lease_id
+    event = handler_cls.result_payload["execution_event"]
+    assert event["event_id"] == f"execution:{handler_cls.job_id}:{handler_cls.lease_id}:completed"
+    assert event["tenant_id"] == "tenant-1"
+    assert event["workspace_id"] == "workspace-1"
+    assert event["submission_id"] == "submission-1"
+    assert event["state"] == "completed"
+    assert event["trace_id"] == "trace-req-1"
+    assert event["scheduler_ref"]["slurm_job_id"] == "12345"
+    assert event["result_ref"]["output_uri"] == f"zpe://jobs/{handler_cls.job_id}/result"
 
 
 def test_http_worker_failed(monkeypatch, tmp_path):
@@ -168,6 +211,22 @@ def test_http_worker_failed(monkeypatch, tmp_path):
             "TEST_ERROR",
             "boom",
             "trace",
+            execution_event={
+                "event_id": f"execution:{lease['job_id']}:{lease['lease_id']}:failed",
+                "tenant_id": "tenant-1",
+                "workspace_id": "workspace-1",
+                "job_id": lease["job_id"],
+                "submission_id": "submission-1",
+                "execution_id": "node-1:job-1:lease-1",
+                "state": "failed",
+                "occurred_at": "2026-01-01T00:00:00+00:00",
+                "trace_id": "trace-req-1",
+                "error": {
+                    "code": "COMPUTE_ERROR",
+                    "message": "boom",
+                    "retryable": True,
+                },
+            },
             timeout=5,
         )
     finally:
@@ -175,3 +234,12 @@ def test_http_worker_failed(monkeypatch, tmp_path):
 
     assert handler_cls.failed_payload is not None
     assert handler_cls.failed_payload["error_code"] == "TEST_ERROR"
+    validated = ComputeFailedRequest(**handler_cls.failed_payload)
+    assert validated.tenant_id == "tenant-1"
+    assert validated.lease_id == handler_cls.lease_id
+    event = handler_cls.failed_payload["execution_event"]
+    assert event["event_id"] == f"execution:{handler_cls.job_id}:{handler_cls.lease_id}:failed"
+    assert event["state"] == "failed"
+    assert event["trace_id"] == "trace-req-1"
+    assert event["error"]["code"] == "COMPUTE_ERROR"
+    assert event["error"]["retryable"] is True

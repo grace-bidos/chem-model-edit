@@ -435,12 +435,19 @@ async def zpe_compute_result(
     tenant_id = str(job_meta["tenant_id"])
     if request.tenant_id != tenant_id:
         raise HTTPException(status_code=403, detail="tenant boundary violation")
+    execution_event = request.execution_event
+    if execution_event is not None:
+        if execution_event.tenant_id != tenant_id:
+            raise HTTPException(status_code=403, detail="tenant boundary violation")
+        if execution_event.job_id != job_id:
+            raise HTTPException(status_code=409, detail="execution_event job_id mismatch")
     raw.state.tenant_id = tenant_id
     try:
         submission = submit_compute_result(
             job_id=job_id,
             worker_id=worker_id,
             lease_id=request.lease_id,
+            event_id=(execution_event.event_id if execution_event else None),
             result=request.result,
             summary_text=request.summary_text,
             freqs_csv=request.freqs_csv,
@@ -452,17 +459,59 @@ async def zpe_compute_result(
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     settings = get_zpe_settings()
     job_meta = submission.job_meta
+    trace_id = (
+        execution_event.trace_id
+        if execution_event is not None
+        else str(job_meta.get("request_id", get_request_id(raw)))
+    )
     log_event(
         logger,
         event="zpe_result_submitted",
         service="control-plane",
         stage="result",
         status="submitted",
-        request_id=job_meta.get("request_id", get_request_id(raw)),
+        request_id=trace_id,
+        trace_id=trace_id,
         tenant_id=tenant_id,
+        workspace_id=(
+            execution_event.workspace_id
+            if execution_event is not None
+            else str(job_meta.get("workspace_id", tenant_id))
+        ),
+        submission_id=(
+            execution_event.submission_id
+            if execution_event is not None
+            else str(job_meta.get("submission_id", job_meta.get("request_id", "")))
+        ),
+        execution_id=(
+            execution_event.execution_id
+            if execution_event is not None
+            else str(job_meta.get("execution_id", request.lease_id))
+        ),
+        event_id=(
+            execution_event.event_id
+            if execution_event is not None
+            else f"zpe_result_submitted:{job_id}:{request.lease_id}"
+        ),
+        state=(execution_event.state if execution_event is not None else "completed"),
         job_id=job_id,
         worker_id=worker_id,
         user_id=job_meta.get("user_id"),
+        slurm_job_id=(
+            execution_event.scheduler_ref.slurm_job_id
+            if execution_event is not None and execution_event.scheduler_ref is not None
+            else None
+        ),
+        slurm_partition=(
+            execution_event.scheduler_ref.partition
+            if execution_event is not None and execution_event.scheduler_ref is not None
+            else None
+        ),
+        slurm_qos=(
+            execution_event.scheduler_ref.qos
+            if execution_event is not None and execution_event.scheduler_ref is not None
+            else None
+        ),
         backend=settings.compute_mode,
         result_store=settings.result_store,
         duration_ms=submission.duration_ms,
@@ -470,11 +519,15 @@ async def zpe_compute_result(
         qe_version=submission.qe_version,
     )
     outcome = submission.outcome
-    request_id = str(job_meta.get("request_id", get_request_id(raw)))
+    request_id = trace_id
     _write_audit_or_raise_unavailable(
         trace_request_id=request_id,
         event="zpe_result_submitted",
-        event_id=f"zpe_result_submitted:{job_id}:{request.lease_id}",
+        event_id=(
+            execution_event.event_id
+            if execution_event is not None
+            else f"zpe_result_submitted:{job_id}:{request.lease_id}"
+        ),
         request_id=request_id,
         tenant_id=tenant_id,
         actor_id=worker_id,
@@ -500,12 +553,29 @@ async def zpe_compute_failed(
     tenant_id = str(job_meta["tenant_id"])
     if request.tenant_id != tenant_id:
         raise HTTPException(status_code=403, detail="tenant boundary violation")
+    execution_event = request.execution_event
+    if execution_event is not None:
+        if execution_event.tenant_id != tenant_id:
+            raise HTTPException(status_code=403, detail="tenant boundary violation")
+        if execution_event.job_id != job_id:
+            raise HTTPException(status_code=409, detail="execution_event job_id mismatch")
+        if execution_event.error.code != request.error_code:
+            raise HTTPException(
+                status_code=409,
+                detail="execution_event error.code mismatch",
+            )
+        if execution_event.error.message != request.error_message:
+            raise HTTPException(
+                status_code=409,
+                detail="execution_event error.message mismatch",
+            )
     raw.state.tenant_id = tenant_id
     try:
         submission = submit_compute_failure(
             job_id=job_id,
             worker_id=worker_id,
             lease_id=request.lease_id,
+            event_id=(execution_event.event_id if execution_event else None),
             error_code=request.error_code,
             error_message=request.error_message,
             traceback=request.traceback,
@@ -517,14 +587,41 @@ async def zpe_compute_failed(
     settings = get_zpe_settings()
     job_meta = submission.job_meta
     outcome = submission.outcome
+    trace_id = (
+        execution_event.trace_id
+        if execution_event is not None
+        else str(job_meta.get("request_id", get_request_id(raw)))
+    )
     log_event(
         logger,
         event="zpe_result_failed",
         service="control-plane",
         stage="result",
         status="failed",
-        request_id=job_meta.get("request_id", get_request_id(raw)),
+        request_id=trace_id,
+        trace_id=trace_id,
         tenant_id=tenant_id,
+        workspace_id=(
+            execution_event.workspace_id
+            if execution_event is not None
+            else str(job_meta.get("workspace_id", tenant_id))
+        ),
+        submission_id=(
+            execution_event.submission_id
+            if execution_event is not None
+            else str(job_meta.get("submission_id", job_meta.get("request_id", "")))
+        ),
+        execution_id=(
+            execution_event.execution_id
+            if execution_event is not None
+            else str(job_meta.get("execution_id", request.lease_id))
+        ),
+        event_id=(
+            execution_event.event_id
+            if execution_event is not None
+            else f"zpe_result_failed:{job_id}:{request.lease_id}"
+        ),
+        state=(execution_event.state if execution_event is not None else "failed"),
         job_id=job_id,
         worker_id=worker_id,
         user_id=job_meta.get("user_id"),
@@ -533,14 +630,21 @@ async def zpe_compute_failed(
         exit_code=1,
         qe_version=None,
         error_code=request.error_code,
+        error_retryable=(
+            execution_event.error.retryable if execution_event is not None else None
+        ),
         retry_count=outcome.retry_count,
         requeued=outcome.requeued,
     )
-    request_id = str(job_meta.get("request_id", get_request_id(raw)))
+    request_id = trace_id
     _write_audit_or_raise_unavailable(
         trace_request_id=request_id,
         event="zpe_result_failed",
-        event_id=f"zpe_result_failed:{job_id}:{request.lease_id}",
+        event_id=(
+            execution_event.event_id
+            if execution_event is not None
+            else f"zpe_result_failed:{job_id}:{request.lease_id}"
+        ),
         request_id=request_id,
         tenant_id=tenant_id,
         actor_id=worker_id,

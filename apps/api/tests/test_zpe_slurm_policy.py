@@ -6,8 +6,10 @@ from pathlib import Path
 import pytest
 
 from services.zpe.slurm_policy import (
+    SLURM_ADAPTER_CONTRACT_VERSION,
     SlurmPolicyConfigError,
     SlurmPolicyDeniedError,
+    resolve_slurm_adapter_stub,
     resolve_runtime_slurm_queue,
 )
 
@@ -85,3 +87,29 @@ def test_resolve_runtime_slurm_queue_wraps_policy_read_errors(tmp_path: Path) ->
 
     with pytest.raises(SlurmPolicyConfigError):
         resolve_runtime_slurm_queue("standard", policy_path=policy_path)
+
+
+def test_resolve_slurm_adapter_stub_passthrough_without_policy() -> None:
+    resolution = resolve_slurm_adapter_stub(" standard ", policy_path=None)
+
+    assert resolution.adapter == "passthrough"
+    assert resolution.contract_version == SLURM_ADAPTER_CONTRACT_VERSION
+    assert resolution.requested_queue == "standard"
+    assert resolution.resolved_queue == "standard"
+    assert resolution.used_fallback is False
+    assert resolution.mapping is None
+
+
+def test_resolve_slurm_adapter_stub_uses_policy_when_present(tmp_path: Path) -> None:
+    policy_path = tmp_path / "policy.json"
+    _write_policy(policy_path, fallback_mode="route-default")
+
+    resolution = resolve_slurm_adapter_stub("legacy", policy_path=policy_path)
+
+    assert resolution.adapter == "stub-policy"
+    assert resolution.contract_version == SLURM_ADAPTER_CONTRACT_VERSION
+    assert resolution.requested_queue == "legacy"
+    assert resolution.resolved_queue == "standard"
+    assert resolution.used_fallback is True
+    assert resolution.mapping is not None
+    assert resolution.mapping.partition == "short"

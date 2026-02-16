@@ -70,6 +70,19 @@ class OpsFlags:
     legacy_worker_endpoints_enabled: bool
 
 
+def _write_ops_value(
+    *,
+    redis: Redis,
+    key: str,
+    value: str,
+    ttl_seconds: int,
+) -> None:
+    if ttl_seconds > 0:
+        redis.setex(key, ttl_seconds, value)
+        return
+    redis.set(key, value)
+
+
 def get_ops_flags(*, redis: Optional[Redis] = None) -> OpsFlags:
     settings = get_zpe_settings()
     redis = redis or get_redis_connection()
@@ -111,18 +124,42 @@ def set_ops_flags(
     legacy_worker_endpoints_enabled: Optional[bool] = None,
     redis: Optional[Redis] = None,
 ) -> OpsFlags:
+    settings = get_zpe_settings()
+    ttl_seconds = settings.ops_flag_ttl_seconds
     redis = redis or get_redis_connection()
     if submission_enabled is not None:
-        redis.set(_SUBMISSION_KEY, "1" if submission_enabled else "0")
+        _write_ops_value(
+            redis=redis,
+            key=_SUBMISSION_KEY,
+            value="1" if submission_enabled else "0",
+            ttl_seconds=ttl_seconds,
+        )
     if dequeue_enabled is not None:
-        redis.set(_DEQUEUE_KEY, "1" if dequeue_enabled else "0")
+        _write_ops_value(
+            redis=redis,
+            key=_DEQUEUE_KEY,
+            value="1" if dequeue_enabled else "0",
+            ttl_seconds=ttl_seconds,
+        )
     if submission_route is not None:
-        redis.set(_SUBMISSION_ROUTE_KEY, submission_route)
+        _write_ops_value(
+            redis=redis,
+            key=_SUBMISSION_ROUTE_KEY,
+            value=submission_route,
+            ttl_seconds=ttl_seconds,
+        )
     if result_read_source is not None:
-        redis.set(_RESULT_READ_SOURCE_KEY, result_read_source)
+        _write_ops_value(
+            redis=redis,
+            key=_RESULT_READ_SOURCE_KEY,
+            value=result_read_source,
+            ttl_seconds=ttl_seconds,
+        )
     if legacy_worker_endpoints_enabled is not None:
-        redis.set(
-            _LEGACY_WORKER_ENDPOINTS_KEY,
-            "1" if legacy_worker_endpoints_enabled else "0",
+        _write_ops_value(
+            redis=redis,
+            key=_LEGACY_WORKER_ENDPOINTS_KEY,
+            value="1" if legacy_worker_endpoints_enabled else "0",
+            ttl_seconds=ttl_seconds,
         )
     return get_ops_flags(redis=redis)

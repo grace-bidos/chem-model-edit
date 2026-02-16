@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, cast
+from typing import Any, Literal, Mapping, cast
 
 
 @dataclass(frozen=True)
@@ -21,6 +21,19 @@ class SlurmQueueResolution:
     resolved_queue: str
     used_fallback: bool
     mapping: SlurmQueueMapping
+
+
+SLURM_ADAPTER_CONTRACT_VERSION = "slurm-adapter-boundary/v1"
+
+
+@dataclass(frozen=True)
+class SlurmAdapterBoundaryStub:
+    adapter: Literal["passthrough", "stub-policy"]
+    contract_version: str
+    requested_queue: str
+    resolved_queue: str
+    used_fallback: bool
+    mapping: SlurmQueueMapping | None
 
 
 class SlurmPolicyError(RuntimeError):
@@ -165,3 +178,33 @@ def resolve_runtime_slurm_queue(
         )
 
     return _resolve_unknown_queue(queue_name, policy=policy, mappings=mappings)
+
+
+def resolve_slurm_adapter_stub(
+    requested_queue: str,
+    *,
+    policy_path: Path | None,
+) -> SlurmAdapterBoundaryStub:
+    queue_name = requested_queue.strip()
+    if not queue_name:
+        raise SlurmPolicyDeniedError("requested queue must be a non-empty string")
+
+    if policy_path is None:
+        return SlurmAdapterBoundaryStub(
+            adapter="passthrough",
+            contract_version=SLURM_ADAPTER_CONTRACT_VERSION,
+            requested_queue=queue_name,
+            resolved_queue=queue_name,
+            used_fallback=False,
+            mapping=None,
+        )
+
+    resolution = resolve_runtime_slurm_queue(queue_name, policy_path=policy_path)
+    return SlurmAdapterBoundaryStub(
+        adapter="stub-policy",
+        contract_version=SLURM_ADAPTER_CONTRACT_VERSION,
+        requested_queue=resolution.requested_queue,
+        resolved_queue=resolution.resolved_queue,
+        used_fallback=resolution.used_fallback,
+        mapping=resolution.mapping,
+    )
