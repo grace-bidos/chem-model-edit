@@ -96,10 +96,18 @@ runner_busy_in_github() {
 }
 
 registration_token() {
+  if [[ "$DRY_RUN" == "true" ]]; then
+    printf 'DRY_RUN_TOKEN\n'
+    return 0
+  fi
   gh api -X POST "repos/${REPO}/actions/runners/registration-token" --jq '.token'
 }
 
 remove_token() {
+  if [[ "$DRY_RUN" == "true" ]]; then
+    printf 'DRY_RUN_TOKEN\n'
+    return 0
+  fi
   gh api -X POST "repos/${REPO}/actions/runners/remove-token" --jq '.token'
 }
 
@@ -278,12 +286,16 @@ done
 for ((i=1; i<=effective_target; i++)); do
   n="$(runner_name_for_index "$i")"
   d="$(runner_dir_for_name "$n")"
-  if [[ -d "$d" && -x "${d}/config.sh" ]]; then
-    echo "exists: ${n}"
+  if [[ -d "$d" && -x "${d}/config.sh" && -f "${d}/.runner" ]]; then
+    echo "exists (configured): ${n}"
     run_sudo bash -lc "cd '${d}' && ./svc.sh start || true"
     continue
   fi
-  echo "create: ${n}"
+  if [[ -d "$d" && -x "${d}/config.sh" ]]; then
+    echo "reconfigure (missing .runner): ${n}"
+  else
+    echo "create: ${n}"
+  fi
   configure_runner "$n"
 done
 
