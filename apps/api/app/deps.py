@@ -8,7 +8,7 @@ from fastapi import HTTPException, Request
 from services.authn import UserIdentity, get_authn_settings, verify_clerk_token
 from services.zpe.job_owner import get_job_owner_store
 from services.zpe.settings import get_zpe_settings
-from services.zpe.worker_auth import get_worker_token_store
+from services.zpe.worker_auth import WorkerPrincipal, get_worker_token_store
 
 _TENANT_HEADER = "x-tenant-id"
 _TENANT_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{1,127}$")
@@ -106,7 +106,7 @@ def has_admin_access(request: Request) -> bool:
     return bool(token and secrets.compare_digest(token, settings.admin_token))
 
 
-def require_worker(request: Request) -> str:
+def require_worker(request: Request) -> WorkerPrincipal:
     token = _extract_bearer_token(request)
     if not token:
         raise HTTPException(status_code=401, detail="missing worker token")
