@@ -591,6 +591,19 @@ export interface components {
             /** Ttl Seconds */
             ttl_seconds: number;
         };
+        /** ErrorInfo */
+        ErrorInfo: {
+            /** Code */
+            code: string;
+            /** Details */
+            details?: unknown | null;
+            /** Message */
+            message: string;
+        };
+        /** ErrorResponse */
+        ErrorResponse: {
+            error: components["schemas"]["ErrorInfo"];
+        };
         /** ExecutionCompletedEvent */
         ExecutionCompletedEvent: {
             /** Event Id */
@@ -1474,6 +1487,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OnboardingDryRunResponse"];
+                };
+            };
+            /** @description Unauthorized (admin required) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Validation Error */

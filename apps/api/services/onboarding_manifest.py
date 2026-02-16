@@ -246,7 +246,11 @@ def _validate_policy(policy: dict[str, Any]) -> list[OnboardingValidationIssue]:
                 )
             )
 
-        if not isinstance(max_walltime_minutes, int) or max_walltime_minutes <= 0:
+        if (
+            isinstance(max_walltime_minutes, bool)
+            or not isinstance(max_walltime_minutes, int)
+            or max_walltime_minutes <= 0
+        ):
             errors.append(
                 _issue(
                     section="policy",

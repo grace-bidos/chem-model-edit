@@ -156,3 +156,27 @@ def test_onboarding_dry_run_returns_structured_errors(monkeypatch) -> None:
     assert "requested_queue" in issue_paths
 
     assert all(issue["action"] for issue in payload["errors"])
+
+
+def test_onboarding_dry_run_rejects_boolean_walltime(monkeypatch) -> None:
+    settings = ZPESettings(admin_token="secret")
+    monkeypatch.setattr(app_deps, "get_zpe_settings", lambda: settings)
+
+    policy = _base_policy()
+    policy["queue_mappings"][0]["max_walltime_minutes"] = True
+
+    client = TestClient(main.app)
+    response = client.post(
+        "/api/zpe/admin/onboarding/dry-run",
+        headers={"Authorization": "Bearer secret"},
+        json={
+            "path_mode": "path-a-existing-slurm",
+            "policy": policy,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "invalid"
+    issue_paths = {issue["field_path"] for issue in payload["errors"]}
+    assert "queue_mappings[0].max_walltime_minutes" in issue_paths
