@@ -7,10 +7,11 @@ Usage:
   scripts/runner/bootstrap_local_runner_registration.sh \
     --owner grace-bidos \
     --repo chem-model-edit \
-    [--runner-home /opt/actions-runner] \
+    [--runner-home /opt/actions-runner/actions-runner] \
     [--repo-url https://github.com/grace-bidos/chem-model-edit] \
     [--runner-name <name>] \
     [--work-folder <folder>] \
+    [--runner-group <name>] \
     [--labels "self-hosted,linux,x64,chem-trusted-pr"] \
     [--service-user <user>] \
     [--dry-run]
@@ -25,8 +26,9 @@ Required:
   --repo <repo-name>
 
 Defaults:
-  --runner-home /opt/actions-runner
+  --runner-home /opt/actions-runner/actions-runner
   --repo-url https://github.com/<owner>/<repo>
+  --runner-group Default
   --labels self-hosted,linux,x64,chem-trusted-pr
   --runner-name from existing .runner agentName, fallback: chem-base-<hostname>
   --work-folder from existing .runner workFolder, fallback: _work
@@ -84,6 +86,7 @@ runner_home="/opt/actions-runner"
 repo_url=""
 runner_name=""
 work_folder=""
+runner_group="Default"
 labels="self-hosted,linux,x64,chem-trusted-pr"
 service_user=""
 dry_run="false"
@@ -96,6 +99,7 @@ while [[ $# -gt 0 ]]; do
     --repo-url) repo_url="${2:-}"; shift 2 ;;
     --runner-name) runner_name="${2:-}"; shift 2 ;;
     --work-folder) work_folder="${2:-}"; shift 2 ;;
+    --runner-group) runner_group="${2:-}"; shift 2 ;;
     --labels) labels="${2:-}"; shift 2 ;;
     --service-user) service_user="${2:-}"; shift 2 ;;
     --dry-run) dry_run="true"; shift 1 ;;
@@ -107,6 +111,7 @@ done
 [[ -n "$owner" ]] || die "--owner is required."
 [[ -n "$repo" ]] || die "--repo is required."
 [[ -n "$runner_home" ]] || die "--runner-home must not be empty."
+[[ -n "$runner_group" ]] || die "--runner-group must not be empty."
 [[ -n "$labels" ]] || die "--labels must not be empty."
 
 if [[ -z "$repo_url" ]]; then
@@ -179,6 +184,7 @@ fi
 log "Runner home: $runner_home"
 log "Runner name: $runner_name"
 log "Work folder: $work_folder"
+log "Runner group: $runner_group"
 log "Labels: $labels"
 log "Local registration state: $local_registration_state"
 
@@ -233,6 +239,7 @@ if [[ "$needs_reregister" == "true" ]]; then
     --url "$repo_url" \
     --token "$reg_token" \
     --name "$runner_name" \
+    --runnergroup "$runner_group" \
     --work "$work_folder" \
     --labels "$labels" \
     --replace

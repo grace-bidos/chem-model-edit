@@ -13,6 +13,7 @@ Required:
 Options:
   --labels <comma-separated labels>   Filter GitHub runners that include all labels.
   --strict-gh                         Treat GitHub online runner without local active unit as degraded.
+  --allow-zero-capacity               Allow zero active local units / zero online GitHub runners.
   -h, --help                          Show this help.
 
 Behavior:
@@ -32,6 +33,7 @@ owner=""
 repo=""
 labels_csv=""
 strict_gh=0
+allow_zero_capacity=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -39,6 +41,7 @@ while [[ $# -gt 0 ]]; do
     --repo) repo="${2:-}"; shift 2 ;;
     --labels) labels_csv="${2:-}"; shift 2 ;;
     --strict-gh) strict_gh=1; shift ;;
+    --allow-zero-capacity) allow_zero_capacity=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown argument: $1" >&2; usage; exit 1 ;;
   esac
@@ -88,7 +91,7 @@ if [[ -n "$labels_csv" ]]; then
         gsub(/^[ \t]+|[ \t]+$/, "", $i)
         if ($i != "") {
           if (c++) printf ","
-          gsub(/\"/, "\\\"", $i)
+          gsub(/"/, "\\\"", $i)
           printf "\"%s\"", $i
         }
       }
@@ -103,10 +106,15 @@ echo
 echo "== GitHub runners (repo: ${owner}/${repo}) =="
 
 mapfile -t gh_rows < <(jq -r --argjson required "$labels_json" '
+  def lc: ascii_downcase;
   .runners[]
   | select(
       ($required | length) == 0
-      or ((.labels | map(.name)) as $have | ($required - $have | length) == 0)
+      or (
+        (.labels | map(.name | lc)) as $have
+        | ($required | map(lc)) as $need
+        | ($need - $have | length) == 0
+      )
     )
   | [.name, .status, .busy, (.labels | map(.name) | join(","))]
   | @tsv
@@ -125,6 +133,42 @@ fi
 degraded=0
 echo
 echo "== Mismatch checks =="
+
+local_active_count=0
+if [[ ${#units[@]} -gt 0 ]]; then
+  for unit in "${units[@]}"; do
+    if [[ -n "${local_active[$unit]:-}" ]]; then
+      local_active_count=$((local_active_count + 1))
+    fi
+  done
+fi
+
+gh_online_count="$(jq -r --argjson required "$labels_json" '
+  def lc: ascii_downcase;
+  [
+    .runners[]
+    | select(
+        ($required | length) == 0
+        or (
+          (.labels | map(.name | lc)) as $have
+          | ($required | map(lc)) as $need
+          | ($need - $have | length) == 0
+        )
+      )
+    | select(.status == "online")
+  ] | length
+' <<<"$gh_json")"
+
+if [[ "$allow_zero_capacity" -ne 1 ]]; then
+  if [[ "$local_active_count" -eq 0 ]]; then
+    echo "DEGRADED: no active local actions.runner.* services."
+    degraded=1
+  fi
+  if [[ "$gh_online_count" -eq 0 ]]; then
+    echo "DEGRADED: no online GitHub runners matched current filter."
+    degraded=1
+  fi
+fi
 
 # 1) Local active service should not map to offline/missing GitHub runner.
 if [[ ${#units[@]} -gt 0 ]]; then
