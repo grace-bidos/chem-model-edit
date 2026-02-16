@@ -520,6 +520,201 @@ def test_compute_failed_endpoint_rejects_tenant_boundary_violation(monkeypatch):
     assert response.json()["error"]["message"] == "tenant boundary violation"
 
 
+def _result_execution_event(
+    *,
+    tenant_id: str,
+    workspace_id: str,
+    job_id: str,
+) -> dict[str, object]:
+    return {
+        "event_id": f"evt-result-{job_id}",
+        "tenant_id": tenant_id,
+        "workspace_id": workspace_id,
+        "job_id": job_id,
+        "submission_id": "submission-1",
+        "execution_id": "execution-1",
+        "occurred_at": "2026-01-01T00:00:00+00:00",
+        "trace_id": "trace-1",
+        "state": "completed",
+        "result_ref": {"output_uri": "zpe://jobs/job-1/result"},
+    }
+
+
+def _failed_execution_event(
+    *,
+    tenant_id: str,
+    workspace_id: str,
+    job_id: str,
+    error_code: str,
+    error_message: str,
+) -> dict[str, object]:
+    return {
+        "event_id": f"evt-failed-{job_id}",
+        "tenant_id": tenant_id,
+        "workspace_id": workspace_id,
+        "job_id": job_id,
+        "submission_id": "submission-1",
+        "execution_id": "execution-1",
+        "occurred_at": "2026-01-01T00:00:01+00:00",
+        "trace_id": "trace-2",
+        "state": "failed",
+        "error": {
+            "code": error_code,
+            "message": error_message,
+            "retryable": True,
+        },
+    }
+
+
+def test_compute_result_endpoint_rejects_worker_token_tenant_scope_violation(monkeypatch):
+    fake = _patch_redis(monkeypatch)
+    client = TestClient(main.app)
+    job_id = "job-result-tenant-scope"
+    zpe_job_meta.JobMetaStore(redis=fake).set_meta(
+        job_id,
+        {
+            "tenant_id": "tenant-worker",
+            "workspace_id": "workspace-1",
+            "request_id": "req-1",
+            "user_id": "user-1",
+        },
+    )
+    worker_token = zpe_worker_auth.WorkerTokenStore(redis=fake).create_token(
+        "compute-1",
+        tenant_id="tenant-other",
+    ).token
+
+    response = client.post(
+        f"/api/zpe/compute/jobs/{job_id}/result",
+        headers={"Authorization": f"Bearer {worker_token}"},
+        json={
+            "tenant_id": "tenant-worker",
+            "lease_id": "lease-1",
+            "result": {"zpe_ev": 0.123},
+            "summary_text": "ok",
+            "freqs_csv": "frequency_cm^-1,intensity\n100,1.0",
+        },
+    )
+
+    assert response.status_code == 403
+    assert response.json()["error"]["message"] == "worker token tenant scope violation"
+
+
+def test_compute_failed_endpoint_rejects_worker_token_workspace_scope_violation(
+    monkeypatch,
+):
+    fake = _patch_redis(monkeypatch)
+    client = TestClient(main.app)
+    job_id = "job-failed-workspace-scope"
+    zpe_job_meta.JobMetaStore(redis=fake).set_meta(
+        job_id,
+        {
+            "tenant_id": "tenant-worker",
+            "workspace_id": "workspace-1",
+            "request_id": "req-1",
+            "user_id": "user-1",
+        },
+    )
+    worker_token = zpe_worker_auth.WorkerTokenStore(redis=fake).create_token(
+        "compute-1",
+        tenant_id="tenant-worker",
+        workspace_id="workspace-other",
+    ).token
+
+    response = client.post(
+        f"/api/zpe/compute/jobs/{job_id}/failed",
+        headers={"Authorization": f"Bearer {worker_token}"},
+        json={
+            "tenant_id": "tenant-worker",
+            "lease_id": "lease-1",
+            "error_code": "ERR",
+            "error_message": "boom",
+        },
+    )
+
+    assert response.status_code == 403
+    assert (
+        response.json()["error"]["message"] == "worker token workspace scope violation"
+    )
+
+
+def test_compute_result_endpoint_rejects_execution_event_workspace_spoof(monkeypatch):
+    fake = _patch_redis(monkeypatch)
+    client = TestClient(main.app)
+    job_id = "job-result-workspace-boundary"
+    zpe_job_meta.JobMetaStore(redis=fake).set_meta(
+        job_id,
+        {
+            "tenant_id": "tenant-worker",
+            "workspace_id": "workspace-1",
+            "request_id": "req-1",
+            "user_id": "user-1",
+        },
+    )
+    worker_token = zpe_worker_auth.WorkerTokenStore(redis=fake).create_token(
+        "compute-1"
+    ).token
+
+    response = client.post(
+        f"/api/zpe/compute/jobs/{job_id}/result",
+        headers={"Authorization": f"Bearer {worker_token}"},
+        json={
+            "tenant_id": "tenant-worker",
+            "lease_id": "lease-1",
+            "result": {"zpe_ev": 0.123},
+            "summary_text": "ok",
+            "freqs_csv": "frequency_cm^-1,intensity\n100,1.0",
+            "execution_event": _result_execution_event(
+                tenant_id="tenant-worker",
+                workspace_id="workspace-spoofed",
+                job_id=job_id,
+            ),
+        },
+    )
+
+    assert response.status_code == 403
+    assert response.json()["error"]["message"] == "workspace boundary violation"
+
+
+def test_compute_failed_endpoint_rejects_execution_event_workspace_mismatch(monkeypatch):
+    fake = _patch_redis(monkeypatch)
+    client = TestClient(main.app)
+    job_id = "job-failed-workspace-boundary"
+    zpe_job_meta.JobMetaStore(redis=fake).set_meta(
+        job_id,
+        {
+            "tenant_id": "tenant-worker",
+            "workspace_id": "workspace-1",
+            "request_id": "req-1",
+            "user_id": "user-1",
+        },
+    )
+    worker_token = zpe_worker_auth.WorkerTokenStore(redis=fake).create_token(
+        "compute-1"
+    ).token
+
+    response = client.post(
+        f"/api/zpe/compute/jobs/{job_id}/failed",
+        headers={"Authorization": f"Bearer {worker_token}"},
+        json={
+            "tenant_id": "tenant-worker",
+            "lease_id": "lease-1",
+            "error_code": "ERR",
+            "error_message": "boom",
+            "execution_event": _failed_execution_event(
+                tenant_id="tenant-worker",
+                workspace_id="workspace-other",
+                job_id=job_id,
+                error_code="ERR",
+                error_message="boom",
+            ),
+        },
+    )
+
+    assert response.status_code == 403
+    assert response.json()["error"]["message"] == "workspace boundary violation"
+
+
 def test_compute_failed_endpoint_retries_after_audit_outage(monkeypatch):
     fake = _patch_redis(monkeypatch)
     job_id = "job-audit-retry"

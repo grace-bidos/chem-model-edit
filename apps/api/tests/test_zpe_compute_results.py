@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 import fakeredis
 import pytest
 
@@ -360,3 +361,148 @@ def test_submit_failure_event_id_replay_falls_back_to_legacy_lease_submit_key(mo
     )
     assert replay.requeued is True
     assert replay.retry_count == 1
+
+
+def test_runtime_transition_duplicate_sequence_replay_is_ignored(monkeypatch):
+    fake, dispatcher = _patch(monkeypatch)
+    job_id = "job-runtime-duplicate"
+    updated_at = "2026-01-01T00:00:00+00:00"
+
+    zpe_results._dispatch_runtime_state_transition(
+        redis=fake,
+        job_id=job_id,
+        state="queued",
+        sequence=7,
+        updated_at=updated_at,
+        ttl_seconds=60,
+    )
+    assert len(dispatcher.calls) == 1
+
+    fake.delete(f"zpe:convex:relay:dispatch:{job_id}:7")
+    zpe_results._dispatch_runtime_state_transition(
+        redis=fake,
+        job_id=job_id,
+        state="queued",
+        sequence=7,
+        updated_at=updated_at,
+        ttl_seconds=60,
+    )
+
+    assert len(dispatcher.calls) == 1
+    assert fake.get(f"zpe:convex:relay:last_sequence:{job_id}") == b"7"
+
+
+def test_runtime_transition_delayed_older_sequence_is_ignored(monkeypatch):
+    fake, dispatcher = _patch(monkeypatch)
+    job_id = "job-runtime-delayed"
+
+    zpe_results._dispatch_runtime_state_transition(
+        redis=fake,
+        job_id=job_id,
+        state="failed",
+        sequence=9,
+        updated_at="2026-01-01T00:00:09+00:00",
+        ttl_seconds=60,
+    )
+    zpe_results._dispatch_runtime_state_transition(
+        redis=fake,
+        job_id=job_id,
+        state="queued",
+        sequence=4,
+        updated_at="2026-01-01T00:00:04+00:00",
+        ttl_seconds=60,
+    )
+
+    assert len(dispatcher.calls) == 1
+    assert dispatcher.calls[0][0].status == "failed"
+    assert dispatcher.calls[0][0].sequence == 9
+
+
+def test_runtime_transition_out_of_order_sequence_does_not_regress(monkeypatch):
+    fake, dispatcher = _patch(monkeypatch)
+    job_id = "job-runtime-out-of-order"
+
+    zpe_results._dispatch_runtime_state_transition(
+        redis=fake,
+        job_id=job_id,
+        state="queued",
+        sequence=2,
+        updated_at="2026-01-01T00:00:02+00:00",
+        ttl_seconds=60,
+    )
+    zpe_results._dispatch_runtime_state_transition(
+        redis=fake,
+        job_id=job_id,
+        state="failed",
+        sequence=4,
+        updated_at="2026-01-01T00:00:04+00:00",
+        ttl_seconds=60,
+    )
+    zpe_results._dispatch_runtime_state_transition(
+        redis=fake,
+        job_id=job_id,
+        state="queued",
+        sequence=3,
+        updated_at="2026-01-01T00:00:03+00:00",
+        ttl_seconds=60,
+    )
+
+    assert [call[0].sequence for call in dispatcher.calls] == [2, 4]
+    assert [call[0].status for call in dispatcher.calls] == ["queued", "failed"]
+    assert fake.get(f"zpe:convex:relay:last_sequence:{job_id}") == b"4"
+
+
+def test_runtime_transition_serializes_dispatch_and_drops_stale_sequence(monkeypatch):
+    class _BlockingDispatcher(_RecordingDispatcher):
+        def __init__(self) -> None:
+            super().__init__()
+            self.sequence_four_started = threading.Event()
+            self.release_sequence_four = threading.Event()
+
+        def dispatch_job_projection(
+            self,
+            payload: ConvexJobProjection,
+            idempotency_key: str,
+        ) -> None:
+            if payload.sequence == 4:
+                self.sequence_four_started.set()
+                assert self.release_sequence_four.wait(timeout=2)
+            super().dispatch_job_projection(payload, idempotency_key)
+
+    dispatcher = _BlockingDispatcher()
+    fake, _ = _patch(monkeypatch, dispatcher=dispatcher)
+    job_id = "job-runtime-lock-atomicity"
+
+    high_sequence = threading.Thread(
+        target=zpe_results._dispatch_runtime_state_transition,
+        kwargs={
+            "redis": fake,
+            "job_id": job_id,
+            "state": "failed",
+            "sequence": 4,
+            "updated_at": "2026-01-01T00:00:04+00:00",
+            "ttl_seconds": 60,
+        },
+    )
+    stale_sequence = threading.Thread(
+        target=zpe_results._dispatch_runtime_state_transition,
+        kwargs={
+            "redis": fake,
+            "job_id": job_id,
+            "state": "queued",
+            "sequence": 3,
+            "updated_at": "2026-01-01T00:00:03+00:00",
+            "ttl_seconds": 60,
+        },
+    )
+
+    high_sequence.start()
+    assert dispatcher.sequence_four_started.wait(timeout=1)
+    stale_sequence.start()
+    dispatcher.release_sequence_four.set()
+    high_sequence.join(timeout=1)
+    stale_sequence.join(timeout=1)
+
+    assert [call[0].sequence for call in dispatcher.calls] == [4]
+    assert [call[0].status for call in dispatcher.calls] == ["failed"]
+    assert fake.get(f"zpe:convex:relay:last_sequence:{job_id}") == b"4"

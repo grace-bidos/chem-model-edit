@@ -2,7 +2,19 @@
 set -euo pipefail
 
 HOST="127.0.0.1"
-PORT="${SCHEMATHESIS_PORT:-8000}"
+if [ -n "${SCHEMATHESIS_PORT:-}" ]; then
+  PORT="${SCHEMATHESIS_PORT}"
+else
+  PORT="$(
+    python - <<'PY'
+import socket
+
+with socket.socket() as sock:
+    sock.bind(("127.0.0.1", 0))
+    print(sock.getsockname()[1])
+PY
+  )"
+fi
 BASE_URL="http://${HOST}:${PORT}"
 SCHEMA_URL="${BASE_URL}/api/openapi.json"
 
@@ -17,6 +29,11 @@ trap cleanup EXIT
 export SCHEMA_URL BASE_URL
 ready=0
 for _ in {1..40}; do
+  if ! kill -0 "${server_pid}" 2>/dev/null; then
+    echo "Schemathesis API server exited before becoming ready" >&2
+    break
+  fi
+
   if python - <<'PY'
 import os
 import sys

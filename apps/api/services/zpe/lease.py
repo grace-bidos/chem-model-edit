@@ -134,6 +134,16 @@ def lease_next_job(worker_id: str) -> Optional[Lease]:
     )
 
 
+def release_lease(job_id: str, *, requeue: bool = True) -> None:
+    redis = get_redis_connection()
+    pipe = redis.pipeline(transaction=True)
+    pipe.delete(f"{_LEASE_PREFIX}{job_id}")
+    pipe.zrem(_LEASE_INDEX, job_id)
+    if requeue:
+        pipe.lpush(_QUEUE_KEY, job_id)
+    pipe.execute()
+
+
 def _reap_expired_leases(redis: Redis, store: Any) -> None:
     now_ts = int(_now().timestamp())
     expired = cast(list[bytes], redis.zrangebyscore(_LEASE_INDEX, 0, now_ts))
