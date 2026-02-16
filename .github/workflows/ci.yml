@@ -44,10 +44,45 @@ jobs:
               - 'pyproject.toml'
               - 'uv.lock'
 
-  web:
-    needs: changes
-    if: ${{ github.event_name == 'push' || needs.changes.outputs.web == 'true' }}
+  route:
     runs-on: ubuntu-latest
+    outputs:
+      trusted: ${{ steps.pick.outputs.trusted }}
+      runner: ${{ steps.pick.outputs.runner }}
+    steps:
+      - name: Select runner target
+        id: pick
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_IS_FORK: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork || false }}
+          AUTHOR_ASSOCIATION: ${{ github.event.pull_request.author_association || '' }}
+          ACTOR: ${{ github.actor }}
+          SELF_HOSTED_ENABLED: ${{ vars.CI_SELF_HOSTED_TRUSTED_ROUTING || 'false' }}
+        run: |
+          set -euo pipefail
+          trusted="false"
+          if [[ "${SELF_HOSTED_ENABLED}" == "true" ]] \
+            && [[ "${EVENT_NAME}" == "pull_request" ]] \
+            && [[ "${PR_IS_FORK}" == "false" ]] \
+            && [[ "${ACTOR}" != "dependabot[bot]" ]] \
+            && [[ ! "${ACTOR}" =~ \[bot\]$ ]] \
+            && [[ "${AUTHOR_ASSOCIATION}" =~ ^(OWNER|MEMBER|COLLABORATOR)$ ]]; then
+            trusted="true"
+          fi
+
+          if [[ "${trusted}" == "true" ]]; then
+            echo 'runner=["self-hosted","linux","x64","chem-trusted-pr"]' >> "${GITHUB_OUTPUT}"
+          else
+            echo 'runner="ubuntu-latest"' >> "${GITHUB_OUTPUT}"
+          fi
+          echo "trusted=${trusted}" >> "${GITHUB_OUTPUT}"
+
+  web:
+    needs:
+      - changes
+      - route
+    if: ${{ github.event_name == 'push' || needs.changes.outputs.web == 'true' }}
+    runs-on: ${{ fromJSON(needs.route.outputs.runner) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -79,9 +114,11 @@ jobs:
         run: pnpm exec nx run shared:knip
 
   api:
-    needs: changes
+    needs:
+      - changes
+      - route
     if: ${{ github.event_name == 'push' || needs.changes.outputs.api == 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(needs.route.outputs.runner) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -108,9 +145,11 @@ jobs:
         working-directory: apps/api
 
   contract:
-    needs: changes
+    needs:
+      - changes
+      - route
     if: ${{ github.event_name == 'push' || needs.changes.outputs.contract == 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(needs.route.outputs.runner) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
