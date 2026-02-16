@@ -343,7 +343,9 @@ report_results() {
 
 main() {
   parse_args "$@"
-  check_commands
+  if [[ "$MODE" == "vm" ]]; then
+    check_commands
+  fi
   check_paths
   validate_slurm_conf_static
   validate_cgroup_conf_static
