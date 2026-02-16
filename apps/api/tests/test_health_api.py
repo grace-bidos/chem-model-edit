@@ -21,6 +21,9 @@ _AIIA_ENV_KEYS = [
     "AIIA_USER_MANAGED_DEEP_READY_ENABLED",
     "AIIA_USER_MANAGED_DEEP_READY_TIMEOUT_SECONDS",
     "AIIDA_PROFILE",
+    "ZPE_SLURM_ADAPTER",
+    "ZPE_SLURM_ADAPTER_ROLLBACK_GUARD",
+    "ZPE_SLURM_POLICY_PATH",
 ]
 
 
@@ -57,6 +60,7 @@ def test_health_reports_skipped_when_managed_aiida_checks_disabled(monkeypatch: 
     assert payload["status"] == "ok"
     assert payload["checks"]["managed_aiida_runtime"]["status"] == "skipped"
     assert payload["checks"]["user_managed_deep_readiness"]["status"] == "skipped"
+    assert payload["checks"]["slurm_real_adapter_preconditions"]["status"] == "skipped"
 
 
 def test_ready_returns_503_when_managed_aiida_is_misconfigured(monkeypatch: Any) -> None:
@@ -73,6 +77,7 @@ def test_ready_returns_503_when_managed_aiida_is_misconfigured(monkeypatch: Any)
     assert check["status"] == "failed"
     assert check["error"] == "misconfigured"
     assert payload["checks"]["user_managed_deep_readiness"]["status"] == "skipped"
+    assert payload["checks"]["slurm_real_adapter_preconditions"]["status"] == "skipped"
 
 
 def test_ready_returns_503_when_managed_aiida_base_url_is_malformed(
@@ -163,6 +168,71 @@ def test_ready_returns_200_when_managed_aiida_is_healthy(monkeypatch: Any) -> No
     assert check["status"] == "ok"
     assert check["http_status"] == 204
     assert payload["checks"]["user_managed_deep_readiness"]["status"] == "skipped"
+    assert payload["checks"]["slurm_real_adapter_preconditions"]["status"] == "skipped"
+
+
+def test_ready_returns_503_when_real_adapter_policy_path_is_missing(monkeypatch: Any) -> None:
+    _clear_aiida_env(monkeypatch)
+    monkeypatch.setenv("ZPE_SLURM_ADAPTER", "real-policy")
+    monkeypatch.delenv("ZPE_SLURM_POLICY_PATH", raising=False)
+    client = TestClient(main.app)
+
+    response = client.get("/api/ready")
+
+    assert response.status_code == 503
+    payload = response.json()
+    check = payload["checks"]["slurm_real_adapter_preconditions"]
+    assert payload["status"] == "not_ready"
+    assert check["status"] == "failed"
+    assert check["error"] == "misconfigured"
+    assert check["failed_probe"] == "policy_file"
+
+
+def test_ready_returns_503_when_real_adapter_guard_forces_fallback(monkeypatch: Any) -> None:
+    _clear_aiida_env(monkeypatch)
+    monkeypatch.setenv("ZPE_SLURM_ADAPTER", "real-policy")
+    monkeypatch.setenv("ZPE_SLURM_ADAPTER_ROLLBACK_GUARD", "force-stub-policy")
+    client = TestClient(main.app)
+
+    response = client.get("/api/ready")
+
+    assert response.status_code == 503
+    payload = response.json()
+    check = payload["checks"]["slurm_real_adapter_preconditions"]
+    assert payload["status"] == "not_ready"
+    assert check["status"] == "failed"
+    assert check["error"] == "rollback_guard_active"
+
+
+def test_ready_returns_200_when_real_adapter_preconditions_pass(monkeypatch: Any, tmp_path: Any) -> None:
+    _clear_aiida_env(monkeypatch)
+    monkeypatch.setenv("ZPE_SLURM_ADAPTER", "real-policy")
+    policy_path = tmp_path / "policy.json"
+    policy_path.write_text(
+        "{\"queue_mappings\":[{\"queue\":\"standard\",\"partition\":\"short\",\"account\":\"chem\",\"qos\":\"normal\",\"max_walltime_minutes\":120}],\"fallback_policy\":{\"mode\":\"route-default\",\"default_queue\":\"standard\"}}",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("ZPE_SLURM_POLICY_PATH", str(policy_path))
+
+    def _run_probe(command: list[str], **kwargs: Any) -> Any:
+        _ = kwargs
+        return subprocess.CompletedProcess(
+            args=command,
+            returncode=0,
+            stdout="ok",
+            stderr="",
+        )
+
+    monkeypatch.setattr("services.aiida_runtime_checks.subprocess.run", _run_probe)
+    client = TestClient(main.app)
+
+    response = client.get("/api/ready")
+
+    assert response.status_code == 200
+    payload = response.json()
+    check = payload["checks"]["slurm_real_adapter_preconditions"]
+    assert payload["status"] == "ready"
+    assert check["status"] == "ok"
 
 
 def test_health_reports_degraded_when_managed_aiida_returns_http_error(

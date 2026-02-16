@@ -3,7 +3,12 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
+import subprocess
 from typing import Any, Literal, Mapping, cast
+
+
+SlurmAdapterMode = Literal["passthrough", "stub-policy", "real-policy"]
+SlurmAdapterRollbackGuard = Literal["allow", "force-stub-policy", "force-passthrough"]
 
 
 @dataclass(frozen=True)
@@ -28,7 +33,7 @@ SLURM_ADAPTER_CONTRACT_VERSION = "slurm-adapter-boundary/v1"
 
 @dataclass(frozen=True)
 class SlurmAdapterBoundaryStub:
-    adapter: Literal["passthrough", "stub-policy"]
+    adapter: SlurmAdapterMode
     contract_version: str
     requested_queue: str
     resolved_queue: str
@@ -46,6 +51,10 @@ class SlurmPolicyDeniedError(SlurmPolicyError):
 
 class SlurmPolicyConfigError(SlurmPolicyError):
     """Raised when policy content is missing or invalid for runtime resolution."""
+
+
+class SlurmRealAdapterPreconditionError(SlurmPolicyError):
+    """Raised when real-policy mode preconditions are not satisfied."""
 
 
 def _is_non_empty_text(value: Any) -> bool:
@@ -66,6 +75,36 @@ def _load_policy(path: Path) -> Mapping[str, Any]:
     if not isinstance(payload, dict):
         raise SlurmPolicyConfigError("slurm policy top-level object must be a JSON object")
     return cast(Mapping[str, Any], payload)
+
+
+def parse_slurm_adapter_mode(value: str | None) -> SlurmAdapterMode:
+    normalized = (value or "stub-policy").strip().lower()
+    if normalized in {"passthrough", "stub-policy", "real-policy"}:
+        return cast(SlurmAdapterMode, normalized)
+    raise SlurmPolicyConfigError(
+        "slurm adapter mode must be one of: passthrough, stub-policy, real-policy"
+    )
+
+
+def parse_slurm_adapter_rollback_guard(value: str | None) -> SlurmAdapterRollbackGuard:
+    normalized = (value or "allow").strip().lower()
+    if normalized in {"allow", "force-stub-policy", "force-passthrough"}:
+        return cast(SlurmAdapterRollbackGuard, normalized)
+    raise SlurmPolicyConfigError(
+        "slurm adapter rollback guard must be one of: allow, force-stub-policy, force-passthrough"
+    )
+
+
+def resolve_effective_slurm_adapter_mode(
+    configured_mode: SlurmAdapterMode,
+    *,
+    rollback_guard: SlurmAdapterRollbackGuard,
+) -> SlurmAdapterMode:
+    if rollback_guard == "force-stub-policy":
+        return "stub-policy"
+    if rollback_guard == "force-passthrough":
+        return "passthrough"
+    return configured_mode
 
 
 def _parse_queue_mappings(policy: Mapping[str, Any]) -> dict[str, SlurmQueueMapping]:
@@ -180,6 +219,12 @@ def resolve_runtime_slurm_queue(
     return _resolve_unknown_queue(queue_name, policy=policy, mappings=mappings)
 
 
+def validate_slurm_policy_file(*, policy_path: Path) -> None:
+    policy = _load_policy(policy_path)
+    _parse_queue_mappings(policy)
+    _ = policy.get("fallback_policy")
+
+
 def resolve_slurm_adapter_stub(
     requested_queue: str,
     *,
@@ -202,6 +247,63 @@ def resolve_slurm_adapter_stub(
     resolution = resolve_runtime_slurm_queue(queue_name, policy_path=policy_path)
     return SlurmAdapterBoundaryStub(
         adapter="stub-policy",
+        contract_version=SLURM_ADAPTER_CONTRACT_VERSION,
+        requested_queue=resolution.requested_queue,
+        resolved_queue=resolution.resolved_queue,
+        used_fallback=resolution.used_fallback,
+        mapping=resolution.mapping,
+    )
+
+
+def resolve_slurm_adapter_real(
+    requested_queue: str,
+    *,
+    policy_path: Path | None,
+    command_timeout_seconds: int = 5,
+) -> SlurmAdapterBoundaryStub:
+    queue_name = requested_queue.strip()
+    if not queue_name:
+        raise SlurmPolicyDeniedError("requested queue must be a non-empty string")
+    if policy_path is None:
+        raise SlurmRealAdapterPreconditionError(
+            "real-policy requires ZPE_SLURM_POLICY_PATH to be configured"
+        )
+
+    validate_slurm_policy_file(policy_path=policy_path)
+    try:
+        probe = subprocess.run(
+            ["scontrol", "ping"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=command_timeout_seconds,
+        )
+    except FileNotFoundError as exc:
+        raise SlurmRealAdapterPreconditionError(
+            "real-policy requires scontrol command to be available"
+        ) from exc
+    except subprocess.TimeoutExpired as exc:
+        raise SlurmRealAdapterPreconditionError(
+            f"real-policy precondition probe timed out after {command_timeout_seconds}s: scontrol ping"
+        ) from exc
+    except OSError as exc:
+        raise SlurmRealAdapterPreconditionError(
+            f"real-policy precondition probe failed to launch: {exc}"
+        ) from exc
+
+    if probe.returncode != 0:
+        detail = (probe.stderr or probe.stdout or "").strip()
+        if detail:
+            raise SlurmRealAdapterPreconditionError(
+                f"real-policy precondition probe failed: {detail}"
+            )
+        raise SlurmRealAdapterPreconditionError(
+            "real-policy precondition probe failed: scontrol ping returned non-zero"
+        )
+
+    resolution = resolve_runtime_slurm_queue(queue_name, policy_path=policy_path)
+    return SlurmAdapterBoundaryStub(
+        adapter="real-policy",
         contract_version=SLURM_ADAPTER_CONTRACT_VERSION,
         requested_queue=resolution.requested_queue,
         resolved_queue=resolution.resolved_queue,

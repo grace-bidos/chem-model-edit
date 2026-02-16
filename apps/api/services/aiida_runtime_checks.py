@@ -2,12 +2,21 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import os
+from pathlib import Path
 import subprocess
 import time
 from typing import Any, Literal
 from urllib import error as urlerror
 from urllib import parse as urlparse
 from urllib import request as urlrequest
+
+from services.zpe.slurm_policy import (
+    SlurmPolicyConfigError,
+    parse_slurm_adapter_mode,
+    parse_slurm_adapter_rollback_guard,
+    resolve_effective_slurm_adapter_mode,
+    validate_slurm_policy_file,
+)
 
 
 ManagedAiidaStatus = Literal["ok", "failed", "skipped"]
@@ -21,6 +30,9 @@ _TOKEN_KEY = "AIIA_MANAGED_BEARER_TOKEN"
 _DEEP_READY_ENABLED_KEY = "AIIA_USER_MANAGED_DEEP_READY_ENABLED"
 _DEEP_READY_TIMEOUT_SECONDS_KEY = "AIIA_USER_MANAGED_DEEP_READY_TIMEOUT_SECONDS"
 _AIIDA_PROFILE_KEY = "AIIDA_PROFILE"
+_SLURM_ADAPTER_KEY = "ZPE_SLURM_ADAPTER"
+_SLURM_ADAPTER_GUARD_KEY = "ZPE_SLURM_ADAPTER_ROLLBACK_GUARD"
+_SLURM_POLICY_PATH_KEY = "ZPE_SLURM_POLICY_PATH"
 _MAX_OUTPUT_LENGTH = 240
 
 
@@ -132,6 +144,36 @@ class UserManagedDeepReadinessCheck:
         payload: dict[str, Any] = {
             "status": self.status,
             "detail": self.detail,
+            "probes": {
+                probe_name: probe_result.as_dict()
+                for probe_name, probe_result in self.probes.items()
+            },
+        }
+        if self.error is not None:
+            payload["error"] = self.error
+        if self.failed_probe is not None:
+            payload["failed_probe"] = self.failed_probe
+        return payload
+
+
+@dataclass(frozen=True)
+class SlurmRealAdapterPreconditionCheck:
+    status: ManagedAiidaStatus
+    detail: str
+    adapter_configured: str
+    adapter_effective: str
+    rollback_guard: str
+    probes: dict[str, CommandProbe]
+    error: str | None = None
+    failed_probe: str | None = None
+
+    def as_dict(self) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "status": self.status,
+            "detail": self.detail,
+            "adapter_configured": self.adapter_configured,
+            "adapter_effective": self.adapter_effective,
+            "rollback_guard": self.rollback_guard,
             "probes": {
                 probe_name: probe_result.as_dict()
                 for probe_name, probe_result in self.probes.items()
@@ -298,6 +340,117 @@ def probe_user_managed_deep_readiness(
     return UserManagedDeepReadinessCheck(
         status="ok",
         detail="user-managed deep readiness probes passed",
+        probes=probes,
+    )
+
+
+def _policy_probe(policy_path_value: str) -> CommandProbe:
+    if not policy_path_value:
+        return CommandProbe(
+            status="failed",
+            detail=f"{_SLURM_POLICY_PATH_KEY} must be set for real-policy",
+            command="validate slurm policy",
+            error="misconfigured",
+        )
+    try:
+        validate_slurm_policy_file(policy_path=Path(policy_path_value))
+    except SlurmPolicyConfigError as exc:
+        return CommandProbe(
+            status="failed",
+            detail=f"invalid slurm policy: {exc}",
+            command="validate slurm policy",
+            error="misconfigured",
+        )
+
+    return CommandProbe(
+        status="ok",
+        detail="slurm policy file is valid",
+        command="validate slurm policy",
+    )
+
+
+def probe_slurm_real_adapter_preconditions(
+    *, check_kind: Literal["health", "ready"]
+) -> SlurmRealAdapterPreconditionCheck:
+    _ = check_kind
+    adapter_value = os.getenv(_SLURM_ADAPTER_KEY)
+    guard_value = os.getenv(_SLURM_ADAPTER_GUARD_KEY)
+    policy_path_value = (os.getenv(_SLURM_POLICY_PATH_KEY) or "").strip()
+    try:
+        configured = parse_slurm_adapter_mode(adapter_value)
+        guard = parse_slurm_adapter_rollback_guard(guard_value)
+        effective = resolve_effective_slurm_adapter_mode(configured, rollback_guard=guard)
+    except SlurmPolicyConfigError as exc:
+        return SlurmRealAdapterPreconditionCheck(
+            status="failed",
+            detail=f"real-adapter configuration invalid: {exc}",
+            adapter_configured=(adapter_value or "stub-policy"),
+            adapter_effective="unknown",
+            rollback_guard=(guard_value or "allow"),
+            probes={},
+            error="misconfigured",
+        )
+
+    if configured != "real-policy":
+        return SlurmRealAdapterPreconditionCheck(
+            status="skipped",
+            detail="slurm adapter is not configured as real-policy",
+            adapter_configured=configured,
+            adapter_effective=effective,
+            rollback_guard=guard,
+            probes={},
+        )
+
+    if effective != "real-policy":
+        return SlurmRealAdapterPreconditionCheck(
+            status="failed",
+            detail="real-policy configured but rollback guard forces fallback adapter",
+            adapter_configured=configured,
+            adapter_effective=effective,
+            rollback_guard=guard,
+            probes={},
+            error="rollback_guard_active",
+        )
+
+    probes: dict[str, CommandProbe] = {}
+    policy_probe = _policy_probe(policy_path_value)
+    probes["policy_file"] = policy_probe
+    if policy_probe.status == "failed":
+        return SlurmRealAdapterPreconditionCheck(
+            status="failed",
+            detail="real-policy precondition checks failed",
+            adapter_configured=configured,
+            adapter_effective=effective,
+            rollback_guard=guard,
+            probes=probes,
+            error=policy_probe.error,
+            failed_probe="policy_file",
+        )
+
+    for probe_name, command in (
+        ("scontrol_ping", ["scontrol", "ping"]),
+        ("sinfo", ["sinfo"]),
+    ):
+        probe = _run_command_probe(command=command)
+        probes[probe_name] = probe
+        if probe.status == "failed":
+            return SlurmRealAdapterPreconditionCheck(
+                status="failed",
+                detail="real-policy precondition checks failed",
+                adapter_configured=configured,
+                adapter_effective=effective,
+                rollback_guard=guard,
+                probes=probes,
+                error=probe.error,
+                failed_probe=probe_name,
+            )
+
+    return SlurmRealAdapterPreconditionCheck(
+        status="ok",
+        detail="real-policy precondition checks passed",
+        adapter_configured=configured,
+        adapter_effective=effective,
+        rollback_guard=guard,
         probes=probes,
     )
 

@@ -30,7 +30,7 @@ short-lived, and ownership boundaries remain explicit.
 
 Current internal boundary emits `SlurmAdapterBoundaryStub` with:
 
-- `adapter`: `"passthrough"` or `"stub-policy"`
+- `adapter`: `"passthrough"` or `"stub-policy"` (cutover adds `"real-policy"`)
 - `contract_version`: `slurm-adapter-boundary/v1`
 - `requested_queue`, `resolved_queue`, `used_fallback`
 - `mapping` (nullable) with:
@@ -88,6 +88,8 @@ Primary rollback controls:
 
 - `ZPE_SLURM_ADAPTER=stub-policy` (fallback to policy-backed stub path)
 - `ZPE_SLURM_ADAPTER=passthrough` (emergency-safe direct queue passthrough)
+- `ZPE_SLURM_ADAPTER_ROLLBACK_GUARD=force-stub-policy` (force fallback regardless of configured adapter)
+- `ZPE_SLURM_ADAPTER_ROLLBACK_GUARD=force-passthrough` (force passthrough regardless of configured adapter)
 
 Rollback rules:
 
@@ -113,6 +115,9 @@ At minimum, cutover and rollback telemetry should include:
 - `workspace_id` (when available)
 - `job_id` (when available)
 - `slurm_adapter`
+- `slurm_adapter_configured`
+- `slurm_adapter_effective`
+- `slurm_adapter_rollback_guard`
 - `slurm_contract_version`
 - `requested_queue_name`
 - `resolved_queue_name`

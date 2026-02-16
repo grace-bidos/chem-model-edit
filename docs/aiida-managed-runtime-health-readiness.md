@@ -20,6 +20,15 @@ Both endpoints include:
 - `checks.managed_aiida_runtime.detail`
 - `checks.user_managed_deep_readiness.status`: `ok | failed | skipped`
 - `checks.user_managed_deep_readiness.detail`
+- `checks.slurm_real_adapter_preconditions.status`: `ok | failed | skipped`
+- `checks.slurm_real_adapter_preconditions.detail`
+- `checks.slurm_real_adapter_preconditions.adapter_configured`
+- `checks.slurm_real_adapter_preconditions.adapter_effective`
+- `checks.slurm_real_adapter_preconditions.rollback_guard`
+- `checks.slurm_real_adapter_preconditions.probes`:
+  - `policy_file` (policy schema/path validation)
+  - `scontrol_ping`
+  - `sinfo`
 - `checks.user_managed_deep_readiness.probes` with per-command probe results:
   - `scontrol_ping` (`scontrol ping`)
   - `sinfo` (`sinfo`)
@@ -60,6 +69,15 @@ Deep readiness probe failures additionally report:
 - `AIIDA_PROFILE`
   - Optional profile name to verify in `verdi profile list`.
   - When set and missing from output, deep readiness fails with `misconfigured`.
+- `ZPE_SLURM_ADAPTER`
+  - `stub-policy | passthrough | real-policy` (default: `stub-policy`)
+  - `real-policy` enables strict precondition checks under `/api/ready`.
+- `ZPE_SLURM_ADAPTER_ROLLBACK_GUARD`
+  - `allow | force-stub-policy | force-passthrough` (default: `allow`)
+  - When forcing fallback while `ZPE_SLURM_ADAPTER=real-policy`, readiness fails with
+    `rollback_guard_active`.
+- `ZPE_SLURM_POLICY_PATH`
+  - Required for `real-policy` readiness checks.
 
 ## Quick Validation
 
