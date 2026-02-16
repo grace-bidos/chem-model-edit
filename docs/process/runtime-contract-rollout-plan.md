@@ -24,6 +24,13 @@ This document turns ADR-0004 and runtime contracts into merge-ready parallel del
 - Idempotency test coverage for changed boundary
 - Tenant boundary tests for changed boundary
 
+## Slurm boundary contract (stub phase)
+
+- Runtime queue resolution must use the internal Slurm adapter boundary contract (`slurm-adapter-boundary/v1`), not direct scheduler integration.
+- Safe default: when no policy path is configured, use passthrough queue behavior and keep API payloads unchanged.
+- Stub-policy mode may enrich runtime metadata (`partition`, `account`, `qos`, `max_walltime_minutes`) but must not change submit route/request schemas.
+- Adapter swaps after this phase must preserve boundary fields and semantics while replacing only internal adapter implementation.
+
 ## Contract and integration gate (AiiDA runtime path)
 
 - Contract-sensitive changes are blocked unless checked-in artifacts match runtime code.
