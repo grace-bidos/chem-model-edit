@@ -34,6 +34,7 @@ _DLQ = "zpe:dlq"
 _FAILURE_SUBMIT_PREFIX = "zpe:failure_submit:"
 _RESULT_SUBMIT_PREFIX = "zpe:result_submit:"
 _RELAY_DISPATCH_PREFIX = "zpe:convex:relay:dispatch:"
+_RELAY_LAST_SEQUENCE_PREFIX = "zpe:convex:relay:last_sequence:"
 _RELAY_SEQUENCE_FIELD = "relay_sequence"
 
 
@@ -81,6 +82,44 @@ def _coerce_non_empty(value: Any) -> str | None:
     return rendered or None
 
 
+def _read_last_dispatched_sequence(redis: Redis, job_id: str) -> int:
+    raw = cast(Optional[bytes], redis.get(f"{_RELAY_LAST_SEQUENCE_PREFIX}{job_id}"))
+    if not raw:
+        return 0
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _record_last_dispatched_sequence(
+    *,
+    redis: Redis,
+    job_id: str,
+    sequence: int,
+    ttl_seconds: int,
+) -> None:
+    last_sequence_key = f"{_RELAY_LAST_SEQUENCE_PREFIX}{job_id}"
+    for _ in range(3):
+        pipe = redis.pipeline()
+        pipe_any = cast(Any, pipe)
+        try:
+            pipe_any.watch(last_sequence_key)
+            current = cast(Optional[bytes], pipe.get(last_sequence_key))
+            current_sequence = int(current or 0)
+            if sequence <= current_sequence:
+                pipe.unwatch()
+                return
+            pipe.multi()
+            pipe.setex(last_sequence_key, ttl_seconds, sequence)
+            pipe.execute()
+            return
+        except WatchError:
+            continue
+        finally:
+            pipe.reset()
+
+
 def _dispatch_runtime_state_transition(
     *,
     redis: Redis,
@@ -91,6 +130,8 @@ def _dispatch_runtime_state_transition(
     ttl_seconds: int,
 ) -> None:
     if sequence <= 0:
+        return
+    if sequence <= _read_last_dispatched_sequence(redis, job_id):
         return
     dispatch_key = f"{_RELAY_DISPATCH_PREFIX}{job_id}:{sequence}"
     acquired = cast(
@@ -144,6 +185,13 @@ def _dispatch_runtime_state_transition(
             },
             exc_info=True,
         )
+        return
+    _record_last_dispatched_sequence(
+        redis=redis,
+        job_id=job_id,
+        sequence=sequence,
+        ttl_seconds=ttl_seconds,
+    )
 
 
 @dataclass

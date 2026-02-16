@@ -53,6 +53,8 @@ Defines the update contract emitted by FastAPI to Convex for product-facing proj
 
 - Monotonic order for user-visible state:
   - `queued -> running -> succeeded|failed`
+- Runtime relays must ignore delayed or out-of-order events whose sequence is not
+  greater than the last successfully dispatched sequence for that job.
 - Regressive updates with a new `projection_event_id` must be rejected with `409 invalid_projection_transition`.
 - Exact duplicate `projection_event_id` replays must be treated as idempotent no-op success.
 
