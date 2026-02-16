@@ -1,5 +1,16 @@
 # API Visualization
 
+## Testing
+
+API tests are executed with `pytest` profiles below.
+
+- `just api-test`: default full API test run (backward-compatible command)
+- `just api-test-fast`: local fast profile (`-n auto`, excludes `e2e/contract/slow/schemathesis`)
+- `just api-test-coverage`: coverage profile, generates HTML/XML reports
+- `just api-cov`: compatibility alias to `just api-test-coverage`
+- `pnpm nx test api --configuration=fast`: Nx fast profile
+- `pnpm nx test api --configuration=coverage`: Nx coverage profile
+
 バックエンドの仕様・構造可視化は次のレシピで生成する。
 
 - `just api-openapi-export`: OpenAPI JSON を更新

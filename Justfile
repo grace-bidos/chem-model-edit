@@ -86,6 +86,13 @@ api-test:
   uv run pytest
   popd >/dev/null
 
+api-test-fast:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pushd apps/api >/dev/null
+  uv run pytest -q -n auto -m "not e2e and not contract and not slow and not schemathesis"
+  popd >/dev/null
+
 api-ruff:
   #!/usr/bin/env bash
   set -euo pipefail
@@ -148,14 +155,19 @@ api-pyreverse:
   echo "generated: docs/graphs/api-classes.dot"
   echo "generated: docs/graphs/api-packages.dot"
 
-api-cov:
+api-test-coverage:
   #!/usr/bin/env bash
   set -euo pipefail
   pushd apps/api >/dev/null
-  uv run pytest --cov=app --cov=services --cov-report=term-missing --cov-report=html:htmlcov --cov-report=xml:coverage.xml
+  uv run pytest -m "not e2e and not schemathesis" --cov=app --cov=services --cov-report=term-missing --cov-report=html:htmlcov --cov-report=xml:coverage.xml
   popd >/dev/null
   echo "generated: apps/api/htmlcov/index.html"
   echo "generated: apps/api/coverage.xml"
+
+api-cov:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  just api-test-coverage
 
 web-format:
   #!/usr/bin/env bash

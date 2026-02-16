@@ -15,6 +15,14 @@
       "options": {
         "command": "uv run pytest",
         "cwd": "apps/api"
+      },
+      "configurations": {
+        "fast": {
+          "command": "uv run pytest -q -n auto -m \"not e2e and not contract and not slow and not schemathesis\""
+        },
+        "coverage": {
+          "command": "uv run pytest -m \"not e2e and not schemathesis\" --cov=app --cov=services --cov-report=term-missing --cov-report=html:htmlcov --cov-report=xml:coverage.xml"
+        }
       }
     },
     "lint": {

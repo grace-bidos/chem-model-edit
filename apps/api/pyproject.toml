@@ -22,7 +22,12 @@ dev = [
     "mypy>=1.19.1",
     "pylint>=3.3.9",
     "pytest>=9.0.2",
+    "pytest-asyncio>=1.2.0",
     "pytest-cov>=7.0.0",
+    "pytest-mock>=3.15.1",
+    "pytest-sugar>=1.1.1",
+    "time-machine>=2.16.0",
+    "pytest-xdist>=3.8.0",
     "ruff>=0.14.10",
     "schemathesis>=3.30.0",
 ]
@@ -31,6 +36,13 @@ aiida = [
 ]
 
 [tool.pytest.ini_options]
+addopts = "-ra --strict-markers --strict-config --tb=short --durations=10"
+testpaths = ["tests"]
+xfail_strict = true
+asyncio_mode = "auto"
 markers = [
     "e2e: end-to-end tests that require external dependencies (QE, pseudopotentials)",
+    "contract: API contract validation tests",
+    "slow: long-running tests",
+    "schemathesis: schema-based API fuzzing tests",
 ]
