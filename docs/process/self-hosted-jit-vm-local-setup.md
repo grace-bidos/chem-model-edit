@@ -73,7 +73,7 @@ The following requires your action:
 - local health check command reports `0` when service/GitHub status align
   - `scripts/runner/check_local_runner_health.sh --owner <owner> --repo <repo>`
 - local recovery command supports dry-run and reconfigure/restart flow
-  - `scripts/runner/recover_base_runner.sh --dry-run`
+  - `RUNNER_OWNER=<owner> RUNNER_REPO=<repo> RUNNER_LABELS=<labels> RUNNER_GROUP=<group> scripts/runner/recover_base_runner.sh --dry-run`
 - local supervisor command supports dry-run before enabling
   - `scripts/runner/setup_pool_supervisor_one_command.sh --dry-run`
 

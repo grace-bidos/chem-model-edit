@@ -77,15 +77,15 @@ if [[ ! -x "${recover_script}" ]]; then
   exit 1
 fi
 
+export GH_TOKEN
+export RUNNER_OWNER="${owner}"
+export RUNNER_REPO="${repo}"
+export RUNNER_LABELS="${labels}"
+export RUNNER_GROUP="${runner_group}"
+export RUNNER_NAME="${runner_name}"
+export RUNNER_SERVICE_USER="${service_user}"
+
 cmd=(
-  env
-  "GH_TOKEN=${GH_TOKEN}"
-  "RUNNER_OWNER=${owner}"
-  "RUNNER_REPO=${repo}"
-  "RUNNER_LABELS=${labels}"
-  "RUNNER_GROUP=${runner_group}"
-  "RUNNER_NAME=${runner_name}"
-  "RUNNER_SERVICE_USER=${service_user}"
   "${recover_script}"
   "--runner-home" "${runner_home}"
 )

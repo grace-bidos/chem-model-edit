@@ -82,7 +82,7 @@ run_privileged() {
 
 owner=""
 repo=""
-runner_home="/opt/actions-runner"
+runner_home="/opt/actions-runner/actions-runner"
 repo_url=""
 runner_name=""
 work_folder=""

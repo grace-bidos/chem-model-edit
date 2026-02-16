@@ -222,7 +222,20 @@ if [[ "$strict_gh" -eq 1 ]]; then
       echo "DEGRADED: GitHub runner '${gh_online}' is online but no local active actions.runner.* service was found."
       degraded=1
     fi
-  done < <(jq -r '.runners[] | select(.status == "online") | .name' <<<"$gh_json")
+  done < <(jq -r --argjson required "$labels_json" '
+    def lc: ascii_downcase;
+    .runners[]
+    | select(.status == "online")
+    | select(
+        ($required | length) == 0
+        or (
+          (.labels | map(.name | lc)) as $have
+          | ($required | map(lc)) as $need
+          | ($need - $have | length) == 0
+        )
+      )
+    | .name
+  ' <<<"$gh_json")
 fi
 
 if [[ "$degraded" -eq 0 ]]; then
