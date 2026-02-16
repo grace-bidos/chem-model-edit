@@ -55,7 +55,7 @@ function Invoke-Bringup {
     }
 
     if (-not (Test-Path -LiteralPath $VhdPath)) {
-      New-VHD -Path $VhdPath -Dynamic -SizeBytes (${DiskGb}GB) | Out-Null
+      New-VHD -Path $VhdPath -Dynamic -SizeBytes ($DiskGb * 1GB) | Out-Null
       Write-Host "Created VHD: $VhdPath"
     }
     else {
@@ -65,7 +65,7 @@ function Invoke-Bringup {
     New-VM `
       -Name $VmName `
       -Generation 2 `
-      -MemoryStartupBytes (${MemoryGb}GB) `
+      -MemoryStartupBytes ($MemoryGb * 1GB) `
       -VHDPath $VhdPath `
       -SwitchName $SwitchName | Out-Null
 
