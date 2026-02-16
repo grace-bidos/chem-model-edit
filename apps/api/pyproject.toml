@@ -65,3 +65,4 @@ database = ".hypothesis/examples"
 deadline = 500
 max_examples = 80
 print_blob = true
+derandomize = true

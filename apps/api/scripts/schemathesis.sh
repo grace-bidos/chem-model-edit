@@ -18,12 +18,24 @@ fi
 BASE_URL="http://${HOST}:${PORT}"
 SCHEMA_URL="${BASE_URL}/api/openapi.json"
 MODE="${SCHEMATHESIS_MODE:-smoke}"
-CHECKS="${SCHEMATHESIS_CHECKS:-not_a_server_error}"
-MAX_EXAMPLES="${SCHEMATHESIS_MAX_EXAMPLES:-30}"
+SMOKE_CHECKS="not_a_server_error,content_type_conformance,response_headers_conformance"
+BROAD_CHECKS="not_a_server_error,status_code_conformance,content_type_conformance,response_headers_conformance,response_schema_conformance,negative_data_rejection"
+if [ "${MODE}" = "broad" ]; then
+  DEFAULT_CHECKS="${BROAD_CHECKS}"
+  DEFAULT_MAX_EXAMPLES=30
+else
+  DEFAULT_CHECKS="${SMOKE_CHECKS}"
+  DEFAULT_MAX_EXAMPLES=8
+fi
+CHECKS="${SCHEMATHESIS_CHECKS:-${DEFAULT_CHECKS}}"
+MAX_EXAMPLES="${SCHEMATHESIS_MAX_EXAMPLES:-${DEFAULT_MAX_EXAMPLES}}"
 MAX_FAILURES="${SCHEMATHESIS_MAX_FAILURES:-5}"
 SEED="${SCHEMATHESIS_SEED:-137}"
 TENANT_ID="${SCHEMATHESIS_TENANT_ID:-tenant-dev}"
 AUTH_TOKEN="${SCHEMATHESIS_AUTH_TOKEN:-}"
+DETERMINISTIC="${SCHEMATHESIS_DETERMINISTIC:-1}"
+GEN_DB="${SCHEMATHESIS_GENERATION_DB:-.schemathesis/examples.db}"
+REPORT_DIR="${SCHEMATHESIS_REPORT_DIR:-schemathesis-report/${MODE}}"
 
 uvicorn main:app --host "${HOST}" --port "${PORT}" --log-level warning &
 server_pid=$!
@@ -85,6 +97,19 @@ cmd=(
   --header "x-tenant-id: ${TENANT_ID}"
 )
 
+if [ "${DETERMINISTIC}" = "1" ]; then
+  cmd+=(--generation-deterministic)
+  effective_gen_db="disabled"
+else
+  cmd+=(--generation-database "${GEN_DB}")
+  effective_gen_db="${GEN_DB}"
+fi
+
+if [ -n "${SCHEMATHESIS_REPORTS:-}" ]; then
+  cmd+=(--report "${SCHEMATHESIS_REPORTS}")
+  cmd+=(--report-dir "${REPORT_DIR}")
+fi
+
 if [ -n "${AUTH_TOKEN}" ]; then
   cmd+=(--header "authorization: Bearer ${AUTH_TOKEN}")
 fi
@@ -95,5 +120,7 @@ if [ -n "${SCHEMATHESIS_EXTRA_ARGS:-}" ]; then
   cmd+=("${extra_args[@]}")
 fi
 
-echo "Schemathesis mode=${MODE} include=${INCLUDE_REGEX} seed=${SEED}"
+schemathesis_version="$(schemathesis --version | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | sed 's/[[:space:]]$//')"
+echo "Schemathesis mode=${MODE} include=${INCLUDE_REGEX} checks=${CHECKS} seed=${SEED} max_examples=${MAX_EXAMPLES} max_failures=${MAX_FAILURES} deterministic=${DETERMINISTIC} generation_db=${effective_gen_db} reports=${SCHEMATHESIS_REPORTS:-none} report_dir=${REPORT_DIR} tenant=${TENANT_ID} auth_header=$([ -n "${AUTH_TOKEN}" ] && echo present || echo absent) version=${schemathesis_version}"
+echo "Schemathesis command: ${cmd[*]}"
 "${cmd[@]}"
