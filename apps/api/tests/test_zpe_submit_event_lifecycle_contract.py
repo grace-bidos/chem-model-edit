@@ -76,3 +76,107 @@ def test_management_node_payload_examples_validate_against_contract_models() -> 
 
     assert result.tenant_id == "tenant-contract"
     assert failed.error_code == "ERR_RUNTIME"
+
+
+def test_result_request_normalizes_aiida_runtime_execution_event_shape() -> None:
+    payload: dict[str, Any] = {
+        "tenant_id": "tenant-contract",
+        "lease_id": "lease-123",
+        "result": {"calc_type": "qe.zpe.v1", "zpe_ev": 0.12},
+        "summary_text": "ok",
+        "freqs_csv": "frequency_cm^-1,intensity\\n100,1.0",
+        "execution_event": {
+            "eventId": "evt-1",
+            "tenantId": "tenant-contract",
+            "workspaceId": "workspace-1",
+            "jobId": "job-1",
+            "submissionId": "submission-1",
+            "executionId": "exec-1",
+            "status": "SUCCEEDED",
+            "timestamp": "2026-01-01T00:00:00+00:00",
+            "traceId": "trace-1",
+            "statusDetail": "done",
+            "schedulerRef": {
+                "slurmJobId": "12345",
+                "partition": "short",
+                "qos": "normal",
+            },
+            "resultRef": {
+                "outputUri": "zpe://jobs/job-1/result",
+                "metadataUri": "zpe://jobs/job-1/files/summary",
+            },
+        },
+    }
+
+    normalized = ComputeResultRequest(**payload)
+    assert normalized.execution_event is not None
+    assert normalized.execution_event.event_id == "evt-1"
+    assert normalized.execution_event.state == "completed"
+    assert normalized.execution_event.occurred_at == "2026-01-01T00:00:00+00:00"
+    assert normalized.execution_event.trace_id == "trace-1"
+    assert normalized.execution_event.scheduler_ref is not None
+    assert normalized.execution_event.scheduler_ref.slurm_job_id == "12345"
+    assert normalized.execution_event.result_ref.output_uri == "zpe://jobs/job-1/result"
+
+
+def test_failed_request_normalizes_aiida_runtime_execution_event_shape() -> None:
+    payload: dict[str, Any] = {
+        "tenant_id": "tenant-contract",
+        "lease_id": "lease-123",
+        "error_code": "COMPUTE_ERROR",
+        "error_message": "boom",
+        "execution_event": {
+            "eventId": "evt-2",
+            "tenantId": "tenant-contract",
+            "workspaceId": "workspace-1",
+            "jobId": "job-1",
+            "submissionId": "submission-1",
+            "executionId": "exec-1",
+            "status": "ERROR",
+            "occurredAt": "2026-01-01T00:00:01+00:00",
+            "traceId": "trace-2",
+            "errorInfo": {
+                "errorCode": "COMPUTE_ERROR",
+                "errorMessage": "boom",
+                "retriable": True,
+            },
+        },
+    }
+
+    normalized = ComputeFailedRequest(**payload)
+    assert normalized.execution_event is not None
+    assert normalized.execution_event.event_id == "evt-2"
+    assert normalized.execution_event.state == "failed"
+    assert normalized.execution_event.occurred_at == "2026-01-01T00:00:01+00:00"
+    assert normalized.execution_event.error.code == "COMPUTE_ERROR"
+    assert normalized.execution_event.error.message == "boom"
+    assert normalized.execution_event.error.retryable is True
+
+
+def test_failed_request_accepts_top_level_error_aliases() -> None:
+    payload: dict[str, Any] = {
+        "tenant_id": "tenant-contract",
+        "lease_id": "lease-123",
+        "errorCode": "COMPUTE_ERROR",
+        "errorMessage": "boom",
+        "retryable": True,
+        "execution_event": {
+            "eventId": "evt-3",
+            "tenantId": "tenant-contract",
+            "workspaceId": "workspace-1",
+            "jobId": "job-1",
+            "submissionId": "submission-1",
+            "executionId": "exec-1",
+            "status": "ERROR",
+            "occurredAt": "2026-01-01T00:00:02+00:00",
+            "traceId": "trace-3",
+        },
+    }
+
+    normalized = ComputeFailedRequest(**payload)
+    assert normalized.error_code == "COMPUTE_ERROR"
+    assert normalized.error_message == "boom"
+    assert normalized.execution_event is not None
+    assert normalized.execution_event.error.code == "COMPUTE_ERROR"
+    assert normalized.execution_event.error.message == "boom"
+    assert normalized.execution_event.error.retryable is True
