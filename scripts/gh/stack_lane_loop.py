@@ -15,14 +15,16 @@ import sys
 from pathlib import Path
 
 
-def run(cmd: list[str], dry_run: bool) -> None:
+def run(cmd: list[str], dry_run: bool, allowed_exit_codes: set[int] | None = None) -> int:
     printable = " ".join(shlex.quote(part) for part in cmd)
     print(f"$ {printable}")
     if dry_run:
-        return
+        return 0
     proc = subprocess.run(cmd, check=False)
-    if proc.returncode != 0:
+    allowed = allowed_exit_codes or set()
+    if proc.returncode != 0 and proc.returncode not in allowed:
         raise RuntimeError(f"command failed ({proc.returncode}): {printable}")
+    return proc.returncode
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -97,12 +99,6 @@ def main() -> int:
     pr_autoloop = script_dir / "pr-autoloop.py"
 
     try:
-        if args.gt_sync:
-            run(["gt", "sync"], dry_run=args.dry_run)
-
-        if not args.skip_summary:
-            run([str(pr_readiness), args.pr], dry_run=args.dry_run)
-
         autoloop_needed = (
             args.watch
             or args.merge_when_ready
@@ -112,6 +108,14 @@ def main() -> int:
             or args.max_wait != 0
             or args.merge_method != "merge"
         )
+
+        if args.gt_sync:
+            run(["gt", "sync"], dry_run=args.dry_run)
+
+        if not args.skip_summary:
+            allowed = {2} if autoloop_needed else None
+            run([str(pr_readiness), args.pr], dry_run=args.dry_run, allowed_exit_codes=allowed)
+
         if autoloop_needed:
             cmd = [str(pr_autoloop), args.pr]
             if args.watch:
