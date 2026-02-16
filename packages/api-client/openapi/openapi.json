@@ -47,6 +47,10 @@
             "title": "Lease Id",
             "type": "string"
           },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          },
           "traceback": {
             "anyOf": [
               {
@@ -60,6 +64,7 @@
           }
         },
         "required": [
+          "tenant_id",
           "lease_id",
           "error_code",
           "error_message"
@@ -241,9 +246,14 @@
           "summary_text": {
             "title": "Summary Text",
             "type": "string"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
           }
         },
         "required": [
+          "tenant_id",
           "lease_id",
           "result",
           "summary_text",

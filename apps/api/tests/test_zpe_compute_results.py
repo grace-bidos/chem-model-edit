@@ -209,3 +209,31 @@ def test_submit_failure_rejects_transition_from_finished(monkeypatch):
             error_code="ERR",
             error_message="boom",
         )
+
+
+def test_submit_result_rejects_transition_from_failed(monkeypatch):
+    fake, _dispatcher = _patch(monkeypatch)
+    job_id = "job-failed"
+    lease_id = "lease-failed"
+    fake.hset(
+        f"zpe:status:{job_id}",
+        mapping={
+            "status": "failed",
+            "detail": "boom",
+            "updated_at": "2026-01-01T00:00:00+00:00",
+        },
+    )
+    fake.hset(
+        f"zpe:lease:{job_id}",
+        mapping={"worker_id": "worker-1", "lease_id": lease_id, "expires_at": "x"},
+    )
+
+    with pytest.raises(ValueError, match="invalid job state transition"):
+        zpe_results.submit_result(
+            job_id=job_id,
+            worker_id="worker-1",
+            lease_id=lease_id,
+            result={"zpe_ev": 0.1},
+            summary_text="summary",
+            freqs_csv="freqs",
+        )

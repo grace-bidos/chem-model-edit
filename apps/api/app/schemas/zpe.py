@@ -130,6 +130,7 @@ class ComputeLeaseResponse(ApiModel):
 
 
 class ComputeResultRequest(ApiModel):
+    tenant_id: str
     lease_id: str
     result: Dict[str, Any]
     summary_text: str
@@ -143,6 +144,7 @@ class ComputeResultResponse(ApiModel):
 
 
 class ComputeFailedRequest(ApiModel):
+    tenant_id: str
     lease_id: str
     error_code: str
     error_message: str
