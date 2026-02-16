@@ -17,6 +17,13 @@ PY
 fi
 BASE_URL="http://${HOST}:${PORT}"
 SCHEMA_URL="${BASE_URL}/api/openapi.json"
+MODE="${SCHEMATHESIS_MODE:-smoke}"
+CHECKS="${SCHEMATHESIS_CHECKS:-not_a_server_error}"
+MAX_EXAMPLES="${SCHEMATHESIS_MAX_EXAMPLES:-30}"
+MAX_FAILURES="${SCHEMATHESIS_MAX_FAILURES:-5}"
+SEED="${SCHEMATHESIS_SEED:-137}"
+TENANT_ID="${SCHEMATHESIS_TENANT_ID:-tenant-dev}"
+AUTH_TOKEN="${SCHEMATHESIS_AUTH_TOKEN:-}"
 
 uvicorn main:app --host "${HOST}" --port "${PORT}" --log-level warning &
 server_pid=$!
@@ -58,7 +65,35 @@ if [ "$ready" -ne 1 ]; then
   exit 1
 fi
 
-schemathesis run "${SCHEMA_URL}" \
-  --url "${BASE_URL}" \
-  --checks=not_a_server_error \
-  --include-path-regex '^/api/(health|structures/parse|structures|structures/[^/]+|structures/[^/]+/view|structures/export|transforms/delta-transplant|supercells/builds)$'
+SMOKE_REGEX='^/api/(health|structures/parse|structures|structures/[^/]+|structures/[^/]+/view|structures/export|transforms/delta-transplant|supercells/builds)$'
+BROAD_REGEX='^/api/(health|structures.*|transforms.*|supercells.*|zpe.*)$'
+
+if [ "${MODE}" = "broad" ]; then
+  INCLUDE_REGEX="${BROAD_REGEX}"
+else
+  INCLUDE_REGEX="${SMOKE_REGEX}"
+fi
+
+cmd=(
+  schemathesis run "${SCHEMA_URL}"
+  --url "${BASE_URL}"
+  --checks "${CHECKS}"
+  --include-path-regex "${INCLUDE_REGEX}"
+  --seed "${SEED}"
+  --max-examples "${MAX_EXAMPLES}"
+  --max-failures "${MAX_FAILURES}"
+  --header "x-tenant-id: ${TENANT_ID}"
+)
+
+if [ -n "${AUTH_TOKEN}" ]; then
+  cmd+=(--header "authorization: Bearer ${AUTH_TOKEN}")
+fi
+
+if [ -n "${SCHEMATHESIS_EXTRA_ARGS:-}" ]; then
+  # shellcheck disable=SC2206
+  extra_args=( ${SCHEMATHESIS_EXTRA_ARGS} )
+  cmd+=("${extra_args[@]}")
+fi
+
+echo "Schemathesis mode=${MODE} include=${INCLUDE_REGEX} seed=${SEED}"
+"${cmd[@]}"

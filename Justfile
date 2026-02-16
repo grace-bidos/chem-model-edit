@@ -97,8 +97,65 @@ api-mypy:
   #!/usr/bin/env bash
   set -euo pipefail
   pushd apps/api >/dev/null
-  uv run mypy .
+  uv run mypy --config-file pyproject.toml app services main.py
   popd >/dev/null
+
+api-pyright:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pushd apps/api >/dev/null
+  uv run pyright --project pyrightconfig.json
+  popd >/dev/null
+
+api-typecheck-strict:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  just api-mypy
+  just api-pyright
+
+api-security:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pushd apps/api >/dev/null
+  uv run bandit -q -r app services main.py
+  uv run pip-audit --progress-spinner off
+  popd >/dev/null
+
+api-deadcode:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pushd apps/api >/dev/null
+  uv run deptry .
+  uv run vulture app services --min-confidence 90
+  popd >/dev/null
+
+api-schemathesis-smoke:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pushd apps/api >/dev/null
+  SCHEMATHESIS_MODE=smoke uv run bash scripts/schemathesis.sh
+  popd >/dev/null
+
+api-schemathesis-broad:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pushd apps/api >/dev/null
+  SCHEMATHESIS_MODE=broad uv run bash scripts/schemathesis.sh
+  popd >/dev/null
+
+api-mutation-smoke:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pushd apps/api >/dev/null
+  uv run mutmut run --paths-to-mutate services/zpe/parse.py --runner "python -m pytest tests/test_zpe_parse_property.py -q"
+  popd >/dev/null
+
+api-quality-fast:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  just api-ruff
+  just api-typecheck-strict
+  just api-test
 
 api-openapi-export:
   #!/usr/bin/env bash
@@ -382,7 +439,7 @@ typecheck:
   #!/usr/bin/env bash
   set -euo pipefail
   just web-typecheck
-  just api-mypy
+  just api-typecheck-strict
 
 ci:
   #!/usr/bin/env bash

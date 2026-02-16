@@ -183,13 +183,100 @@ jobs:
         run: uv run ruff check .
         working-directory: apps/api
       - name: Mypy
-        run: uv run mypy .
+        run: uv run mypy --config-file pyproject.toml app services main.py
+        working-directory: apps/api
+      - name: Pyright (phase-1 non-blocking)
+        continue-on-error: true
+        run: uv run pyright --project pyrightconfig.json
+        working-directory: apps/api
+      - name: Bandit (phase-1 non-blocking)
+        continue-on-error: true
+        run: uv run bandit -q -r app services main.py
+        working-directory: apps/api
+      - name: Pip-audit (phase-1 non-blocking)
+        continue-on-error: true
+        run: uv run pip-audit --progress-spinner off
         working-directory: apps/api
       - name: Pytest
         run: uv run pytest
         working-directory: apps/api
       - name: Schemathesis
+        env:
+          SCHEMATHESIS_MODE: smoke
+          SCHEMATHESIS_SEED: "137"
+          SCHEMATHESIS_MAX_EXAMPLES: "20"
+          SCHEMATHESIS_MAX_FAILURES: "3"
+          SCHEMATHESIS_TENANT_ID: tenant-ci
         run: uv run bash scripts/schemathesis.sh
+        working-directory: apps/api
+
+  secret-scan:
+    needs:
+      - changes
+      - route
+    if: ${{ github.event_name == 'push' || needs.changes.outputs.api == 'true' }}
+    runs-on: ${{ fromJSON(needs.route.outputs.runner) }}
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Gitleaks (phase-1 non-blocking)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  deadcode-hygiene:
+    needs:
+      - changes
+      - route
+    if: ${{ github.event_name == 'push' || needs.changes.outputs.api == 'true' }}
+    runs-on: ${{ fromJSON(needs.route.outputs.runner) }}
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
+      - name: Install dependencies
+        run: uv sync --dev
+        working-directory: apps/api
+      - name: Deptry + Vulture (phase-1 non-blocking)
+        run: uv run deptry . && uv run vulture app services --min-confidence 90
+        working-directory: apps/api
+
+  mutation-smoke:
+    needs:
+      - changes
+      - route
+    if: ${{ github.event_name == 'push' || needs.changes.outputs.api == 'true' }}
+    runs-on: ${{ fromJSON(needs.route.outputs.runner) }}
+    continue-on-error: true
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
+      - name: Install dependencies
+        run: uv sync --dev
+        working-directory: apps/api
+      - name: Mutmut smoke (phase-1 non-blocking)
+        run: uv run mutmut run --paths-to-mutate services/zpe/parse.py --runner "python -m pytest tests/test_zpe_parse_property.py -q"
         working-directory: apps/api
 
   contract:

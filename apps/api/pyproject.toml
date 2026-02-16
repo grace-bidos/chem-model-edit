@@ -17,14 +17,21 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "bandit>=1.8.6",
+    "deptry>=0.23.1",
     "fakeredis>=2.29.0",
+    "hypothesis>=6.151.4",
     "httpx>=0.28.1",
     "mypy>=1.19.1",
+    "mutmut>=3.3.1",
+    "pip-audit>=2.9.0",
+    "pyright>=1.1.405",
     "pylint>=3.3.9",
     "pytest>=9.0.2",
     "pytest-cov>=7.0.0",
     "ruff>=0.14.10",
     "schemathesis>=3.30.0",
+    "vulture>=2.14",
 ]
 aiida = [
     "aiida-core>=2.7.3",
@@ -34,3 +41,43 @@ aiida = [
 markers = [
     "e2e: end-to-end tests that require external dependencies (QE, pseudopotentials)",
 ]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+plugins = ["pydantic.mypy"]
+warn_unused_ignores = true
+warn_redundant_casts = true
+exclude = [
+    "htmlcov",
+]
+
+[[tool.mypy.overrides]]
+module = ["services.zpe.settings"]
+disable_error_code = ["unused-ignore"]
+
+[[tool.mypy.overrides]]
+module = ["services.zpe.submit_idempotency"]
+disable_error_code = ["no-untyped-call"]
+
+[[tool.mypy.overrides]]
+module = ["services.zpe.compute_results"]
+disable_error_code = ["redundant-cast"]
+
+[[tool.mypy.overrides]]
+module = ["services.aiida_runtime_checks"]
+disable_error_code = ["unused-ignore"]
+
+[[tool.mypy.overrides]]
+module = ["services.zpe.ops_flags", "services.zpe.job_owner"]
+disable_error_code = ["redundant-cast"]
+
+[tool.pydantic-mypy]
+init_typed = true
+warn_untyped_fields = true
+
+[tool.hypothesis]
+database = ".hypothesis/examples"
+deadline = 500
+max_examples = 80
+print_blob = true
