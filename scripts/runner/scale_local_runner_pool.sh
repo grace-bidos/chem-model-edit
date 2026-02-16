@@ -60,12 +60,18 @@ run_cmd() {
 }
 
 run_sudo() {
-  if [[ "${EUID}" -eq 0 ]]; then
-    run_cmd "$@"
-    return 0
-  fi
   if [[ "$DRY_RUN" == "true" ]]; then
     echo "[dry-run] sudo $*"
+    return 0
+  fi
+  if [[ "${EUID}" -eq 0 ]]; then
+    if [[ "${1:-}" == "-u" ]]; then
+      local target_user="$2"
+      shift 2
+      runuser -u "$target_user" -- "$@"
+      return 0
+    fi
+    "$@"
     return 0
   fi
   sudo "$@"
@@ -281,6 +287,8 @@ if [[ "${EUID}" -ne 0 ]]; then
     echo "sudo auth is required. Run: sudo -v" >&2
     exit 1
   fi
+else
+  require_cmd runuser
 fi
 
 echo "Scaling runner pool for ${REPO}"
