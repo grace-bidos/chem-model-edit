@@ -77,6 +77,24 @@ run_privileged() {
   sudo "$@"
 }
 
+run_as_runner_user() {
+  if [[ "$dry_run" -eq 1 ]]; then
+    if [[ "$(id -un)" == "$runner_service_user" ]]; then
+      echo "[dry-run] $*"
+    else
+      echo "[dry-run] sudo -u ${runner_service_user} $*"
+    fi
+    return 0
+  fi
+
+  if [[ "$(id -un)" == "$runner_service_user" ]]; then
+    "$@"
+    return 0
+  fi
+
+  sudo -u "$runner_service_user" "$@"
+}
+
 if [[ ! -d "$runner_home" ]]; then
   echo "Runner home not found: $runner_home" >&2
   exit 1
@@ -137,9 +155,9 @@ run_privileged ./svc.sh stop || true
 run_privileged ./svc.sh uninstall || true
 
 # Best effort removal because local config may already be partially broken.
-run_cmd ./config.sh remove --unattended --token "$remove_token" || true
+run_as_runner_user ./config.sh remove --unattended --token "$remove_token" || true
 
-run_cmd ./config.sh \
+run_as_runner_user ./config.sh \
   --url "https://github.com/${repo_slug}" \
   --token "$registration_token" \
   --name "$runner_name" \
