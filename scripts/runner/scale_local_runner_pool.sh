@@ -139,6 +139,12 @@ configure_runner() {
     fi
   fi
 
+  # Clean up stale service state before reconfiguration.
+  if [[ -f "${dir}/.service" && -x "${dir}/svc.sh" ]]; then
+    run_sudo bash -lc "cd '${dir}' && ./svc.sh stop || true"
+    run_sudo bash -lc "cd '${dir}' && ./svc.sh uninstall || true"
+  fi
+
   run_sudo -u "$RUNNER_USER" bash -lc "
     set -euo pipefail
     cd '${dir}'
