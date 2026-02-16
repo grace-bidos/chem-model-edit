@@ -13,6 +13,7 @@ This note defines what we should verify without a real Slurm cluster vs what mus
 | Check area | Tier | Why this tier | Concrete repo command examples |
 | --- | --- | --- | --- |
 | Slurm queue policy contract and fallback semantics (`route-default` / `deny`) | Tier-1 | Pure Python/JSON validation; no scheduler RPC | `uv run pytest apps/api/tests/test_zpe_slurm_policy.py` |
+| Real-adapter precondition readiness contract (`real-policy`, rollback guard, policy-file validation) | Tier-1 | FastAPI readiness semantics and adapter-mode gating can be validated without running full scheduler stack | `uv run pytest apps/api/tests/test_health_api.py -k real_adapter` |
 | BYO onboarding schema and queue-resolution CLI contract | Tier-1 | Script + fixtures only; no real `sinfo`/`sbatch` invocation | `uv run pytest apps/api/tests/test_validate_slurm_onboarding.py`<br>`python3 scripts/validate-slurm-onboarding.py --policy apps/api/config/slurm/onboarding.policy.example.json --registration apps/api/config/slurm/node-registration.example.json --requested-queue standard` |
 | HTTP worker payload compatibility carrying Slurm metadata fields (`slurm_job_id`, partition, qos) | Tier-1 | Local HTTP server + mock worker mode; validates API contract, not scheduler behavior | `uv run pytest apps/api/tests/test_zpe_http_worker_integration.py` |
 | Queue/target and enqueue path behavior (`fakeredis`) | Tier-1 | Redis mocked; no Slurm runtime dependency | `uv run pytest apps/api/tests/test_zpe_http_queue.py apps/api/tests/test_zpe_queue_targets.py` |

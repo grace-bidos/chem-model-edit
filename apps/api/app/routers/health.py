@@ -6,6 +6,7 @@ from fastapi import APIRouter, Response, status
 
 from services.aiida_runtime_checks import (
     probe_managed_aiida_runtime,
+    probe_slurm_real_adapter_preconditions,
     probe_user_managed_deep_readiness,
 )
 
@@ -16,10 +17,12 @@ router = APIRouter(prefix="/api", tags=["health"])
 def health() -> dict[str, Any]:
     aiida_check = probe_managed_aiida_runtime(check_kind="health")
     deep_readiness_check = probe_user_managed_deep_readiness(check_kind="health")
+    real_adapter_check = probe_slurm_real_adapter_preconditions(check_kind="health")
     overall = (
         "ok"
         if aiida_check.status in {"ok", "skipped"}
         and deep_readiness_check.status in {"ok", "skipped"}
+        and real_adapter_check.status in {"ok", "skipped"}
         else "degraded"
     )
     return {
@@ -27,6 +30,7 @@ def health() -> dict[str, Any]:
         "checks": {
             "managed_aiida_runtime": aiida_check.as_dict(),
             "user_managed_deep_readiness": deep_readiness_check.as_dict(),
+            "slurm_real_adapter_preconditions": real_adapter_check.as_dict(),
         },
     }
 
@@ -35,9 +39,11 @@ def health() -> dict[str, Any]:
 def ready(response: Response) -> dict[str, Any]:
     aiida_check = probe_managed_aiida_runtime(check_kind="ready")
     deep_readiness_check = probe_user_managed_deep_readiness(check_kind="ready")
+    real_adapter_check = probe_slurm_real_adapter_preconditions(check_kind="ready")
     is_ready = (
         aiida_check.status in {"ok", "skipped"}
         and deep_readiness_check.status in {"ok", "skipped"}
+        and real_adapter_check.status in {"ok", "skipped"}
     )
     if not is_ready:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
@@ -46,5 +52,6 @@ def ready(response: Response) -> dict[str, Any]:
         "checks": {
             "managed_aiida_runtime": aiida_check.as_dict(),
             "user_managed_deep_readiness": deep_readiness_check.as_dict(),
+            "slurm_real_adapter_preconditions": real_adapter_check.as_dict(),
         },
     }

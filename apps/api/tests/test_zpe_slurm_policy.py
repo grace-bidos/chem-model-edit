@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import subprocess
 
 import pytest
 
@@ -9,8 +10,13 @@ from services.zpe.slurm_policy import (
     SLURM_ADAPTER_CONTRACT_VERSION,
     SlurmPolicyConfigError,
     SlurmPolicyDeniedError,
+    parse_slurm_adapter_mode,
+    parse_slurm_adapter_rollback_guard,
+    resolve_effective_slurm_adapter_mode,
+    resolve_slurm_adapter_real,
     resolve_slurm_adapter_stub,
     resolve_runtime_slurm_queue,
+    validate_slurm_policy_file,
 )
 
 
@@ -113,3 +119,76 @@ def test_resolve_slurm_adapter_stub_uses_policy_when_present(tmp_path: Path) -> 
     assert resolution.used_fallback is True
     assert resolution.mapping is not None
     assert resolution.mapping.partition == "short"
+
+
+def test_resolve_slurm_adapter_real_uses_policy_when_present(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    policy_path = tmp_path / "policy.json"
+    _write_policy(policy_path, fallback_mode="route-default")
+    monkeypatch.setattr(
+        "services.zpe.slurm_policy.subprocess.run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args=["scontrol", "ping"], returncode=0, stdout="ok", stderr=""
+        ),
+    )
+
+    resolution = resolve_slurm_adapter_real("legacy", policy_path=policy_path)
+
+    assert resolution.adapter == "real-policy"
+    assert resolution.contract_version == SLURM_ADAPTER_CONTRACT_VERSION
+    assert resolution.requested_queue == "legacy"
+    assert resolution.resolved_queue == "standard"
+    assert resolution.used_fallback is True
+    assert resolution.mapping is not None
+    assert resolution.mapping.partition == "short"
+
+
+def test_parse_slurm_adapter_mode_and_guard_defaults() -> None:
+    assert parse_slurm_adapter_mode(None) == "stub-policy"
+    assert parse_slurm_adapter_mode("real-policy") == "real-policy"
+    assert parse_slurm_adapter_rollback_guard(None) == "allow"
+    assert parse_slurm_adapter_rollback_guard("force-passthrough") == "force-passthrough"
+
+
+def test_resolve_effective_slurm_adapter_mode_uses_guard_override() -> None:
+    assert (
+        resolve_effective_slurm_adapter_mode(
+            "real-policy",
+            rollback_guard="force-stub-policy",
+        )
+        == "stub-policy"
+    )
+
+
+def test_validate_slurm_policy_file_rejects_invalid_route_default_fallback(
+    tmp_path: Path,
+) -> None:
+    policy_path = tmp_path / "policy.json"
+    policy_path.write_text(
+        json.dumps(
+            {
+                "queue_mappings": [
+                    {
+                        "queue": "standard",
+                        "partition": "short",
+                        "account": "chem-default",
+                        "qos": "normal",
+                        "max_walltime_minutes": 120,
+                    }
+                ],
+                "fallback_policy": {"mode": "route-default", "default_queue": "legacy"},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(SlurmPolicyConfigError):
+        validate_slurm_policy_file(policy_path=policy_path)
+
+
+def test_validate_slurm_policy_file_accepts_deny_fallback(tmp_path: Path) -> None:
+    policy_path = tmp_path / "policy.json"
+    _write_policy(policy_path, fallback_mode="deny")
+
+    validate_slurm_policy_file(policy_path=policy_path)
