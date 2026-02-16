@@ -116,7 +116,7 @@ run_capture() {
 computer_test_clean() {
   local name="$1"
   local log_path="$RUN_DIR/${name}.log"
-  if grep -Eq '\\[Failed\\]|tests failed' "$log_path"; then
+  if grep -Eq '\[Failed\]|tests failed' "$log_path"; then
     return 1
   fi
   return 0
