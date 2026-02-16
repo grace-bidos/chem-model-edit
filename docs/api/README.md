@@ -27,3 +27,29 @@ API tests are executed with `pytest` profiles below.
 - `docs/graphs/api-packages.svg`
 - `apps/api/htmlcov/index.html`
 - `apps/api/coverage.xml`
+
+## Schemathesis (`/api/*` 全パス対象)
+
+`apps/api/scripts/schemathesis.sh` は OpenAPI の `/api/*` 全パスを対象に実行する。
+デフォルトは CI 向けの軽量 `smoke` モードで、`SCHEMATHESIS_MODE=deep` を指定すると探索量を増やせる。
+
+基本実行:
+
+- `pnpm exec nx run api:schemathesis`
+
+主な環境変数:
+
+- `SCHEMATHESIS_MODE=smoke|deep` (`smoke` 既定)
+- `SCHEMATHESIS_SEED=<int>` (既定: `137`, 再現実行用)
+- `SCHEMATHESIS_MAX_EXAMPLES=<int>` / `SCHEMATHESIS_MAX_FAILURES=<int>` (モード既定の上書き)
+- `SCHEMATHESIS_AUTH_TOKEN=<token>` または `SCHEMATHESIS_AUTH_HEADER='Authorization: Bearer <token>'`
+- `SCHEMATHESIS_TENANT_ID=<tenant-id>` (`x-tenant-id` ヘッダーとして付与)
+- `SCHEMATHESIS_DEV_USER_ID=<id>` / `SCHEMATHESIS_DEV_USER_EMAIL=<email>` (dev-bypass ヘッダー)
+
+認証付きエンドポイントをローカル検証する例:
+
+- `AUTH_MODE=dev-bypass ZPE_ADMIN_TOKEN=secret SCHEMATHESIS_DEV_USER_ID=user-1 SCHEMATHESIS_DEV_USER_EMAIL=user-1@example.com SCHEMATHESIS_TENANT_ID=tenant-dev SCHEMATHESIS_AUTH_TOKEN=secret pnpm exec nx run api:schemathesis`
+
+深掘り実行の例:
+
+- `SCHEMATHESIS_MODE=deep SCHEMATHESIS_SEED=137 SCHEMATHESIS_MAX_EXAMPLES=50 pnpm exec nx run api:schemathesis`
