@@ -21,6 +21,7 @@ jobs:
       web: ${{ steps.filter.outputs.web == 'true' || steps.filter.outputs.ci == 'true' }}
       api: ${{ steps.filter.outputs.api == 'true' || steps.filter.outputs.ci == 'true' }}
       contract: ${{ steps.filter.outputs.contract == 'true' || steps.filter.outputs.ci == 'true' }}
+      # Intentionally independent from `ci` global toggle: keep this lane opt-in and scoped.
       projection_smoke: ${{ steps.filter.outputs.projection_smoke == 'true' }}
     steps:
       - name: Checkout
@@ -57,11 +58,8 @@ jobs:
             projection_smoke:
               - 'apps/api/**'
               - 'packages/api-client/**'
-              - 'packages/shared/**'
               - 'pyproject.toml'
               - 'uv.lock'
-              - 'pnpm-lock.yaml'
-              - 'pnpm-workspace.yaml'
               - 'scripts/submit-event-projection-smoke.sh'
 
   route:
