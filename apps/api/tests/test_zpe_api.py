@@ -830,6 +830,78 @@ def test_zpe_submit_idempotency_rejects_intent_change_when_target_changes(monkey
     assert "different submission payload" in second.json()["error"]["message"]
 
 
+def test_submit_idempotency_claim_uses_legacy_ready_record_during_key_migration(monkeypatch):
+    fake = _patch_redis(monkeypatch)
+    store = zpe_submit_idempotency.SubmitIdempotencyStore(redis=fake)
+    payload = {
+        "content": QE_INPUT,
+        "mobile_indices": [0],
+        "use_environ": False,
+        "input_dir": None,
+        "calc_mode": "continue",
+    }
+    request_fingerprint = zpe_submit_idempotency.compute_submit_request_fingerprint(payload)
+    tenant_id = "tenant-legacy"
+    user_id = "user-legacy"
+    request_id = "legacy-request-id-1"
+    # Simulate a pre-migration key written as tenant_id:user_id:request_id.
+    legacy_key = f"zpe:submit:idempotency:{tenant_id}:{user_id}:{request_id}"
+    fake.set(
+        legacy_key,
+        json.dumps(
+            {
+                "state": "ready",
+                "job_id": "job-from-legacy-key",
+                "request_fingerprint": request_fingerprint,
+                "requested_queue_name": "zpe",
+                "resolved_queue_name": "zpe",
+            },
+            ensure_ascii=True,
+            separators=(",", ":"),
+        ),
+    )
+
+    claim = store.claim_or_get(
+        user_id=user_id,
+        tenant_id=tenant_id,
+        request_id=request_id,
+        request_fingerprint=request_fingerprint,
+    )
+
+    assert claim.state == "ready"
+    assert claim.record is not None
+    assert claim.record.job_id == "job-from-legacy-key"
+
+
+def test_submit_idempotency_claim_rejects_payload_change_for_legacy_key(monkeypatch):
+    fake = _patch_redis(monkeypatch)
+    store = zpe_submit_idempotency.SubmitIdempotencyStore(redis=fake)
+    tenant_id = "tenant-legacy"
+    user_id = "user-legacy"
+    request_id = "legacy-request-id-2"
+    legacy_key = f"zpe:submit:idempotency:{tenant_id}:{user_id}:{request_id}"
+    fake.set(
+        legacy_key,
+        json.dumps(
+            {
+                "state": "pending",
+                "request_fingerprint": "old-fingerprint",
+                "claim_token": "legacy-claim",
+            },
+            ensure_ascii=True,
+            separators=(",", ":"),
+        ),
+    )
+
+    with pytest.raises(ValueError, match="different submission payload"):
+        store.claim_or_get(
+            user_id=user_id,
+            tenant_id=tenant_id,
+            request_id=request_id,
+            request_fingerprint="new-fingerprint",
+        )
+
+
 def test_zpe_owner_enforcement_blocks_non_owner(monkeypatch):
     fake = _patch_redis(monkeypatch)
     store = RedisResultStore(redis=fake)

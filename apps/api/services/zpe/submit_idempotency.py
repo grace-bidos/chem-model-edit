@@ -39,14 +39,31 @@ class SubmitIdempotencyStore:
         _ = user_id
         return f"{_SUBMIT_PREFIX}{tenant_id}:{request_id}"
 
+    def _legacy_key(self, *, user_id: str, tenant_id: str, request_id: str) -> str:
+        return f"{_SUBMIT_PREFIX}{tenant_id}:{user_id}:{request_id}"
+
+    def _resolve_record_key(self, *, user_id: str, tenant_id: str, request_id: str) -> str | None:
+        primary = self._key(user_id=user_id, tenant_id=tenant_id, request_id=request_id)
+        if self.redis.exists(primary):
+            return primary
+        legacy = self._legacy_key(user_id=user_id, tenant_id=tenant_id, request_id=request_id)
+        if self.redis.exists(legacy):
+            return legacy
+        return None
+
     def get_record(
         self, *, user_id: str, tenant_id: str, request_id: str
     ) -> SubmitIdempotencyRecord | None:
+        key = self._resolve_record_key(
+            user_id=user_id,
+            tenant_id=tenant_id,
+            request_id=request_id,
+        )
+        if key is None:
+            return None
         raw = cast(
             Optional[bytes],
-            self.redis.get(
-                self._key(user_id=user_id, tenant_id=tenant_id, request_id=request_id)
-            ),
+            self.redis.get(key),
         )
         if not raw:
             return None
@@ -106,6 +123,24 @@ class SubmitIdempotencyStore:
     ) -> SubmitIdempotencyClaim:
         settings = get_zpe_settings()
         claim_token = uuid4().hex
+        legacy_key = self._legacy_key(user_id=user_id, tenant_id=tenant_id, request_id=request_id)
+        legacy_current = self._load_raw(legacy_key)
+        if legacy_current:
+            legacy_state = legacy_current.get("state")
+            legacy_fingerprint = legacy_current.get("request_fingerprint")
+            if legacy_fingerprint != request_fingerprint:
+                raise ValueError("request_id already used for a different submission payload")
+            if legacy_state == "ready":
+                legacy_record = self.get_record(
+                    user_id=user_id,
+                    tenant_id=tenant_id,
+                    request_id=request_id,
+                )
+                if legacy_record:
+                    return SubmitIdempotencyClaim(state="ready", record=legacy_record)
+                raise RuntimeError("submit idempotency record is malformed")
+            if legacy_state == "pending":
+                return SubmitIdempotencyClaim(state="pending")
         key = self._key(user_id=user_id, tenant_id=tenant_id, request_id=request_id)
         pending_payload = json.dumps(
             {
