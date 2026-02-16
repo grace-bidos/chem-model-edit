@@ -116,7 +116,7 @@ def _submit_failed(
     execution_event: Dict[str, Any] | None = None,
     timeout: int = 60,
 ) -> None:
-    payload = {
+    payload: Dict[str, Any] = {
         "tenant_id": tenant_id,
         "lease_id": lease_id,
         "error_code": error_code,
