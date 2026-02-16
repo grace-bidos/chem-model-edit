@@ -209,7 +209,7 @@ def submit_job(
             resolved_queue_name=resolved_queue_name,
         ),
     )
-    slurm_resolution_meta = {
+    slurm_resolution_meta: Dict[str, Any] = {
         "slurm_adapter": adapter_resolution.adapter,
         "slurm_contract_version": adapter_resolution.contract_version,
     }
