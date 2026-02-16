@@ -11,7 +11,7 @@ This runbook provides a local Docker harness to verify management-node bootstrap
 ## Prerequisites
 
 - Docker Engine with Compose plugin (`docker compose`)
-- Repository checked out in the `gra-81` worktree
+- Repository cloned locally (any branch)
 
 ## File Layout
 
