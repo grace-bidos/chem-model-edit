@@ -313,3 +313,35 @@ def test_submit_failure_event_id_replay_is_idempotent_and_payload_safe(monkeypat
             error_code="ERR_TEMP",
             error_message="changed message",
         )
+
+
+def test_submit_failure_event_id_replay_falls_back_to_legacy_lease_submit_key(monkeypatch):
+    fake, _dispatcher = _patch(monkeypatch)
+    job_id = "job-failure-event-fallback"
+    lease_id = "lease-failure-event-fallback"
+    event_id = "event-failure-fallback-1"
+    fake.hset(
+        f"zpe:lease:{job_id}",
+        mapping={"worker_id": "worker-1", "lease_id": lease_id, "expires_at": "x"},
+    )
+
+    first = zpe_results.submit_failure(
+        job_id=job_id,
+        worker_id="worker-1",
+        lease_id=lease_id,
+        error_code="ERR_TEMP",
+        error_message="temporary outage",
+    )
+    assert first.requeued is True
+    assert first.retry_count == 1
+
+    replay = zpe_results.submit_failure(
+        job_id=job_id,
+        worker_id="worker-1",
+        lease_id=lease_id,
+        event_id=event_id,
+        error_code="ERR_TEMP",
+        error_message="temporary outage",
+    )
+    assert replay.requeued is True
+    assert replay.retry_count == 1

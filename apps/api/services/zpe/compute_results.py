@@ -368,9 +368,24 @@ def submit_failure(
     lease_key = f"{_LEASE_PREFIX}{job_id}"
     retry_key = f"{_RETRY_PREFIX}{job_id}"
     submit_key = f"{_FAILURE_SUBMIT_PREFIX}{job_id}:{event_id or lease_id}"
+    legacy_submit_key = (
+        f"{_FAILURE_SUBMIT_PREFIX}{job_id}:{lease_id}" if event_id else None
+    )
     ttl = settings.result_ttl_seconds
 
-    existing = _decode_map(cast(dict[bytes, bytes], redis.hgetall(submit_key)))
+    def _load_existing_failure_record(redis_like: Any) -> dict[str, str]:
+        existing_record = _decode_map(
+            cast(dict[bytes, bytes], redis_like.hgetall(submit_key))
+        )
+        if existing_record:
+            return existing_record
+        if legacy_submit_key:
+            return _decode_map(
+                cast(dict[bytes, bytes], redis_like.hgetall(legacy_submit_key))
+            )
+        return {}
+
+    existing = _load_existing_failure_record(redis)
     if existing:
         _validate_recorded_failure_payload(
             existing=existing,
@@ -387,8 +402,11 @@ def submit_failure(
         pipe = redis.pipeline()
         pipe_any = cast(Any, pipe)
         try:
-            pipe_any.watch(status_key, lease_key, retry_key, submit_key)
-            existing = _decode_map(cast(dict[bytes, bytes], pipe.hgetall(submit_key)))
+            watch_keys = [status_key, lease_key, retry_key, submit_key]
+            if legacy_submit_key:
+                watch_keys.append(legacy_submit_key)
+            pipe_any.watch(*watch_keys)
+            existing = _load_existing_failure_record(pipe)
             if existing:
                 _validate_recorded_failure_payload(
                     existing=existing,
@@ -404,7 +422,7 @@ def submit_failure(
                 pipe.unwatch()
                 return _failure_outcome_from_record(existing)
             if not lease:
-                existing = _decode_map(cast(dict[bytes, bytes], pipe.hgetall(submit_key)))
+                existing = _load_existing_failure_record(pipe)
                 if existing:
                     _validate_recorded_failure_payload(
                         existing=existing,
