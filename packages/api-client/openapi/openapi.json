@@ -43,6 +43,16 @@
             "title": "Error Message",
             "type": "string"
           },
+          "execution_event": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExecutionFailedEvent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "lease_id": {
             "title": "Lease Id",
             "type": "string"
@@ -225,6 +235,16 @@
       "ComputeResultRequest": {
         "additionalProperties": false,
         "properties": {
+          "execution_event": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExecutionCompletedEvent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "freqs_csv": {
             "title": "Freqs Csv",
             "type": "string"
@@ -393,6 +413,255 @@
           "ttl_seconds"
         ],
         "title": "EnrollTokenResponse",
+        "type": "object"
+      },
+      "ExecutionCompletedEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "event_id": {
+            "title": "Event Id",
+            "type": "string"
+          },
+          "execution_id": {
+            "title": "Execution Id",
+            "type": "string"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "occurred_at": {
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "result_ref": {
+            "$ref": "#/components/schemas/ExecutionEventResultRef"
+          },
+          "scheduler_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExecutionEventSchedulerRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "const": "completed",
+            "title": "State",
+            "type": "string"
+          },
+          "status_detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Detail"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "trace_id": {
+            "title": "Trace Id",
+            "type": "string"
+          },
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_id",
+          "tenant_id",
+          "workspace_id",
+          "job_id",
+          "submission_id",
+          "execution_id",
+          "occurred_at",
+          "trace_id",
+          "state",
+          "result_ref"
+        ],
+        "title": "ExecutionCompletedEvent",
+        "type": "object"
+      },
+      "ExecutionEventError": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "retryable": {
+            "title": "Retryable",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "retryable"
+        ],
+        "title": "ExecutionEventError",
+        "type": "object"
+      },
+      "ExecutionEventResultRef": {
+        "additionalProperties": false,
+        "properties": {
+          "metadata_uri": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata Uri"
+          },
+          "output_uri": {
+            "title": "Output Uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "output_uri"
+        ],
+        "title": "ExecutionEventResultRef",
+        "type": "object"
+      },
+      "ExecutionEventSchedulerRef": {
+        "additionalProperties": false,
+        "properties": {
+          "partition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partition"
+          },
+          "qos": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Qos"
+          },
+          "slurm_job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slurm Job Id"
+          }
+        },
+        "title": "ExecutionEventSchedulerRef",
+        "type": "object"
+      },
+      "ExecutionFailedEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ExecutionEventError"
+          },
+          "event_id": {
+            "title": "Event Id",
+            "type": "string"
+          },
+          "execution_id": {
+            "title": "Execution Id",
+            "type": "string"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "occurred_at": {
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "scheduler_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExecutionEventSchedulerRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "const": "failed",
+            "title": "State",
+            "type": "string"
+          },
+          "status_detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Detail"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "trace_id": {
+            "title": "Trace Id",
+            "type": "string"
+          },
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_id",
+          "tenant_id",
+          "workspace_id",
+          "job_id",
+          "submission_id",
+          "execution_id",
+          "occurred_at",
+          "trace_id",
+          "state",
+          "error"
+        ],
+        "title": "ExecutionFailedEvent",
         "type": "object"
       },
       "HTTPValidationError": {

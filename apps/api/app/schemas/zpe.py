@@ -2,13 +2,130 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Literal, Optional, Tuple
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from .base import ApiModel
 from .common import Pagination, Structure
 
 
 JobState = Literal["queued", "started", "finished", "failed"]
+
+
+_AIIA_STATE_MAP: dict[str, str] = {
+    "complete": "completed",
+    "completed": "completed",
+    "done": "completed",
+    "error": "failed",
+    "failed": "failed",
+    "failure": "failed",
+    "finished": "completed",
+    "success": "completed",
+    "succeeded": "completed",
+}
+
+
+def _first_present(payload: dict[str, Any], *keys: str) -> Any:
+    for key in keys:
+        value = payload.get(key)
+        if value is not None:
+            return value
+    return None
+
+
+def _normalize_aiida_state(value: Any) -> Any:
+    if not isinstance(value, str):
+        return value
+    normalized = value.strip().lower()
+    return _AIIA_STATE_MAP.get(normalized, normalized)
+
+
+def _normalize_scheduler_ref_payload(value: Any) -> Any:
+    if not isinstance(value, dict):
+        return value
+    payload = dict(value)
+    slurm_job_id = _first_present(payload, "slurm_job_id", "slurmJobId")
+    partition = _first_present(payload, "partition")
+    qos = _first_present(payload, "qos")
+    normalized: dict[str, Any] = {}
+    if slurm_job_id is not None:
+        normalized["slurm_job_id"] = slurm_job_id
+    if partition is not None:
+        normalized["partition"] = partition
+    if qos is not None:
+        normalized["qos"] = qos
+    return normalized or value
+
+
+def _normalize_result_ref_payload(value: Any) -> Any:
+    if not isinstance(value, dict):
+        return value
+    payload = dict(value)
+    output_uri = _first_present(payload, "output_uri", "outputUri")
+    metadata_uri = _first_present(payload, "metadata_uri", "metadataUri")
+    normalized: dict[str, Any] = {}
+    if output_uri is not None:
+        normalized["output_uri"] = output_uri
+    if metadata_uri is not None:
+        normalized["metadata_uri"] = metadata_uri
+    return normalized or value
+
+
+def _normalize_error_payload(value: Any) -> Any:
+    if not isinstance(value, dict):
+        return value
+    payload = dict(value)
+    code = _first_present(payload, "code", "error_code", "errorCode")
+    message = _first_present(payload, "message", "error_message", "errorMessage")
+    retryable = _first_present(payload, "retryable", "retriable")
+    normalized: dict[str, Any] = {}
+    if code is not None:
+        normalized["code"] = code
+    if message is not None:
+        normalized["message"] = message
+    if retryable is not None:
+        normalized["retryable"] = retryable
+    return normalized or value
+
+
+def _normalize_execution_event_payload(value: Any) -> Any:
+    if not isinstance(value, dict):
+        return value
+    payload = dict(value)
+    normalized: dict[str, Any] = {}
+    fields: tuple[tuple[str, tuple[str, ...]], ...] = (
+        ("event_id", ("event_id", "eventId")),
+        ("tenant_id", ("tenant_id", "tenantId")),
+        ("workspace_id", ("workspace_id", "workspaceId")),
+        ("job_id", ("job_id", "jobId")),
+        ("submission_id", ("submission_id", "submissionId")),
+        ("execution_id", ("execution_id", "executionId")),
+        ("occurred_at", ("occurred_at", "occurredAt", "timestamp", "event_time")),
+        ("trace_id", ("trace_id", "traceId")),
+        ("status_detail", ("status_detail", "statusDetail", "detail")),
+    )
+    for target, keys in fields:
+        normalized_value = _first_present(payload, *keys)
+        if normalized_value is not None:
+            normalized[target] = normalized_value
+
+    state = _first_present(payload, "state", "status", "lifecycle_state")
+    if state is not None:
+        normalized["state"] = _normalize_aiida_state(state)
+
+    scheduler_ref = _first_present(payload, "scheduler_ref", "schedulerRef", "scheduler")
+    if scheduler_ref is not None:
+        normalized["scheduler_ref"] = _normalize_scheduler_ref_payload(scheduler_ref)
+    result_ref = _first_present(payload, "result_ref", "resultRef")
+    if result_ref is not None:
+        normalized["result_ref"] = _normalize_result_ref_payload(result_ref)
+    elif "output_uri" in payload or "outputUri" in payload:
+        normalized["result_ref"] = _normalize_result_ref_payload(payload)
+
+    error = _first_present(payload, "error", "error_info", "errorInfo")
+    if error is not None:
+        normalized["error"] = _normalize_error_payload(error)
+
+    return normalized or value
 
 
 class ZPEParseRequest(ApiModel):
@@ -129,13 +246,87 @@ class ComputeLeaseResponse(ApiModel):
     meta: Dict[str, Any] = Field(default_factory=dict)
 
 
+class ExecutionEventSchedulerRef(ApiModel):
+    slurm_job_id: Optional[str] = None
+    partition: Optional[str] = None
+    qos: Optional[str] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_scheduler_ref(cls, value: Any) -> Any:
+        return _normalize_scheduler_ref_payload(value)
+
+
+class ExecutionEventResultRef(ApiModel):
+    output_uri: str
+    metadata_uri: Optional[str] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_result_ref(cls, value: Any) -> Any:
+        return _normalize_result_ref_payload(value)
+
+
+class ExecutionEventError(ApiModel):
+    code: str
+    message: str
+    retryable: bool
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_error(cls, value: Any) -> Any:
+        return _normalize_error_payload(value)
+
+
+class ExecutionEventBase(ApiModel):
+    event_id: str
+    tenant_id: str
+    workspace_id: str
+    job_id: str
+    submission_id: str
+    execution_id: str
+    occurred_at: str
+    trace_id: str
+    status_detail: Optional[str] = None
+    scheduler_ref: Optional[ExecutionEventSchedulerRef] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_event(cls, value: Any) -> Any:
+        return _normalize_execution_event_payload(value)
+
+
+class ExecutionCompletedEvent(ExecutionEventBase):
+    state: Literal["completed"]
+    result_ref: ExecutionEventResultRef
+
+
+class ExecutionFailedEvent(ExecutionEventBase):
+    state: Literal["failed"]
+    error: ExecutionEventError
+
+
 class ComputeResultRequest(ApiModel):
     tenant_id: str
     lease_id: str
     result: Dict[str, Any]
     summary_text: str
     freqs_csv: str
+    execution_event: Optional[ExecutionCompletedEvent] = None
     meta: Dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_result_execution_event(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+        payload = dict(value)
+        execution_event = payload.get("execution_event")
+        if execution_event is not None:
+            payload["execution_event"] = _normalize_execution_event_payload(
+                execution_event
+            )
+        return payload
 
 
 class ComputeResultResponse(ApiModel):
@@ -149,6 +340,41 @@ class ComputeFailedRequest(ApiModel):
     error_code: str
     error_message: str
     traceback: Optional[str] = None
+    execution_event: Optional[ExecutionFailedEvent] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_failed_execution_event(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+        payload = dict(value)
+        # Accept legacy top-level aliases while keeping ApiModel(extra="forbid") strict.
+        if "error_code" not in payload and "errorCode" in payload:
+            payload["error_code"] = payload["errorCode"]
+        if "error_message" not in payload and "errorMessage" in payload:
+            payload["error_message"] = payload["errorMessage"]
+        payload.pop("errorCode", None)
+        payload.pop("errorMessage", None)
+        execution_event = payload.get("execution_event")
+        retryable_alias = _first_present(payload, "retryable", "retriable")
+        payload.pop("retryable", None)
+        payload.pop("retriable", None)
+        if execution_event is None:
+            return payload
+        normalized_event = _normalize_execution_event_payload(execution_event)
+        if isinstance(normalized_event, dict) and normalized_event.get("error") is None:
+            error_code = _first_present(payload, "error_code", "errorCode")
+            error_message = _first_present(payload, "error_message", "errorMessage")
+            if error_code is not None and error_message is not None:
+                error_payload: dict[str, Any] = {
+                    "code": error_code,
+                    "message": error_message,
+                }
+                if retryable_alias is not None:
+                    error_payload["retryable"] = retryable_alias
+                normalized_event["error"] = error_payload
+        payload["execution_event"] = normalized_event
+        return payload
 
 
 class ComputeFailedResponse(ApiModel):

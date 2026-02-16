@@ -59,6 +59,23 @@ scripts/gh/pr-autoloop.py 123 --watch --merge-when-ready --merge-method merge
 scripts/gh/pr-autoloop.py 123 --watch --max-wait 3600 --resolve-outdated-threads
 ```
 
+## `vm_pr_autoloop.sh`
+
+Safe wrapper for VM stack lanes. Enforces single-cycle watch mode and allows outdated-thread auto-resolution only with an explicit confirmation flag.
+
+Examples:
+
+```bash
+# Standard VM lane flow (watch + merge when ready + finite timeout)
+scripts/gh/vm_pr_autoloop.sh 123
+
+# Explicit outdated-thread cleanup (outdated only)
+scripts/gh/vm_pr_autoloop.sh 123 --resolve-outdated-threads --confirm-outdated-resolution
+
+# Dry-run
+scripts/gh/vm_pr_autoloop.sh 123 --dry-run
+```
+
 ## `ci_log_tail.sh`
 
 Tail failed-step logs from a workflow run.

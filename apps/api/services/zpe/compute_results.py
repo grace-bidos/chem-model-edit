@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from hashlib import sha256
 import json
 import logging
 from typing import Any, Dict, Optional, cast
@@ -16,7 +17,6 @@ from services.convex_event_relay import (
 )
 
 from .job_meta import get_job_meta_store
-from .job_owner import get_job_owner_store
 from .job_state import JobState, can_transition, coerce_job_state
 from .queue import get_redis_connection
 from .settings import get_zpe_settings
@@ -32,6 +32,7 @@ _RETRY_PREFIX = "zpe:retry_count:"
 _DELAY_ZSET = "zpe:delay"
 _DLQ = "zpe:dlq"
 _FAILURE_SUBMIT_PREFIX = "zpe:failure_submit:"
+_RESULT_SUBMIT_PREFIX = "zpe:result_submit:"
 _RELAY_DISPATCH_PREFIX = "zpe:convex:relay:dispatch:"
 _RELAY_SEQUENCE_FIELD = "relay_sequence"
 
@@ -109,8 +110,8 @@ def _dispatch_runtime_state_transition(
         relay_token=settings.convex_relay_token,
         timeout_seconds=settings.convex_relay_timeout_seconds,
     )
-    owner_id = get_job_owner_store().get_owner(job_id)
     meta = get_job_meta_store().get_meta(job_id)
+    owner_id = _coerce_non_empty(meta.get("user_id"))
     project_id = _coerce_non_empty(meta.get("project_id")) or _coerce_non_empty(
         meta.get("queue_name")
     )
@@ -181,6 +182,36 @@ def _failure_outcome_from_record(existing: Dict[str, str]) -> FailureOutcome:
     )
 
 
+def _compute_result_payload_digest(
+    *,
+    result: Dict[str, Any],
+    summary_text: str,
+    freqs_csv: str,
+) -> str:
+    canonical = json.dumps(result, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+    payload = json.dumps(
+        [canonical, summary_text, freqs_csv],
+        ensure_ascii=True,
+        separators=(",", ":"),
+    )
+    return sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _validate_recorded_result_payload(
+    *,
+    existing: Dict[str, str],
+    worker_id: str,
+    lease_id: str,
+    payload_digest: str,
+) -> None:
+    if existing.get("worker_id") != worker_id:
+        raise PermissionError("lease mismatch")
+    if existing.get("lease_id") != lease_id:
+        raise PermissionError("lease mismatch")
+    if existing.get("payload_digest") != payload_digest:
+        raise ValueError("result already submitted with different payload")
+
+
 def submit_result(
     *,
     job_id: str,
@@ -189,6 +220,7 @@ def submit_result(
     result: Dict[str, Any],
     summary_text: str,
     freqs_csv: str,
+    event_id: str | None = None,
 ) -> ResultSubmitOutcome:
     settings = get_zpe_settings()
     redis = get_redis_connection()
@@ -197,14 +229,56 @@ def submit_result(
     summary_key = f"{_SUMMARY_PREFIX}{job_id}"
     freqs_key = f"{_FREQS_PREFIX}{job_id}"
     lease_key = f"{_LEASE_PREFIX}{job_id}"
+    submit_key = f"{_RESULT_SUBMIT_PREFIX}{job_id}:{event_id}" if event_id else None
     ttl = settings.result_ttl_seconds
     payload_json = json.dumps(result)
+    payload_digest = _compute_result_payload_digest(
+        result=result,
+        summary_text=summary_text,
+        freqs_csv=freqs_csv,
+    )
 
     for _ in range(3):
         pipe = redis.pipeline()
         pipe_any = cast(Any, pipe)
         try:
-            pipe_any.watch(status_key, lease_key)
+            watch_keys = [status_key, lease_key]
+            if submit_key:
+                watch_keys.append(submit_key)
+            pipe_any.watch(*watch_keys)
+            existing_submit = (
+                _decode_map(cast(dict[bytes, bytes], pipe.hgetall(submit_key)))
+                if submit_key
+                else {}
+            )
+            if existing_submit:
+                _validate_recorded_result_payload(
+                    existing=existing_submit,
+                    worker_id=worker_id,
+                    lease_id=lease_id,
+                    payload_digest=payload_digest,
+                )
+                status_for_replay = _decode_map(
+                    cast(dict[bytes, bytes], pipe.hgetall(status_key))
+                )
+                sequence = int(
+                    existing_submit.get("sequence")
+                    or status_for_replay.get(_RELAY_SEQUENCE_FIELD)
+                    or "1"
+                )
+                updated_at = existing_submit.get("updated_at") or status_for_replay.get(
+                    "updated_at"
+                ) or _now_iso()
+                pipe.unwatch()
+                _dispatch_runtime_state_transition(
+                    redis=redis,
+                    job_id=job_id,
+                    state="finished",
+                    sequence=sequence,
+                    updated_at=updated_at,
+                    ttl_seconds=ttl,
+                )
+                return ResultSubmitOutcome(idempotent=True)
             status = _decode_map(cast(dict[bytes, bytes], pipe.hgetall(status_key)))
             previous = _decode_status(status.get("status"))
             if previous == "finished":
@@ -252,8 +326,21 @@ def submit_result(
             pipe.expire(status_key, ttl)
             pipe.delete(lease_key)
             pipe.zrem(_LEASE_INDEX, job_id)
+            if submit_key:
+                pipe.hset(
+                    submit_key,
+                    mapping={
+                        "worker_id": worker_id,
+                        "lease_id": lease_id,
+                        "payload_digest": payload_digest,
+                        "updated_at": updated_at,
+                    },
+                )
+                pipe.expire(submit_key, ttl)
             response = cast(list[Any], pipe.execute())
             sequence = int(response[4])
+            if submit_key:
+                redis.hset(submit_key, mapping={"sequence": str(sequence)})
             _dispatch_runtime_state_transition(
                 redis=redis,
                 job_id=job_id,
@@ -278,16 +365,32 @@ def submit_failure(
     error_code: str,
     error_message: str,
     traceback: Optional[str] = None,
+    event_id: str | None = None,
 ) -> FailureOutcome:
     settings = get_zpe_settings()
     redis = get_redis_connection()
     status_key = f"{_STATUS_PREFIX}{job_id}"
     lease_key = f"{_LEASE_PREFIX}{job_id}"
     retry_key = f"{_RETRY_PREFIX}{job_id}"
-    submit_key = f"{_FAILURE_SUBMIT_PREFIX}{job_id}:{lease_id}"
+    submit_key = f"{_FAILURE_SUBMIT_PREFIX}{job_id}:{event_id or lease_id}"
+    legacy_submit_key = (
+        f"{_FAILURE_SUBMIT_PREFIX}{job_id}:{lease_id}" if event_id else None
+    )
     ttl = settings.result_ttl_seconds
 
-    existing = _decode_map(cast(dict[bytes, bytes], redis.hgetall(submit_key)))
+    def _load_existing_failure_record(redis_like: Any) -> dict[str, str]:
+        existing_record = _decode_map(
+            cast(dict[bytes, bytes], redis_like.hgetall(submit_key))
+        )
+        if existing_record:
+            return existing_record
+        if legacy_submit_key:
+            return _decode_map(
+                cast(dict[bytes, bytes], redis_like.hgetall(legacy_submit_key))
+            )
+        return {}
+
+    existing = _load_existing_failure_record(redis)
     if existing:
         _validate_recorded_failure_payload(
             existing=existing,
@@ -304,8 +407,11 @@ def submit_failure(
         pipe = redis.pipeline()
         pipe_any = cast(Any, pipe)
         try:
-            pipe_any.watch(status_key, lease_key, retry_key, submit_key)
-            existing = _decode_map(cast(dict[bytes, bytes], pipe.hgetall(submit_key)))
+            watch_keys = [status_key, lease_key, retry_key, submit_key]
+            if legacy_submit_key:
+                watch_keys.append(legacy_submit_key)
+            pipe_any.watch(*watch_keys)
+            existing = _load_existing_failure_record(pipe)
             if existing:
                 _validate_recorded_failure_payload(
                     existing=existing,
@@ -321,7 +427,7 @@ def submit_failure(
                 pipe.unwatch()
                 return _failure_outcome_from_record(existing)
             if not lease:
-                existing = _decode_map(cast(dict[bytes, bytes], pipe.hgetall(submit_key)))
+                existing = _load_existing_failure_record(pipe)
                 if existing:
                     _validate_recorded_failure_payload(
                         existing=existing,

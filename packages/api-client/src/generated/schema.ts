@@ -434,6 +434,7 @@ export interface components {
             error_code: string;
             /** Error Message */
             error_message: string;
+            execution_event?: components["schemas"]["ExecutionFailedEvent"] | null;
             /** Lease Id */
             lease_id: string;
             /** Tenant Id */
@@ -505,6 +506,7 @@ export interface components {
         };
         /** ComputeResultRequest */
         ComputeResultRequest: {
+            execution_event?: components["schemas"]["ExecutionCompletedEvent"] | null;
             /** Freqs Csv */
             freqs_csv: string;
             /** Lease Id */
@@ -571,6 +573,87 @@ export interface components {
             token: string;
             /** Ttl Seconds */
             ttl_seconds: number;
+        };
+        /** ExecutionCompletedEvent */
+        ExecutionCompletedEvent: {
+            /** Event Id */
+            event_id: string;
+            /** Execution Id */
+            execution_id: string;
+            /** Job Id */
+            job_id: string;
+            /** Occurred At */
+            occurred_at: string;
+            result_ref: components["schemas"]["ExecutionEventResultRef"];
+            scheduler_ref?: components["schemas"]["ExecutionEventSchedulerRef"] | null;
+            /**
+             * State
+             * @constant
+             */
+            state: "completed";
+            /** Status Detail */
+            status_detail?: string | null;
+            /** Submission Id */
+            submission_id: string;
+            /** Tenant Id */
+            tenant_id: string;
+            /** Trace Id */
+            trace_id: string;
+            /** Workspace Id */
+            workspace_id: string;
+        };
+        /** ExecutionEventError */
+        ExecutionEventError: {
+            /** Code */
+            code: string;
+            /** Message */
+            message: string;
+            /** Retryable */
+            retryable: boolean;
+        };
+        /** ExecutionEventResultRef */
+        ExecutionEventResultRef: {
+            /** Metadata Uri */
+            metadata_uri?: string | null;
+            /** Output Uri */
+            output_uri: string;
+        };
+        /** ExecutionEventSchedulerRef */
+        ExecutionEventSchedulerRef: {
+            /** Partition */
+            partition?: string | null;
+            /** Qos */
+            qos?: string | null;
+            /** Slurm Job Id */
+            slurm_job_id?: string | null;
+        };
+        /** ExecutionFailedEvent */
+        ExecutionFailedEvent: {
+            error: components["schemas"]["ExecutionEventError"];
+            /** Event Id */
+            event_id: string;
+            /** Execution Id */
+            execution_id: string;
+            /** Job Id */
+            job_id: string;
+            /** Occurred At */
+            occurred_at: string;
+            scheduler_ref?: components["schemas"]["ExecutionEventSchedulerRef"] | null;
+            /**
+             * State
+             * @constant
+             */
+            state: "failed";
+            /** Status Detail */
+            status_detail?: string | null;
+            /** Submission Id */
+            submission_id: string;
+            /** Tenant Id */
+            tenant_id: string;
+            /** Trace Id */
+            trace_id: string;
+            /** Workspace Id */
+            workspace_id: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
