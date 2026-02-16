@@ -52,6 +52,21 @@ Pass condition:
 
 - WSL distro has working DNS resolution and VM routes are reachable.
 
+### 1.3 Route caveat: avoid VM ranges in `172.17.x.x`
+
+`172.17.0.0/16` is commonly used by container bridge networks. If controller/compute VMs are also placed in `172.17.x.x`, WSL-originated traffic may take the wrong local route and fail before reaching Hyper-V VMs.
+
+Recommended policy:
+
+- Do not allocate Slurm/AiiDA VM addresses from `172.17.0.0/16`.
+- Prefer a dedicated range such as `172.29.0.0/24` or `192.168.x.0/24`.
+- If re-addressing is not immediately possible, add an explicit host route on WSL and verify the next hop targets the Hyper-V side, not a container bridge.
+
+Pass condition:
+
+- `ip route get <vm-ip>` resolves to the intended Hyper-V-facing next hop.
+- SSH and Slurm checks (`scontrol ping`, `sinfo`) succeed from the operator path.
+
 ## 2) VM cgroup + systemd baseline
 
 ### 2.1 Require cgroup v2
@@ -203,6 +218,19 @@ Pass condition:
 
 - Password login and root SSH login are blocked.
 
+### 5.1a Windows OpenSSH path and ACL requirements (when validating from Windows host)
+
+If the operator path uses Windows OpenSSH, enforce canonical key file location and restrictive ACLs:
+
+- Admin-scoped authorized keys file path: `C:\\ProgramData\\ssh\\administrators_authorized_keys`
+- Keep ACL owner `SYSTEM`/`Administrators`; remove broad inherited grants.
+- Ensure only required principals (typically `SYSTEM` and `Administrators`) retain read/write access.
+
+Pass condition:
+
+- OpenSSH accepts key auth without permission warnings.
+- No ACL entries grant write access to non-admin principals.
+
 ### 5.2 Keep AppArmor enabled
 
 ```bash
@@ -239,6 +267,22 @@ Pass condition:
 
 - `verdi computer test` passes.
 - AiiDA submission reaches `COMPLETED` with retrieved output.
+
+### 6.3 Secure Boot DB hash caveat and workaround
+
+Observed failure mode on some Generation 2 VM images:
+
+- Boot or service startup can fail when a signed binary hash is missing from firmware DB (Secure Boot database), often surfacing as a verification/access-denied style error before full runtime bring-up.
+
+Workaround policy:
+
+- Preferred: use an image/kernel/shim chain signed by the active Secure Boot template and update the template/cert chain first.
+- Temporary unblocker (documented exception): disable Secure Boot only for bootstrap/validation, capture the exception in artifacts, then re-enable Secure Boot after image alignment.
+
+Pass condition:
+
+- VM reaches normal boot with required services active.
+- Validation evidence records whether Secure Boot was enabled or temporarily disabled with rationale.
 
 ## References (primary sources)
 
