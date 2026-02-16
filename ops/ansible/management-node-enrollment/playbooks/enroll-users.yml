@@ -1,0 +1,6 @@
+---
+- name: Enroll management-node users
+  hosts: management_nodes
+  become: true
+  roles:
+    - role: management_node_enrollment
