@@ -10,7 +10,7 @@ from urllib import error as urlerror
 from urllib import parse as urlparse
 from urllib import request as urlrequest
 
-from services.zpe.settings import ZPESettings, _resolve_env_file
+from services.zpe.settings import ZPESettings
 from services.zpe.slurm_policy import (
     SlurmPolicyConfigError,
     parse_slurm_adapter_mode,
@@ -37,7 +37,7 @@ _MAX_OUTPUT_LENGTH = 240
 
 def _load_slurm_adapter_config() -> tuple[str | None, str | None, str]:
     """Load adapter config via ZPESettings so .env-backed values are respected."""
-    settings = ZPESettings(_env_file=_resolve_env_file())  # type: ignore[call-arg]
+    settings = ZPESettings()
     return (
         settings.slurm_adapter,
         settings.slurm_adapter_rollback_guard,

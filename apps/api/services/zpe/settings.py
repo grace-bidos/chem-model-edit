@@ -8,7 +8,7 @@ from typing import Literal, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-def _resolve_env_file() -> str:
+def resolve_env_file() -> str:
     override = os.getenv("ZPE_ENV_FILE")
     if override:
         return override
@@ -23,7 +23,7 @@ def _resolve_env_file() -> str:
 class ZPESettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="ZPE_",
-        env_file=".env",
+        env_file=resolve_env_file(),
         extra="ignore",
     )
 
@@ -91,4 +91,4 @@ def get_zpe_settings() -> ZPESettings:
     Returns:
         解決済みの設定オブジェクト．
     """
-    return ZPESettings(_env_file=_resolve_env_file())  # type: ignore[call-arg]
+    return ZPESettings()

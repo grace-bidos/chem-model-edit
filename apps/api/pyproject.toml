@@ -53,24 +53,8 @@ exclude = [
 ]
 
 [[tool.mypy.overrides]]
-module = ["services.zpe.settings"]
-disable_error_code = ["unused-ignore"]
-
-[[tool.mypy.overrides]]
 module = ["services.zpe.submit_idempotency"]
 disable_error_code = ["no-untyped-call"]
-
-[[tool.mypy.overrides]]
-module = ["services.zpe.compute_results"]
-disable_error_code = ["redundant-cast"]
-
-[[tool.mypy.overrides]]
-module = ["services.aiida_runtime_checks"]
-disable_error_code = ["unused-ignore"]
-
-[[tool.mypy.overrides]]
-module = ["services.zpe.ops_flags", "services.zpe.job_owner"]
-disable_error_code = ["redundant-cast"]
 
 [tool.pydantic-mypy]
 init_typed = true

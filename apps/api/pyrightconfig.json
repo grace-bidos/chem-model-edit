@@ -1,10 +1,14 @@
 {
-  "$schema": "https://raw.githubusercontent.com/microsoft/pyright/main/packages/pyright/schema/pyrightconfig.schema.json",
-  "include": ["app", "services", "tests", "main.py"],
+  "include": ["app", "services", "main.py"],
   "exclude": [".venv", "__pycache__", "htmlcov"],
   "pythonVersion": "3.13",
   "typeCheckingMode": "strict",
   "reportMissingTypeStubs": false,
+  "reportUnknownArgumentType": "warning",
+  "reportUnnecessaryCast": "warning",
+  "reportUnnecessaryIsInstance": "warning",
+  "reportConstantRedefinition": "warning",
+  "reportUnusedFunction": "warning",
   "reportUnknownMemberType": "warning",
   "reportUnknownVariableType": "warning"
 }

@@ -5,13 +5,13 @@ from typing import Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from services.zpe.settings import _resolve_env_file, get_zpe_settings
+from services.zpe.settings import get_zpe_settings, resolve_env_file
 
 
 class AuthSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="AUTH_",
-        env_file=_resolve_env_file(),
+        env_file=resolve_env_file(),
         extra="ignore",
     )
 

@@ -51,12 +51,12 @@ def _sanitize_error_details(details: Any) -> Any:
 
 def http_exception_handler(_: Request, exc: Exception) -> JSONResponse:
     http_exc = cast(HTTPException, exc)
-    detail = http_exc.detail
-    message = detail if isinstance(detail, str) else "request failed"
+    message = http_exc.detail
+    details: Any = None
     payload = _error_payload(
         status_code=http_exc.status_code,
         message=message,
-        details=None if isinstance(detail, str) else detail,
+        details=details,
     )
     return JSONResponse(status_code=http_exc.status_code, content=payload)
 
