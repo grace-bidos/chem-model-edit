@@ -100,12 +100,13 @@ Minimum accepted evidence set for a successful run (`exit 0`):
 - `slurm-scontrol-ping.log` shows controller `UP`.
 - `slurm-sinfo.log` shows at least one schedulable node.
 - `aiida-computer-test-slurm.log` ends with all checks succeeded.
+- `aiida-computer-setup-slurm.log` when this run created the computer, or a short operator note indicating expected reuse for this label.
 - Runtime identity/context logs exist (`env-hostname.log`, `env-uname.log`, `env-whoami.log`).
+
+This aligns with the GRA-94 VM validation runbook evidence baseline.
 
 Optional but recommended:
 
-- `aiida-computer-setup-slurm.log` when this run created the computer.
-- If the computer was reused, add a short operator note indicating reuse was expected for this label.
 - `env-verdi-version.log`
 - `env-slurm-version.log`
 - a short operator note recording Secure Boot status and any temporary exception used.
