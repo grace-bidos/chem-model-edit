@@ -74,6 +74,7 @@ def _submit_result(
     base_url: str,
     token: str,
     job_id: str,
+    tenant_id: str,
     lease_id: str,
     result: Dict[str, Any],
     summary_text: str,
@@ -82,6 +83,7 @@ def _submit_result(
     timeout: int,
 ) -> None:
     payload = {
+        "tenant_id": tenant_id,
         "lease_id": lease_id,
         "result": result,
         "summary_text": summary_text,
@@ -103,6 +105,7 @@ def _submit_failed(
     base_url: str,
     token: str,
     job_id: str,
+    tenant_id: str,
     lease_id: str,
     error_code: str,
     error_message: str,
@@ -110,6 +113,7 @@ def _submit_failed(
     timeout: int,
 ) -> None:
     payload = {
+        "tenant_id": tenant_id,
         "lease_id": lease_id,
         "error_code": error_code,
         "error_message": error_message,
@@ -179,9 +183,10 @@ def run_http_worker() -> None:
         payload = lease.get("payload")
         lease_id = lease.get("lease_id")
         meta = lease.get("meta") or {}
+        tenant_id = meta.get("tenant_id")
         request_id = meta.get("request_id")
         user_id = meta.get("user_id")
-        if not job_id or not payload or not lease_id:
+        if not job_id or not payload or not lease_id or not isinstance(tenant_id, str):
             log_event(
                 logger,
                 event="zpe_lease_invalid",
@@ -222,6 +227,7 @@ def run_http_worker() -> None:
                 base_url,
                 token,
                 job_id,
+                tenant_id,
                 lease_id,
                 artifacts.result,
                 artifacts.summary_text,
@@ -269,6 +275,7 @@ def run_http_worker() -> None:
                 base_url,
                 token,
                 job_id,
+                tenant_id,
                 lease_id,
                 "COMPUTE_ERROR",
                 str(exc),

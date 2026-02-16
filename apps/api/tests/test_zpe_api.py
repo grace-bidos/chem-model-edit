@@ -466,6 +466,7 @@ def test_compute_failed_endpoint_maps_invalid_transition_to_conflict(monkeypatch
         "/api/zpe/compute/jobs/job-1/failed",
         headers={"Authorization": f"Bearer {worker_token}"},
         json={
+            "tenant_id": "tenant-worker",
             "lease_id": "lease-1",
             "error_code": "ERR",
             "error_message": "boom",
@@ -476,6 +477,32 @@ def test_compute_failed_endpoint_maps_invalid_transition_to_conflict(monkeypatch
     payload = response.json()
     assert payload["error"]["code"] == "conflict"
     assert "invalid job state transition" in payload["error"]["message"]
+
+
+def test_compute_failed_endpoint_rejects_tenant_boundary_violation(monkeypatch):
+    fake = _patch_redis(monkeypatch)
+    client = TestClient(main.app)
+    zpe_job_meta.JobMetaStore(redis=fake).set_meta(
+        "job-tenant-check",
+        {"tenant_id": "tenant-worker", "request_id": "req-1", "user_id": "user-1"},
+    )
+    worker_token = zpe_worker_auth.WorkerTokenStore(redis=fake).create_token(
+        "compute-1"
+    ).token
+
+    response = client.post(
+        "/api/zpe/compute/jobs/job-tenant-check/failed",
+        headers={"Authorization": f"Bearer {worker_token}"},
+        json={
+            "tenant_id": "tenant-other",
+            "lease_id": "lease-1",
+            "error_code": "ERR",
+            "error_message": "boom",
+        },
+    )
+
+    assert response.status_code == 403
+    assert response.json()["error"]["message"] == "tenant boundary violation"
 
 
 def test_compute_failed_endpoint_retries_after_audit_outage(monkeypatch):
@@ -744,6 +771,63 @@ def test_zpe_submit_idempotency_prevents_duplicate_enqueue_under_overlap(monkeyp
     assert outcomes[0].job_id == "job-overlap-idempotent"
     assert outcomes[1].job_id == "job-overlap-idempotent"
     assert sorted([outcomes[0].idempotent, outcomes[1].idempotent]) == [False, True]
+
+
+def test_zpe_submit_idempotency_rejects_intent_change_when_target_changes(monkeypatch):
+    fake = _patch_redis(monkeypatch)
+    settings = ZPESettings(compute_mode="mock", result_store="redis")
+    monkeypatch.setattr(zpe_backends, "get_zpe_settings", lambda: settings)
+    monkeypatch.setattr(zpe_router, "get_zpe_settings", lambda: settings)
+    client = TestClient(main.app)
+    headers, _user_id = _setup_user_and_target(
+        client, monkeypatch, fake, queue_name="queue-a"
+    )
+    headers["X-Request-Id"] = "idempotency-intent-change-1"
+
+    enroll = client.post(
+        "/api/zpe/compute/enroll-tokens",
+        json={"ttl_seconds": 60},
+        headers=headers,
+    )
+    assert enroll.status_code == 200
+    enroll_token = enroll.json()["token"]
+    register = client.post(
+        "/api/zpe/compute/servers",
+        json={
+            "token": enroll_token,
+            "name": "server-2",
+            "queue_name": "queue-b",
+            "activate_target": False,
+        },
+    )
+    assert register.status_code == 200
+
+    request_payload = {
+        "content": QE_INPUT,
+        "mobile_indices": [0],
+        "use_environ": False,
+        "input_dir": None,
+        "calc_mode": "continue",
+    }
+    first = client.post("/api/zpe/jobs", json=request_payload, headers=headers)
+    assert first.status_code == 200
+
+    targets = client.get("/api/zpe/targets", headers=headers)
+    assert targets.status_code == 200
+    queue_b_target_id = next(
+        target["id"]
+        for target in targets.json()["targets"]
+        if target["queue_name"] == "queue-b"
+    )
+    switched = client.put(
+        f"/api/zpe/targets/{queue_b_target_id}/active",
+        headers=headers,
+    )
+    assert switched.status_code == 200
+
+    second = client.post("/api/zpe/jobs", json=request_payload, headers=headers)
+    assert second.status_code == 409
+    assert "different submission payload" in second.json()["error"]["message"]
 
 
 def test_zpe_owner_enforcement_blocks_non_owner(monkeypatch):

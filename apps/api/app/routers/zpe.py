@@ -433,6 +433,8 @@ async def zpe_compute_result(
     _require_legacy_worker_endpoints(flags)
     job_meta = _require_job_tenant_meta(job_id)
     tenant_id = str(job_meta["tenant_id"])
+    if request.tenant_id != tenant_id:
+        raise HTTPException(status_code=403, detail="tenant boundary violation")
     raw.state.tenant_id = tenant_id
     try:
         submission = submit_compute_result(
@@ -496,6 +498,8 @@ async def zpe_compute_failed(
     _require_legacy_worker_endpoints(flags)
     job_meta = _require_job_tenant_meta(job_id)
     tenant_id = str(job_meta["tenant_id"])
+    if request.tenant_id != tenant_id:
+        raise HTTPException(status_code=403, detail="tenant boundary violation")
     raw.state.tenant_id = tenant_id
     try:
         submission = submit_compute_failure(

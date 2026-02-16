@@ -127,7 +127,14 @@ def submit_job(
     )
     payload = request.model_dump()
     payload["mobile_indices"] = mobile_indices
-    request_fingerprint = compute_submit_request_fingerprint(payload)
+    request_fingerprint = compute_submit_request_fingerprint(
+        {
+            "request": payload,
+            "management_node_id": target.server_id,
+            "requested_queue_name": target.queue_name,
+            "requested_by_user_id": user_id,
+        }
+    )
     try:
         claim = idempotency_store.claim_or_get(
             user_id=user_id,

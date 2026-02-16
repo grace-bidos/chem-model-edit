@@ -36,7 +36,8 @@ class SubmitIdempotencyStore:
         self.redis = redis or get_redis_connection()
 
     def _key(self, *, user_id: str, tenant_id: str, request_id: str) -> str:
-        return f"{_SUBMIT_PREFIX}{tenant_id}:{user_id}:{request_id}"
+        _ = user_id
+        return f"{_SUBMIT_PREFIX}{tenant_id}:{request_id}"
 
     def get_record(
         self, *, user_id: str, tenant_id: str, request_id: str
