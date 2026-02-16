@@ -34,6 +34,8 @@ Known host-side caveats before VM smoke:
 ## Script
 
 - `scripts/aiida-slurm-smoke-vm.sh`
+- Remote rerun driver: `scripts/aiida-slurm-smoke-vm-remote.sh`
+  - Runbook: `docs/process/aiida-slurm-smoke-vm-remote.md`
 
 Default behavior:
 
