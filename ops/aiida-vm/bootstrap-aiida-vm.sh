@@ -240,7 +240,16 @@ if [[ "$DRY_RUN" -eq 0 ]]; then
     || die "rabbitmq did not become ready within timeout"
 fi
 
-DB_USER_SQL="DO \\$\\$ BEGIN\\n  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = $(sql_quote "$AIIDA_PGUSER")) THEN\\n    CREATE USER \\\"$AIIDA_PGUSER\\\" WITH PASSWORD $(sql_quote "$AIIDA_PGPASSWORD");\\n  ELSE\\n    ALTER USER \\\"$AIIDA_PGUSER\\\" WITH PASSWORD $(sql_quote "$AIIDA_PGPASSWORD");\\n  END IF;\\nEND \\$\\$;"
+DB_USER_SQL=$(cat <<EOF
+DO \$\$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = $(sql_quote "$AIIDA_PGUSER")) THEN
+    CREATE USER "$AIIDA_PGUSER" WITH PASSWORD $(sql_quote "$AIIDA_PGPASSWORD");
+  ELSE
+    ALTER USER "$AIIDA_PGUSER" WITH PASSWORD $(sql_quote "$AIIDA_PGPASSWORD");
+  END IF;
+END \$\$;
+EOF
+)
 
 run_cmd_as_postgres psql -v ON_ERROR_STOP=1 -d postgres -c "$DB_USER_SQL"
 if [[ "$DRY_RUN" -eq 1 ]]; then
