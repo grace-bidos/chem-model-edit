@@ -87,7 +87,7 @@ describe('ProjectionUpdate monotonicity and dedup', () => {
     })
   })
 
-  it('rejects non-monotonic transitions with stable error semantics', () => {
+  it('treats stale regressions as idempotent no-op', () => {
     const aggregate = createEmptyProjectionAggregate()
 
     applyProjectionUpdate(aggregate, {
@@ -99,15 +99,71 @@ describe('ProjectionUpdate monotonicity and dedup', () => {
       projection_state: 'succeeded',
     })
 
+    const stale = applyProjectionUpdate(aggregate, {
+      projection_event_id: 'evt-11',
+      tenant_id: 'tenant-1',
+      workspace_id: 'ws-1',
+      job_id: 'job-1',
+      submission_id: 'sub-1',
+      projection_state: 'running',
+    })
+
+    expect(stale).toEqual({
+      applied: false,
+      idempotent: true,
+      projection_state: 'succeeded',
+    })
+  })
+
+  it('treats repeated state updates as idempotent no-op', () => {
+    const aggregate = createEmptyProjectionAggregate()
+
+    applyProjectionUpdate(aggregate, {
+      projection_event_id: 'evt-20',
+      tenant_id: 'tenant-1',
+      workspace_id: 'ws-1',
+      job_id: 'job-1',
+      submission_id: 'sub-1',
+      projection_state: 'running',
+    })
+
+    const replaySameState = applyProjectionUpdate(aggregate, {
+      projection_event_id: 'evt-21',
+      tenant_id: 'tenant-1',
+      workspace_id: 'ws-1',
+      job_id: 'job-1',
+      submission_id: 'sub-1',
+      projection_state: 'running',
+    })
+
+    expect(replaySameState).toEqual({
+      applied: false,
+      idempotent: true,
+      projection_state: 'running',
+    })
+  })
+
+  it('rejects terminal state switching with stable error semantics', () => {
+    const aggregate = createEmptyProjectionAggregate()
+
+    applyProjectionUpdate(aggregate, {
+      projection_event_id: 'evt-30',
+      tenant_id: 'tenant-1',
+      workspace_id: 'ws-1',
+      job_id: 'job-1',
+      submission_id: 'sub-1',
+      projection_state: 'succeeded',
+    })
+
     let thrown
     try {
       applyProjectionUpdate(aggregate, {
-        projection_event_id: 'evt-11',
+        projection_event_id: 'evt-31',
         tenant_id: 'tenant-1',
         workspace_id: 'ws-1',
         job_id: 'job-1',
         submission_id: 'sub-1',
-        projection_state: 'running',
+        projection_state: 'failed',
       })
     } catch (error) {
       thrown = error
@@ -117,7 +173,7 @@ describe('ProjectionUpdate monotonicity and dedup', () => {
     expect(thrown.code).toBe(INVALID_PROJECTION_TRANSITION)
     expect(thrown.status).toBe(409)
     expect(thrown.previous_state).toBe('succeeded')
-    expect(thrown.next_state).toBe('running')
-    expect(thrown.message).toBe('invalid projection transition: succeeded -> running')
+    expect(thrown.next_state).toBe('failed')
+    expect(thrown.message).toBe('invalid projection transition: succeeded -> failed')
   })
 })

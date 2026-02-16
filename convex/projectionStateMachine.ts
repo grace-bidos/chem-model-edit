@@ -82,6 +82,10 @@ export const isMonotonicProjectionTransition = (
   return PROJECTION_STATE_ORDER[next] >= PROJECTION_STATE_ORDER[previous]
 }
 
+export const getProjectionStateOrder = (state: ProjectionState): number => {
+  return PROJECTION_STATE_ORDER[state]
+}
+
 export const assertMonotonicProjectionTransition = (
   previous: ProjectionState | null | undefined,
   next: ProjectionState,
@@ -103,8 +107,9 @@ export const applyProjectionUpdate = (
   aggregate: ProjectionAggregate,
   update: ProjectionUpdateInput,
 ): ApplyProjectionUpdateResult => {
+  const targetKey = buildProjectionTargetKey(update)
+
   if (aggregate.seen_projection_event_ids.has(update.projection_event_id)) {
-    const targetKey = buildProjectionTargetKey(update)
     const current = aggregate.projections_by_target.get(targetKey)
     return {
       applied: false,
@@ -113,9 +118,21 @@ export const applyProjectionUpdate = (
     }
   }
 
-  const targetKey = buildProjectionTargetKey(update)
   const current = aggregate.projections_by_target.get(targetKey)
   const previousState = current?.projection_state ?? null
+
+  if (previousState != null) {
+    const previousOrder = getProjectionStateOrder(previousState)
+    const nextOrder = getProjectionStateOrder(update.projection_state)
+    if (previousState === update.projection_state || nextOrder < previousOrder) {
+      aggregate.seen_projection_event_ids.add(update.projection_event_id)
+      return {
+        applied: false,
+        idempotent: true,
+        projection_state: previousState,
+      }
+    }
+  }
 
   assertMonotonicProjectionTransition(previousState, update.projection_state)
 

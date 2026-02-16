@@ -4,6 +4,7 @@ import {
   INVALID_PROJECTION_TRANSITION,
   ProjectionTransitionError,
   assertMonotonicProjectionTransition,
+  getProjectionStateOrder,
 } from './projectionStateMachine'
 
 const projectionStateValidator = v.union(
@@ -44,6 +45,13 @@ export const applyProjectionUpdate = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    const target = {
+      tenant_id: args.tenant_id,
+      workspace_id: args.workspace_id,
+      job_id: args.job_id,
+      submission_id: args.submission_id,
+    }
+
     const existingReceipt = await (ctx.db
       .query('projection_event_receipts') as any)
       .withIndex('by_projection_event_id', (q: any) =>
@@ -52,11 +60,40 @@ export const applyProjectionUpdate = mutation({
       .first()
 
     if (existingReceipt) {
+      const isSameTarget =
+        existingReceipt.tenant_id === target.tenant_id &&
+        existingReceipt.workspace_id === target.workspace_id &&
+        existingReceipt.job_id === target.job_id &&
+        existingReceipt.submission_id === target.submission_id
+      const existingIncomingState =
+        existingReceipt.incoming_projection_state ??
+        existingReceipt.projection_state
+      const isSameState =
+        existingIncomingState === args.projection_state
+
+      if (!isSameTarget || !isSameState) {
+        throw new ConvexError({
+          code: 'projection_event_id_conflict',
+          status: 409,
+          message: 'projection_event_id was already recorded with different payload',
+          existing_target: {
+            tenant_id: existingReceipt.tenant_id,
+            workspace_id: existingReceipt.workspace_id,
+            job_id: existingReceipt.job_id,
+            submission_id: existingReceipt.submission_id,
+          },
+          incoming_target: target,
+          existing_projection_state: existingReceipt.projection_state,
+          existing_incoming_projection_state: existingIncomingState,
+          incoming_projection_state: args.projection_state,
+        })
+      }
+
       return {
         ok: true,
         applied: false,
         idempotent: true,
-        projection_state: args.projection_state,
+        projection_state: existingReceipt.projection_state,
       } as const
     }
 
@@ -71,6 +108,31 @@ export const applyProjectionUpdate = mutation({
       .first()
 
     const previousState = existingProjection?.projection_state ?? null
+    const nowIso = new Date().toISOString()
+
+    if (previousState != null) {
+      const previousOrder = getProjectionStateOrder(previousState)
+      const nextOrder = getProjectionStateOrder(args.projection_state)
+
+      if (previousState === args.projection_state || nextOrder < previousOrder) {
+        await ctx.db.insert('projection_event_receipts', {
+          projection_event_id: args.projection_event_id,
+          tenant_id: args.tenant_id,
+          workspace_id: args.workspace_id,
+          job_id: args.job_id,
+          submission_id: args.submission_id,
+          projection_state: previousState,
+          incoming_projection_state: args.projection_state,
+          recorded_at: nowIso,
+        })
+        return {
+          ok: true,
+          applied: false,
+          idempotent: true,
+          projection_state: previousState,
+        } as const
+      }
+    }
 
     try {
       assertMonotonicProjectionTransition(previousState, args.projection_state)
@@ -87,7 +149,6 @@ export const applyProjectionUpdate = mutation({
       throw error
     }
 
-    const nowIso = new Date().toISOString()
     const projectionDocument = {
       tenant_id: args.tenant_id,
       workspace_id: args.workspace_id,
@@ -117,6 +178,7 @@ export const applyProjectionUpdate = mutation({
       job_id: args.job_id,
       submission_id: args.submission_id,
       projection_state: args.projection_state,
+      incoming_projection_state: args.projection_state,
       recorded_at: nowIso,
     })
 

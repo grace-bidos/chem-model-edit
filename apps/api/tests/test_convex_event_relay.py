@@ -58,6 +58,14 @@ def test_compute_event_idempotency_key_changes_with_sequence() -> None:
     assert compute_event_idempotency_key(event) != compute_event_idempotency_key(next_event)
 
 
+def test_build_convex_projection_preserves_started_and_finished_states() -> None:
+    started_projection = build_convex_projection(make_event(state=cast(JobState, "started")))
+    finished_projection = build_convex_projection(make_event(state=cast(JobState, "finished")))
+
+    assert started_projection.status == "started"
+    assert finished_projection.status == "finished"
+
+
 def test_projection_as_dict_matches_contract() -> None:
     event = make_event()
     projection = build_convex_projection(event)
