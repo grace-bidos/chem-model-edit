@@ -70,6 +70,7 @@ def _make_handler() -> type[BaseHTTPRequestHandler]:
                     "job_id": self.job_id,
                     "lease_id": self.lease_id,
                     "lease_ttl_seconds": 30,
+                    "meta": {"tenant_id": "tenant-1"},
                     "payload": {
                         "content": QE_INPUT,
                         "mobile_indices": [0],
@@ -130,6 +131,7 @@ def test_http_worker_success(monkeypatch, tmp_path):
             base_url,
             handler_cls.token,
             lease["job_id"],
+            "tenant-1",
             lease["lease_id"],
             artifacts.result,
             artifacts.summary_text,
@@ -161,6 +163,7 @@ def test_http_worker_failed(monkeypatch, tmp_path):
             base_url,
             handler_cls.token,
             lease["job_id"],
+            "tenant-1",
             lease["lease_id"],
             "TEST_ERROR",
             "boom",

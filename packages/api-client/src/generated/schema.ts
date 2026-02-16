@@ -436,6 +436,8 @@ export interface components {
             error_message: string;
             /** Lease Id */
             lease_id: string;
+            /** Tenant Id */
+            tenant_id: string;
             /** Traceback */
             traceback?: string | null;
         };
@@ -517,6 +519,8 @@ export interface components {
             };
             /** Summary Text */
             summary_text: string;
+            /** Tenant Id */
+            tenant_id: string;
         };
         /** ComputeResultResponse */
         ComputeResultResponse: {

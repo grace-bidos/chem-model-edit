@@ -94,14 +94,18 @@ Primary capabilities include parallel structure views, partial structure transpl
 ## Tool Roles
 
 - Linear: project/cycle/issue planning and status.
-- Graphite (`gt`): stacked PR workflow (`create`, `submit`, `restack`, `sync`).
-- GitHub CLI (`gh`): PR review/merge/check inspection.
+- Graphite (`gt`): stack operations only (`create`, `submit`, `restack`, `sync`).
+- GitHub CLI (`gh`): PR readiness/merge loop (`pr_readiness.py`, `pr-autoloop.py`) and review/check inspection.
 - Git (`git`): low-level repository operations.
 - Jujutsu (`jj`): optional local-history helper only; do not use as primary PR/push path.
+- `scripts/gh/stack_lane_loop.py`: lane-owner glue entrypoint (`gt sync` + gh readiness loop orchestration).
 - `scripts/gh/pr-autoloop.py`: lightweight PR loop helper for watch/blocker detection and optional auto-merge.
 
 ### PR Loop Operation (Recommended)
 
+- Default split of responsibilities: use `gt` for stack shape changes, then `gh` scripts for readiness and merge loop.
+- Recommended lane-owner entrypoint:
+  - `scripts/gh/stack_lane_loop.py <PR_NUMBER> --gt-sync --watch --merge-when-ready --merge-method merge`
 - Use `scripts/gh/pr-autoloop.py <PR_NUMBER> --watch --merge-when-ready --merge-method merge` to run the review/check/merge loop.
 - Use `--resolve-outdated-threads` only for outdated threads; do not auto-resolve active review discussions.
 - Prefer this script over ad-hoc manual polling when handling repeated CI/review feedback cycles.

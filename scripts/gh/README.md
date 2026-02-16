@@ -22,6 +22,26 @@ scripts/gh/pr_readiness.py 123
 scripts/gh/pr_readiness.py https://github.com/<owner>/<repo>/pull/123
 ```
 
+## `stack_lane_loop.py`
+
+Lane-owner orchestration entrypoint:
+- optional `gt sync` for stack/base alignment
+- one-shot readiness summary
+- optional watch/merge loop via `pr-autoloop.py`
+
+Examples:
+
+```bash
+# Standard lane flow
+scripts/gh/stack_lane_loop.py 123 --gt-sync --watch --merge-when-ready --merge-method merge
+
+# Summary only (no watch)
+scripts/gh/stack_lane_loop.py 123 --gt-sync
+
+# Dry-run for command preview
+scripts/gh/stack_lane_loop.py 123 --gt-sync --watch --dry-run
+```
+
 ## `pr-autoloop.py`
 
 Watch a PR, report readiness blockers, and optionally merge when ready.
