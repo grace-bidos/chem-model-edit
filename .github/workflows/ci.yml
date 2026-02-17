@@ -505,7 +505,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          uv run python scripts/gh/security_phase1_promotion_report.py \
+          uv run --project apps/api python scripts/gh/security_phase1_promotion_report.py \
             --repo "${GITHUB_REPOSITORY}" \
             --workflow ci.yml \
             --branch main \

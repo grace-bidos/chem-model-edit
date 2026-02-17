@@ -25,6 +25,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+GH_TIMEOUT_SECONDS = 60
+
 
 @dataclass
 class StepStatus:
@@ -57,6 +59,9 @@ class RunEvidence:
     notes: list[str]
 
 
+# Keep these patterns in sync with CI summary lines in `.github/workflows/ci.yml`:
+# - "- Bandit: high={high}, medium={medium}, low={low}, total={len(issues)}"
+# - "- Pip-audit: vulnerable_packages={pkg_count}, vulnerabilities={vuln_count}"
 BANDIT_RE = re.compile(
     r"- Bandit: high=(?P<high>\d+), medium=(?P<medium>\d+), low=(?P<low>\d+), total=(?P<total>\d+)"
 )
@@ -70,14 +75,24 @@ class GhError(RuntimeError):
 
 
 def run_gh(args: list[str]) -> str:
-    proc = subprocess.run(
-        ["gh", *args],
-        check=False,
-        text=True,
-        capture_output=True,
-    )
+    cmd = "gh " + " ".join(shlex.quote(a) for a in args)
+    try:
+        proc = subprocess.run(
+            ["gh", *args],
+            check=False,
+            text=True,
+            capture_output=True,
+            timeout=GH_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as exc:
+        partial_stdout = (exc.stdout or "").strip()
+        partial_stderr = (exc.stderr or "").strip()
+        details = "\n".join(part for part in [partial_stdout, partial_stderr] if part) or "(no output)"
+        raise GhError(
+            f"command timed out after {GH_TIMEOUT_SECONDS}s: {cmd}\n{details}"
+        ) from exc
+
     if proc.returncode != 0:
-        cmd = "gh " + " ".join(shlex.quote(a) for a in args)
         stderr = proc.stderr.strip() or "(no stderr)"
         raise GhError(f"command failed ({proc.returncode}): {cmd}\n{stderr}")
     return proc.stdout
@@ -131,7 +146,10 @@ def parse_security_summary(path: Path) -> tuple[dict[str, int] | None, dict[str,
             "total": int(bandit_match.group("total")),
         }
     else:
-        notes.append("bandit summary line missing")
+        notes.append(
+            "bandit summary parse failed: expected "
+            "'- Bandit: high=<n>, medium=<n>, low=<n>, total=<n>'"
+        )
 
     if pip_match:
         pip_audit = {
@@ -139,7 +157,10 @@ def parse_security_summary(path: Path) -> tuple[dict[str, int] | None, dict[str,
             "vulnerabilities": int(pip_match.group("vuln")),
         }
     else:
-        notes.append("pip-audit summary line missing")
+        notes.append(
+            "pip-audit summary parse failed: expected "
+            "'- Pip-audit: vulnerable_packages=<n>, vulnerabilities=<n>'"
+        )
 
     return bandit, pip_audit, notes
 
@@ -156,7 +177,10 @@ def collect_run_evidence(
     repo: str,
     artifact_prefix: str,
 ) -> RunEvidence:
-    run_id = int(run["databaseId"])
+    db_id = run.get("databaseId")
+    if db_id is None:
+        raise GhError(f"missing databaseId in run payload: {run.get('id') or run}")
+    run_id = int(db_id)
     run_number = int(run.get("number", 0) or 0)
     notes: list[str] = []
 
@@ -254,6 +278,7 @@ def compute_streak(runs: list[RunEvidence], streak_size: int) -> tuple[int, bool
             if streak >= streak_size:
                 break
         else:
+            # Conservative contract: False or unknown (None) both break the latest-pass streak.
             break
     return streak, streak >= streak_size
 
@@ -421,6 +446,7 @@ def main() -> int:
         if not isinstance(runs_payload, list):
             raise GhError("unexpected response for gh run list")
 
+        # Keep this serial for now to limit scope; optimize N+1 gh calls separately if needed.
         run_evidence = [
             collect_run_evidence(run, repo=repo, artifact_prefix=args.artifact_prefix)
             for run in runs_payload
