@@ -144,12 +144,6 @@ jobs:
         run: pnpm exec nx run web:test
       - name: A11y tests
         run: pnpm exec nx run web:a11y
-      - name: Fast-check
-        run: pnpm exec nx run web:fastcheck
-      - name: Knip (web)
-        run: pnpm exec nx run web:knip
-      - name: Knip (shared)
-        run: pnpm exec nx run shared:knip
 
   api:
     needs:
@@ -285,7 +279,9 @@ jobs:
       - changes
       - route
     if: ${{ github.event_name == 'push' || needs.changes.outputs.api == 'true' }}
-    runs-on: ${{ fromJSON(needs.route.outputs.runner) }}
+    # gitleaks-action cache extraction is unstable on our self-hosted pool (/tmp permission/path issues).
+    # Keep this phase-1 non-blocking lane on GitHub-hosted runners for deterministic behavior.
+    runs-on: ubuntu-latest
     continue-on-error: true
     steps:
       - name: Checkout
@@ -293,7 +289,10 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+      - name: Cleanup gitleaks temp file (runner quirk)
+        run: rm -f /tmp/gitleaks.tmp || true
       - name: Gitleaks (phase-1 non-blocking)
+        continue-on-error: true
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

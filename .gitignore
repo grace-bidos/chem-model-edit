@@ -11,6 +11,11 @@ apps/web/dist
 apps/web/.tanstack
 apps/web/.vinxi
 apps/web/storybook-static
+apps/web/coverage
+apps/web/reports
+apps/web/.stryker-tmp
+apps/web/playwright-report
+apps/web/test-results
 .nx
 
 # Python

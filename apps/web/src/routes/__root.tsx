@@ -21,7 +21,7 @@ const runtimeApiBase = import.meta.env.SSR
   : null
 
 const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
-const clerkKey = clerkPublishableKey ?? 'pk_test_missing'
+const clerkKey = clerkPublishableKey ?? 'pk_test_Y2xlcmsuZXhhbXBsZS5jb20k'
 
 const RouterDevtoolsPanel = import.meta.env.DEV
   ? lazy(() =>
