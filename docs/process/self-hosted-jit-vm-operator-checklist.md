@@ -2,12 +2,25 @@
 
 This checklist is the concrete operator sequence for local rollout.
 
+## Standard policy (quick reference)
+
+- Supervisor mode is primary for steady operations:
+  - `scripts/runner/setup_pool_supervisor_one_command.sh`
+- Trusted routing default is enabled:
+  - `CI_SELF_HOSTED_TRUSTED_ROUTING=true`
+- Timer reconcile mode is fallback only:
+  - `scripts/runner/setup_pool_reconcile_one_command.sh`
+- Fast helper wrappers:
+  - token refresh setup: `scripts/runner/setup_github_app_token_refresh_one_command.sh`
+  - base-runner recovery: `scripts/runner/recover_base_runner_one_command.sh`
+  - guarded routing rollback: `scripts/runner/guard_trusted_routing.sh`
+
 ## 0) One-time GitHub setup (operator action)
 
 1. Create a dedicated runner group for CI only.
 2. Restrict the group to this repository.
 3. Set workflow variable:
-   - `CI_SELF_HOSTED_TRUSTED_ROUTING=false` (start disabled)
+   - `CI_SELF_HOSTED_TRUSTED_ROUTING=false` during initial setup
 4. Confirm required label set:
    - `self-hosted`, `linux`, `x64`, `chem-trusted-pr`
 
@@ -27,6 +40,20 @@ Recommended default:
 
 - Use GitHub App installation tokens for routine runner operations.
 - Keep PAT flow only for emergency break-glass recovery.
+
+Helper commands for GitHub App setup:
+
+```bash
+scripts/runner/check_github_app_jwt.sh \
+  --app-id <APP_ID> \
+  --private-key-file <PRIVATE_KEY_PATH>
+
+scripts/runner/get_github_app_installation_id.sh \
+  --app-id <APP_ID> \
+  --private-key-file <PRIVATE_KEY_PATH> \
+  --owner grace-bidos \
+  --repo chem-model-edit
+```
 
 ## 2) VM base image prerequisites (operator action, sudo likely required)
 
@@ -122,22 +149,28 @@ Behavior summary:
 - Destroy VM immediately after runner exits.
 - Do not reuse runner workspace between jobs.
 
-## 6) Enable traffic (canary)
+## 6) Validate traffic routing (canary)
 
-After one successful dry run:
+After setup + one successful dry run, enable trusted routing and verify behavior:
 
-- set `CI_SELF_HOSTED_TRUSTED_ROUTING=true`
+- `gh variable set CI_SELF_HOSTED_TRUSTED_ROUTING --repo <owner>/<repo> --body true`
 - open a trusted PR and verify route job selects self-hosted label target
 
 ## 7) Fast rollback
 
 Immediate rollback:
 
-- set `CI_SELF_HOSTED_TRUSTED_ROUTING=false`
+- `gh variable set CI_SELF_HOSTED_TRUSTED_ROUTING --repo <owner>/<repo> --body false`
+- or run guarded rollback helper:
+  - `scripts/runner/guard_trusted_routing.sh --owner <owner> --repo <repo>`
 
 Hard rollback:
 
 - remove repository access from the dedicated runner group.
+
+Restore default routing after incident:
+
+- `gh variable set CI_SELF_HOSTED_TRUSTED_ROUTING --repo <owner>/<repo> --body true`
 
 ## 8) Local runner health check (incident triage)
 
@@ -169,26 +202,27 @@ scripts/runner/check_local_runner_health.sh \
 When jobs are queued or the local runner is stuck offline, run:
 
 ```bash
-RUNNER_OWNER=grace-bidos \
-RUNNER_REPO=chem-model-edit \
-RUNNER_LABELS="self-hosted,linux,x64,chem-trusted-pr" \
-RUNNER_GROUP="Default" \
-scripts/runner/recover_base_runner.sh --runner-home /opt/actions-runner/actions-runner
+scripts/runner/recover_base_runner_one_command.sh \
+  --owner grace-bidos \
+  --repo chem-model-edit \
+  --labels "self-hosted,linux,x64,chem-trusted-pr" \
+  --group "Default" \
+  --runner-home /opt/actions-runner
 ```
 
 Dry-run preview (safe):
 
 ```bash
-RUNNER_OWNER=grace-bidos \
-RUNNER_REPO=chem-model-edit \
-RUNNER_LABELS="self-hosted,linux,x64,chem-trusted-pr" \
-RUNNER_GROUP="Default" \
-scripts/runner/recover_base_runner.sh \
-  --runner-home /opt/actions-runner/actions-runner \
+scripts/runner/recover_base_runner_one_command.sh \
+  --owner grace-bidos \
+  --repo chem-model-edit \
+  --labels "self-hosted,linux,x64,chem-trusted-pr" \
+  --group "Default" \
+  --runner-home /opt/actions-runner \
   --dry-run
 ```
 
-Required env args are always:
+Manual fallback (`recover_base_runner.sh`) required env args:
 
 - `RUNNER_OWNER`
 - `RUNNER_REPO`
@@ -255,6 +289,10 @@ scripts/runner/setup_pool_supervisor_one_command.sh --dry-run
 Verify:
 
 ```bash
+scripts/runner/verify_self_hosted_runner_setup.sh \
+  --owner grace-bidos \
+  --repo chem-model-edit
+
 sudo systemctl status chem-runner-pool-supervisor.service --no-pager
 sudo systemctl status chem-github-app-token-refresh.timer --no-pager
 sudo cat /var/lib/chem-model-edit/github-app-token-refresh-status.json

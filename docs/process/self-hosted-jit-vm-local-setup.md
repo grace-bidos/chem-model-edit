@@ -8,11 +8,18 @@ For concrete operator commands, see:
 
 - `docs/process/self-hosted-jit-vm-operator-checklist.md`
 
-## Rollout Model
+## Standard Ops Policy (Default)
 
-- Phase 0: keep `CI_SELF_HOSTED_TRUSTED_ROUTING=false` (no traffic, routing logic present).
-- Phase 1: set `CI_SELF_HOSTED_TRUSTED_ROUTING=true` and canary only trusted PRs.
-- Phase 2: tune warm VM policy and cache behavior.
+- Primary control mode is always-on supervisor:
+  - `scripts/runner/setup_pool_supervisor_one_command.sh`
+- Trusted routing is enabled by default:
+  - `CI_SELF_HOSTED_TRUSTED_ROUTING=true`
+- Keep timer reconcile mode as fallback only:
+  - `scripts/runner/setup_pool_reconcile_one_command.sh`
+- Use one-command wrappers for fast operator actions:
+  - token refresh automation: `scripts/runner/setup_github_app_token_refresh_one_command.sh`
+  - base-runner recovery: `scripts/runner/recover_base_runner_one_command.sh`
+  - routing guard rollback helper: `scripts/runner/guard_trusted_routing.sh`
 
 ## Trusted Routing Policy
 
@@ -85,10 +92,16 @@ Recommended auth model for JIT issuance:
 - runner lifecycle is ephemeral (single job then removed)
 - failed jobs still clean up VM and runner registration
 - rollback path works by setting `CI_SELF_HOSTED_TRUSTED_ROUTING=false`
+- fast rollback/recover commands are documented and tested:
+  - disable: `gh variable set CI_SELF_HOSTED_TRUSTED_ROUTING --repo <owner>/<repo> --body false`
+  - restore default: `gh variable set CI_SELF_HOSTED_TRUSTED_ROUTING --repo <owner>/<repo> --body true`
+  - auto-guarded disable on degraded health:
+    - `scripts/runner/guard_trusted_routing.sh --owner <owner> --repo <repo>`
 - local health check command reports `0` when service/GitHub status align
   - `scripts/runner/check_local_runner_health.sh --owner <owner> --repo <repo>`
 - local recovery command supports dry-run and reconfigure/restart flow
   - `RUNNER_OWNER=<owner> RUNNER_REPO=<repo> RUNNER_LABELS=<labels> RUNNER_GROUP=<group> scripts/runner/recover_base_runner.sh --dry-run`
+  - `scripts/runner/recover_base_runner_one_command.sh --dry-run`
 - local supervisor command supports dry-run before enabling
   - `scripts/runner/setup_pool_supervisor_one_command.sh --dry-run`
 - app token refresh timer is active and recent status is recorded
@@ -97,6 +110,11 @@ Recommended auth model for JIT issuance:
 
 ## Rollback
 
-- Immediate rollback: set `CI_SELF_HOSTED_TRUSTED_ROUTING=false`.
+- Immediate rollback:
+  - `gh variable set CI_SELF_HOSTED_TRUSTED_ROUTING --repo <owner>/<repo> --body false`
+- Guarded rollback (recommended operational trigger):
+  - `scripts/runner/guard_trusted_routing.sh --owner <owner> --repo <repo>`
+- Return to standard policy:
+  - `gh variable set CI_SELF_HOSTED_TRUSTED_ROUTING --repo <owner>/<repo> --body true`
 - Hard rollback: disable runner group mapping for this repository.
-- Emergency fallback note: always prefer toggling `CI_SELF_HOSTED_TRUSTED_ROUTING=false` first when incidents cause queueing or local runner instability.
+- Emergency fallback note: always toggle routing false first when incidents cause queueing or local runner instability.
