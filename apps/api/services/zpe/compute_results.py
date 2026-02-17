@@ -5,7 +5,9 @@ from datetime import datetime, timezone
 from hashlib import sha256
 import json
 import logging
+import time
 from typing import Any, Dict, Optional, cast
+from uuid import uuid4
 
 from redis import Redis, WatchError
 
@@ -34,6 +36,8 @@ _DLQ = "zpe:dlq"
 _FAILURE_SUBMIT_PREFIX = "zpe:failure_submit:"
 _RESULT_SUBMIT_PREFIX = "zpe:result_submit:"
 _RELAY_DISPATCH_PREFIX = "zpe:convex:relay:dispatch:"
+_RELAY_LAST_SEQUENCE_PREFIX = "zpe:convex:relay:last_sequence:"
+_RELAY_DISPATCH_LOCK_PREFIX = "zpe:convex:relay:dispatch_lock:"
 _RELAY_SEQUENCE_FIELD = "relay_sequence"
 
 
@@ -81,6 +85,59 @@ def _coerce_non_empty(value: Any) -> str | None:
     return rendered or None
 
 
+def _read_last_dispatched_sequence(redis: Redis, job_id: str) -> int:
+    raw = cast(Optional[bytes], redis.get(f"{_RELAY_LAST_SEQUENCE_PREFIX}{job_id}"))
+    if not raw:
+        return 0
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _acquire_dispatch_lock(
+    *,
+    redis: Redis,
+    job_id: str,
+    ttl_seconds: int,
+    blocking_timeout_seconds: float,
+) -> str | None:
+    lock_key = f"{_RELAY_DISPATCH_LOCK_PREFIX}{job_id}"
+    token = uuid4().hex
+    deadline = time.monotonic() + max(0.0, blocking_timeout_seconds)
+    while True:
+        acquired = cast(
+            bool,
+            redis.set(lock_key, token, nx=True, ex=max(1, ttl_seconds)),
+        )
+        if acquired:
+            return token
+        if time.monotonic() >= deadline:
+            return None
+        time.sleep(0.01)
+
+
+def _release_dispatch_lock(*, redis: Redis, job_id: str, token: str) -> None:
+    lock_key = f"{_RELAY_DISPATCH_LOCK_PREFIX}{job_id}"
+    for _ in range(3):
+        pipe = redis.pipeline()
+        pipe_any = cast(Any, pipe)
+        try:
+            pipe_any.watch(lock_key)
+            current = cast(Optional[bytes], pipe.get(lock_key))
+            if not current or current.decode("utf-8") != token:
+                pipe.unwatch()
+                return
+            pipe.multi()
+            pipe.delete(lock_key)
+            pipe.execute()
+            return
+        except WatchError:
+            continue
+        finally:
+            pipe.reset()
+
+
 def _dispatch_runtime_state_transition(
     *,
     redis: Redis,
@@ -92,58 +149,73 @@ def _dispatch_runtime_state_transition(
 ) -> None:
     if sequence <= 0:
         return
-    dispatch_key = f"{_RELAY_DISPATCH_PREFIX}{job_id}:{sequence}"
-    acquired = cast(
-        bool,
-        redis.set(
-            dispatch_key,
-            "1",
-            nx=True,
-            ex=ttl_seconds,
-        ),
-    )
-    if not acquired:
-        return
     settings = get_zpe_settings()
-    dispatcher = get_convex_event_dispatcher(
-        relay_url=settings.convex_relay_url,
-        relay_token=settings.convex_relay_token,
-        timeout_seconds=settings.convex_relay_timeout_seconds,
-    )
-    meta = get_job_meta_store().get_meta(job_id)
-    owner_id = _coerce_non_empty(meta.get("user_id"))
-    project_id = _coerce_non_empty(meta.get("project_id")) or _coerce_non_empty(
-        meta.get("queue_name")
-    )
-    node_id = _coerce_non_empty(meta.get("node_id")) or job_id
-    event = AiidaJobEvent(
+    dispatch_lock_token = _acquire_dispatch_lock(
+        redis=redis,
         job_id=job_id,
-        node_id=node_id,
-        project_id=project_id or "zpe",
-        owner_id=owner_id,
-        state=state,
-        event_id=f"runtime:{job_id}:{sequence}",
-        timestamp=_to_iso_datetime(updated_at),
-        sequence=sequence,
+        ttl_seconds=ttl_seconds,
+        blocking_timeout_seconds=max(1, settings.convex_relay_timeout_seconds + 1),
     )
-    projection = build_convex_projection(event)
-    idempotency_key = compute_event_idempotency_key(event)
+    if dispatch_lock_token is None:
+        return
     try:
-        dispatcher.dispatch_job_projection(
-            payload=projection,
-            idempotency_key=idempotency_key,
+        if sequence <= _read_last_dispatched_sequence(redis, job_id):
+            return
+        dispatch_key = f"{_RELAY_DISPATCH_PREFIX}{job_id}:{sequence}"
+        acquired = cast(
+            bool,
+            redis.set(
+                dispatch_key,
+                "1",
+                nx=True,
+                ex=ttl_seconds,
+            ),
         )
-    except Exception:
-        redis.delete(dispatch_key)
-        logger.warning(
-            "convex relay dispatch failed for runtime transition",
-            extra={
-                "job_id": job_id,
-                "state": state,
-                "sequence": sequence,
-            },
-            exc_info=True,
+        if not acquired:
+            return
+        dispatcher = get_convex_event_dispatcher(
+            relay_url=settings.convex_relay_url,
+            relay_token=settings.convex_relay_token,
+            timeout_seconds=settings.convex_relay_timeout_seconds,
         )
+        meta = get_job_meta_store().get_meta(job_id)
+        owner_id = _coerce_non_empty(meta.get("user_id"))
+        project_id = _coerce_non_empty(meta.get("project_id")) or _coerce_non_empty(
+            meta.get("queue_name")
+        )
+        node_id = _coerce_non_empty(meta.get("node_id")) or job_id
+        event = AiidaJobEvent(
+            job_id=job_id,
+            node_id=node_id,
+            project_id=project_id or "zpe",
+            owner_id=owner_id,
+            state=state,
+            event_id=f"runtime:{job_id}:{sequence}",
+            timestamp=_to_iso_datetime(updated_at),
+            sequence=sequence,
+        )
+        projection = build_convex_projection(event)
+        idempotency_key = compute_event_idempotency_key(event)
+        try:
+            dispatcher.dispatch_job_projection(
+                payload=projection,
+                idempotency_key=idempotency_key,
+            )
+        except Exception:
+            redis.delete(dispatch_key)
+            logger.warning(
+                "convex relay dispatch failed for runtime transition",
+                extra={
+                    "job_id": job_id,
+                    "state": state,
+                    "sequence": sequence,
+                },
+                exc_info=True,
+            )
+            return
+        redis.setex(f"{_RELAY_LAST_SEQUENCE_PREFIX}{job_id}", ttl_seconds, sequence)
+    finally:
+        _release_dispatch_lock(redis=redis, job_id=job_id, token=dispatch_lock_token)
 
 
 @dataclass

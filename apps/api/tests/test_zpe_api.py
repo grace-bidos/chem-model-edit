@@ -379,6 +379,100 @@ def test_zpe_submission_routes_to_default_queue_with_slurm_route_default_policy(
     assert meta["slurm_partition"] == "short"
     assert meta["slurm_account"] == "chem-default"
     assert meta["slurm_qos"] == "normal"
+    assert meta["slurm_adapter_configured"] == "stub-policy"
+    assert meta["slurm_adapter_effective"] == "stub-policy"
+    assert meta["slurm_adapter_rollback_guard"] == "allow"
+
+
+def test_zpe_submission_with_real_policy_surfaces_precondition_failure_as_503(
+    monkeypatch,
+    tmp_path,
+):
+    fake = _patch_redis(monkeypatch)
+    store = RedisResultStore(redis=fake)
+    policy_path = tmp_path / "onboarding.policy.json"
+    _write_slurm_policy(policy_path, fallback_mode="route-default")
+    settings = ZPESettings(
+        compute_mode="mock",
+        result_store="redis",
+        slurm_policy_path=str(policy_path),
+        slurm_adapter="real-policy",
+    )
+
+    def _missing_scontrol(*args, **kwargs):
+        _ = (args, kwargs)
+        raise FileNotFoundError("scontrol")
+
+    monkeypatch.setattr(zpe_backends, "get_result_store", lambda: store)
+    monkeypatch.setattr(zpe_backends, "get_zpe_settings", lambda: settings)
+    monkeypatch.setattr("services.zpe.slurm_policy.subprocess.run", _missing_scontrol)
+
+    client = TestClient(main.app)
+    headers, _user_id = _setup_user_and_target(client, monkeypatch, fake)
+
+    response = client.post(
+        "/api/zpe/jobs",
+        json={
+            "content": QE_INPUT,
+            "mobile_indices": [0],
+            "use_environ": False,
+            "input_dir": None,
+            "calc_mode": "continue",
+        },
+        headers=headers,
+    )
+    assert response.status_code == 503
+    assert "slurm real-adapter precondition failed" in response.json()["error"]["message"]
+
+
+def test_zpe_submission_with_guard_forces_stub_policy_and_records_override(
+    monkeypatch,
+    tmp_path,
+):
+    fake = _patch_redis(monkeypatch)
+    store = RedisResultStore(redis=fake)
+    policy_path = tmp_path / "onboarding.policy.json"
+    _write_slurm_policy(policy_path, fallback_mode="route-default")
+    settings = ZPESettings(
+        compute_mode="mock",
+        result_store="redis",
+        slurm_policy_path=str(policy_path),
+        slurm_adapter="real-policy",
+        slurm_adapter_rollback_guard="force-stub-policy",
+    )
+    monkeypatch.setattr(zpe_backends, "get_result_store", lambda: store)
+    monkeypatch.setattr(zpe_backends, "get_zpe_settings", lambda: settings)
+    monkeypatch.setattr(
+        zpe_backends,
+        "enqueue_zpe_job",
+        lambda payload, *, queue_name=None: "job-guarded-real-policy",
+    )
+    client = TestClient(main.app)
+    headers, _user_id = _setup_user_and_target(
+        client,
+        monkeypatch,
+        fake,
+        queue_name="legacy",
+    )
+
+    response = client.post(
+        "/api/zpe/jobs",
+        json={
+            "content": QE_INPUT,
+            "mobile_indices": [0],
+            "use_environ": False,
+            "input_dir": None,
+            "calc_mode": "continue",
+        },
+        headers=headers,
+    )
+    assert response.status_code == 200
+
+    meta = zpe_job_meta.JobMetaStore(redis=fake).get_meta("job-guarded-real-policy")
+    assert meta["slurm_adapter"] == "stub-policy"
+    assert meta["slurm_adapter_configured"] == "real-policy"
+    assert meta["slurm_adapter_effective"] == "stub-policy"
+    assert meta["slurm_adapter_rollback_guard"] == "force-stub-policy"
 
 
 def test_zpe_result_read_projection_keeps_read_hotpath_available(monkeypatch):
@@ -518,6 +612,201 @@ def test_compute_failed_endpoint_rejects_tenant_boundary_violation(monkeypatch):
 
     assert response.status_code == 403
     assert response.json()["error"]["message"] == "tenant boundary violation"
+
+
+def _result_execution_event(
+    *,
+    tenant_id: str,
+    workspace_id: str,
+    job_id: str,
+) -> dict[str, object]:
+    return {
+        "event_id": f"evt-result-{job_id}",
+        "tenant_id": tenant_id,
+        "workspace_id": workspace_id,
+        "job_id": job_id,
+        "submission_id": "submission-1",
+        "execution_id": "execution-1",
+        "occurred_at": "2026-01-01T00:00:00+00:00",
+        "trace_id": "trace-1",
+        "state": "completed",
+        "result_ref": {"output_uri": "zpe://jobs/job-1/result"},
+    }
+
+
+def _failed_execution_event(
+    *,
+    tenant_id: str,
+    workspace_id: str,
+    job_id: str,
+    error_code: str,
+    error_message: str,
+) -> dict[str, object]:
+    return {
+        "event_id": f"evt-failed-{job_id}",
+        "tenant_id": tenant_id,
+        "workspace_id": workspace_id,
+        "job_id": job_id,
+        "submission_id": "submission-1",
+        "execution_id": "execution-1",
+        "occurred_at": "2026-01-01T00:00:01+00:00",
+        "trace_id": "trace-2",
+        "state": "failed",
+        "error": {
+            "code": error_code,
+            "message": error_message,
+            "retryable": True,
+        },
+    }
+
+
+def test_compute_result_endpoint_rejects_worker_token_tenant_scope_violation(monkeypatch):
+    fake = _patch_redis(monkeypatch)
+    client = TestClient(main.app)
+    job_id = "job-result-tenant-scope"
+    zpe_job_meta.JobMetaStore(redis=fake).set_meta(
+        job_id,
+        {
+            "tenant_id": "tenant-worker",
+            "workspace_id": "workspace-1",
+            "request_id": "req-1",
+            "user_id": "user-1",
+        },
+    )
+    worker_token = zpe_worker_auth.WorkerTokenStore(redis=fake).create_token(
+        "compute-1",
+        tenant_id="tenant-other",
+    ).token
+
+    response = client.post(
+        f"/api/zpe/compute/jobs/{job_id}/result",
+        headers={"Authorization": f"Bearer {worker_token}"},
+        json={
+            "tenant_id": "tenant-worker",
+            "lease_id": "lease-1",
+            "result": {"zpe_ev": 0.123},
+            "summary_text": "ok",
+            "freqs_csv": "frequency_cm^-1,intensity\n100,1.0",
+        },
+    )
+
+    assert response.status_code == 403
+    assert response.json()["error"]["message"] == "worker token tenant scope violation"
+
+
+def test_compute_failed_endpoint_rejects_worker_token_workspace_scope_violation(
+    monkeypatch,
+):
+    fake = _patch_redis(monkeypatch)
+    client = TestClient(main.app)
+    job_id = "job-failed-workspace-scope"
+    zpe_job_meta.JobMetaStore(redis=fake).set_meta(
+        job_id,
+        {
+            "tenant_id": "tenant-worker",
+            "workspace_id": "workspace-1",
+            "request_id": "req-1",
+            "user_id": "user-1",
+        },
+    )
+    worker_token = zpe_worker_auth.WorkerTokenStore(redis=fake).create_token(
+        "compute-1",
+        tenant_id="tenant-worker",
+        workspace_id="workspace-other",
+    ).token
+
+    response = client.post(
+        f"/api/zpe/compute/jobs/{job_id}/failed",
+        headers={"Authorization": f"Bearer {worker_token}"},
+        json={
+            "tenant_id": "tenant-worker",
+            "lease_id": "lease-1",
+            "error_code": "ERR",
+            "error_message": "boom",
+        },
+    )
+
+    assert response.status_code == 403
+    assert (
+        response.json()["error"]["message"] == "worker token workspace scope violation"
+    )
+
+
+def test_compute_result_endpoint_rejects_execution_event_workspace_spoof(monkeypatch):
+    fake = _patch_redis(monkeypatch)
+    client = TestClient(main.app)
+    job_id = "job-result-workspace-boundary"
+    zpe_job_meta.JobMetaStore(redis=fake).set_meta(
+        job_id,
+        {
+            "tenant_id": "tenant-worker",
+            "workspace_id": "workspace-1",
+            "request_id": "req-1",
+            "user_id": "user-1",
+        },
+    )
+    worker_token = zpe_worker_auth.WorkerTokenStore(redis=fake).create_token(
+        "compute-1"
+    ).token
+
+    response = client.post(
+        f"/api/zpe/compute/jobs/{job_id}/result",
+        headers={"Authorization": f"Bearer {worker_token}"},
+        json={
+            "tenant_id": "tenant-worker",
+            "lease_id": "lease-1",
+            "result": {"zpe_ev": 0.123},
+            "summary_text": "ok",
+            "freqs_csv": "frequency_cm^-1,intensity\n100,1.0",
+            "execution_event": _result_execution_event(
+                tenant_id="tenant-worker",
+                workspace_id="workspace-spoofed",
+                job_id=job_id,
+            ),
+        },
+    )
+
+    assert response.status_code == 403
+    assert response.json()["error"]["message"] == "workspace boundary violation"
+
+
+def test_compute_failed_endpoint_rejects_execution_event_workspace_mismatch(monkeypatch):
+    fake = _patch_redis(monkeypatch)
+    client = TestClient(main.app)
+    job_id = "job-failed-workspace-boundary"
+    zpe_job_meta.JobMetaStore(redis=fake).set_meta(
+        job_id,
+        {
+            "tenant_id": "tenant-worker",
+            "workspace_id": "workspace-1",
+            "request_id": "req-1",
+            "user_id": "user-1",
+        },
+    )
+    worker_token = zpe_worker_auth.WorkerTokenStore(redis=fake).create_token(
+        "compute-1"
+    ).token
+
+    response = client.post(
+        f"/api/zpe/compute/jobs/{job_id}/failed",
+        headers={"Authorization": f"Bearer {worker_token}"},
+        json={
+            "tenant_id": "tenant-worker",
+            "lease_id": "lease-1",
+            "error_code": "ERR",
+            "error_message": "boom",
+            "execution_event": _failed_execution_event(
+                tenant_id="tenant-worker",
+                workspace_id="workspace-other",
+                job_id=job_id,
+                error_code="ERR",
+                error_message="boom",
+            ),
+        },
+    )
+
+    assert response.status_code == 403
+    assert response.json()["error"]["message"] == "workspace boundary violation"
 
 
 def test_compute_failed_endpoint_retries_after_audit_outage(monkeypatch):

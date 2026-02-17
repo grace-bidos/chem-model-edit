@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from email.message import Message
 from io import BytesIO
+import subprocess
 from typing import Any, Literal
 from urllib import error as urlerror
 
@@ -17,6 +18,12 @@ _AIIA_ENV_KEYS = [
     "AIIA_MANAGED_READY_PATH",
     "AIIA_MANAGED_TIMEOUT_SECONDS",
     "AIIA_MANAGED_BEARER_TOKEN",
+    "AIIA_USER_MANAGED_DEEP_READY_ENABLED",
+    "AIIA_USER_MANAGED_DEEP_READY_TIMEOUT_SECONDS",
+    "AIIDA_PROFILE",
+    "ZPE_SLURM_ADAPTER",
+    "ZPE_SLURM_ADAPTER_ROLLBACK_GUARD",
+    "ZPE_SLURM_POLICY_PATH",
 ]
 
 
@@ -52,6 +59,8 @@ def test_health_reports_skipped_when_managed_aiida_checks_disabled(monkeypatch: 
     payload = response.json()
     assert payload["status"] == "ok"
     assert payload["checks"]["managed_aiida_runtime"]["status"] == "skipped"
+    assert payload["checks"]["user_managed_deep_readiness"]["status"] == "skipped"
+    assert payload["checks"]["slurm_real_adapter_preconditions"]["status"] == "skipped"
 
 
 def test_ready_returns_503_when_managed_aiida_is_misconfigured(monkeypatch: Any) -> None:
@@ -67,6 +76,8 @@ def test_ready_returns_503_when_managed_aiida_is_misconfigured(monkeypatch: Any)
     assert payload["status"] == "not_ready"
     assert check["status"] == "failed"
     assert check["error"] == "misconfigured"
+    assert payload["checks"]["user_managed_deep_readiness"]["status"] == "skipped"
+    assert payload["checks"]["slurm_real_adapter_preconditions"]["status"] == "skipped"
 
 
 def test_ready_returns_503_when_managed_aiida_base_url_is_malformed(
@@ -156,6 +167,90 @@ def test_ready_returns_200_when_managed_aiida_is_healthy(monkeypatch: Any) -> No
     assert payload["status"] == "ready"
     assert check["status"] == "ok"
     assert check["http_status"] == 204
+    assert payload["checks"]["user_managed_deep_readiness"]["status"] == "skipped"
+    assert payload["checks"]["slurm_real_adapter_preconditions"]["status"] == "skipped"
+
+
+def test_ready_returns_503_when_real_adapter_policy_path_is_missing(monkeypatch: Any) -> None:
+    _clear_aiida_env(monkeypatch)
+    monkeypatch.setenv("ZPE_SLURM_ADAPTER", "real-policy")
+    monkeypatch.delenv("ZPE_SLURM_POLICY_PATH", raising=False)
+    client = TestClient(main.app)
+
+    response = client.get("/api/ready")
+
+    assert response.status_code == 503
+    payload = response.json()
+    check = payload["checks"]["slurm_real_adapter_preconditions"]
+    assert payload["status"] == "not_ready"
+    assert check["status"] == "failed"
+    assert check["error"] == "misconfigured"
+    assert check["failed_probe"] == "policy_file"
+
+
+def test_ready_uses_zpe_settings_env_file_for_real_adapter(monkeypatch: Any, tmp_path: Any) -> None:
+    _clear_aiida_env(monkeypatch)
+    env_file = tmp_path / ".env.pr-check"
+    env_file.write_text("ZPE_SLURM_ADAPTER=real-policy\n", encoding="utf-8")
+    monkeypatch.setenv("ZPE_ENV_FILE", str(env_file))
+    monkeypatch.delenv("ZPE_SLURM_ADAPTER", raising=False)
+    monkeypatch.delenv("ZPE_SLURM_POLICY_PATH", raising=False)
+    client = TestClient(main.app)
+
+    response = client.get("/api/ready")
+
+    assert response.status_code == 503
+    payload = response.json()
+    check = payload["checks"]["slurm_real_adapter_preconditions"]
+    assert check["status"] == "failed"
+    assert check["failed_probe"] == "policy_file"
+
+
+def test_ready_returns_503_when_real_adapter_guard_forces_fallback(monkeypatch: Any) -> None:
+    _clear_aiida_env(monkeypatch)
+    monkeypatch.setenv("ZPE_SLURM_ADAPTER", "real-policy")
+    monkeypatch.setenv("ZPE_SLURM_ADAPTER_ROLLBACK_GUARD", "force-stub-policy")
+    client = TestClient(main.app)
+
+    response = client.get("/api/ready")
+
+    assert response.status_code == 503
+    payload = response.json()
+    check = payload["checks"]["slurm_real_adapter_preconditions"]
+    assert payload["status"] == "not_ready"
+    assert check["status"] == "failed"
+    assert check["error"] == "rollback_guard_active"
+
+
+def test_ready_returns_200_when_real_adapter_preconditions_pass(monkeypatch: Any, tmp_path: Any) -> None:
+    _clear_aiida_env(monkeypatch)
+    monkeypatch.setenv("ZPE_SLURM_ADAPTER", "real-policy")
+    policy_path = tmp_path / "policy.json"
+    policy_path.write_text(
+        "{\"queue_mappings\":[{\"queue\":\"standard\",\"partition\":\"short\",\"account\":\"chem\",\"qos\":\"normal\",\"max_walltime_minutes\":120}],\"fallback_policy\":{\"mode\":\"route-default\",\"default_queue\":\"standard\"}}",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("ZPE_SLURM_POLICY_PATH", str(policy_path))
+
+    def _run_probe(command: list[str], **kwargs: Any) -> Any:
+        _ = kwargs
+        return subprocess.CompletedProcess(
+            args=command,
+            returncode=0,
+            stdout="ok",
+            stderr="",
+        )
+
+    monkeypatch.setattr("services.aiida_runtime_checks.subprocess.run", _run_probe)
+    client = TestClient(main.app)
+
+    response = client.get("/api/ready")
+
+    assert response.status_code == 200
+    payload = response.json()
+    check = payload["checks"]["slurm_real_adapter_preconditions"]
+    assert payload["status"] == "ready"
+    assert check["status"] == "ok"
 
 
 def test_health_reports_degraded_when_managed_aiida_returns_http_error(
@@ -190,3 +285,242 @@ def test_health_reports_degraded_when_managed_aiida_returns_http_error(
     assert check["status"] == "failed"
     assert check["error"] == "upstream_unhealthy"
     assert check["http_status"] == 503
+
+
+def test_ready_returns_503_when_user_managed_deep_readiness_tooling_missing(
+    monkeypatch: Any,
+) -> None:
+    _clear_aiida_env(monkeypatch)
+    monkeypatch.setenv("AIIA_USER_MANAGED_DEEP_READY_ENABLED", "true")
+
+    def _run_probe(command: list[str], **kwargs: Any) -> Any:
+        _ = kwargs
+        if command[0] == "scontrol":
+            raise FileNotFoundError("scontrol")
+        return subprocess.CompletedProcess(
+            args=command,
+            returncode=0,
+            stdout="ok",
+            stderr="",
+        )
+
+    monkeypatch.setattr("services.aiida_runtime_checks.subprocess.run", _run_probe)
+    client = TestClient(main.app)
+
+    response = client.get("/api/ready")
+
+    assert response.status_code == 503
+    payload = response.json()
+    check = payload["checks"]["user_managed_deep_readiness"]
+    assert payload["status"] == "not_ready"
+    assert check["status"] == "failed"
+    assert check["error"] == "tooling_missing"
+    assert check["failed_probe"] == "scontrol_ping"
+    assert check["probes"]["scontrol_ping"]["error"] == "tooling_missing"
+
+
+def test_health_reports_degraded_when_user_managed_deep_readiness_command_fails(
+    monkeypatch: Any,
+) -> None:
+    _clear_aiida_env(monkeypatch)
+    monkeypatch.setenv("AIIA_USER_MANAGED_DEEP_READY_ENABLED", "true")
+    commands: list[tuple[str, ...]] = []
+
+    def _run_probe(command: list[str], **kwargs: Any) -> Any:
+        _ = kwargs
+        commands.append(tuple(command))
+        if command[0] == "sinfo":
+            return subprocess.CompletedProcess(
+                args=command,
+                returncode=1,
+                stdout="",
+                stderr="slurmctld: down",
+            )
+        return subprocess.CompletedProcess(
+            args=command,
+            returncode=0,
+            stdout="ok",
+            stderr="",
+        )
+
+    monkeypatch.setattr("services.aiida_runtime_checks.subprocess.run", _run_probe)
+    client = TestClient(main.app)
+
+    response = client.get("/api/health")
+
+    assert response.status_code == 200
+    payload = response.json()
+    check = payload["checks"]["user_managed_deep_readiness"]
+    assert payload["status"] == "degraded"
+    assert check["status"] == "failed"
+    assert check["error"] == "command_failed"
+    assert check["failed_probe"] == "sinfo"
+    assert check["probes"]["sinfo"]["exit_code"] == 1
+    assert commands == [("scontrol", "ping"), ("sinfo",)]
+
+
+def test_health_reports_degraded_when_user_managed_deep_readiness_command_launch_fails(
+    monkeypatch: Any,
+) -> None:
+    _clear_aiida_env(monkeypatch)
+    monkeypatch.setenv("AIIA_USER_MANAGED_DEEP_READY_ENABLED", "true")
+
+    def _run_probe(command: list[str], **kwargs: Any) -> Any:
+        _ = kwargs
+        if command[0] == "sinfo":
+            raise PermissionError("permission denied")
+        return subprocess.CompletedProcess(
+            args=command,
+            returncode=0,
+            stdout="ok",
+            stderr="",
+        )
+
+    monkeypatch.setattr("services.aiida_runtime_checks.subprocess.run", _run_probe)
+    client = TestClient(main.app)
+
+    response = client.get("/api/health")
+
+    assert response.status_code == 200
+    payload = response.json()
+    check = payload["checks"]["user_managed_deep_readiness"]
+    assert payload["status"] == "degraded"
+    assert check["status"] == "failed"
+    assert check["error"] == "tooling_failure"
+    assert check["failed_probe"] == "sinfo"
+    assert check["probes"]["sinfo"]["error"] == "tooling_failure"
+
+
+def test_ready_returns_200_when_user_managed_deep_readiness_passes(monkeypatch: Any) -> None:
+    _clear_aiida_env(monkeypatch)
+    monkeypatch.setenv("AIIA_USER_MANAGED_DEEP_READY_ENABLED", "true")
+    monkeypatch.setenv("AIIDA_PROFILE", "default")
+
+    def _run_probe(command: list[str], **kwargs: Any) -> Any:
+        _ = kwargs
+        stdout = "ok"
+        if command[:3] == ["verdi", "profile", "list"]:
+            stdout = "* default\n  other"
+        return subprocess.CompletedProcess(
+            args=command,
+            returncode=0,
+            stdout=stdout,
+            stderr="",
+        )
+
+    monkeypatch.setattr("services.aiida_runtime_checks.subprocess.run", _run_probe)
+    client = TestClient(main.app)
+
+    response = client.get("/api/ready")
+
+    assert response.status_code == 200
+    payload = response.json()
+    check = payload["checks"]["user_managed_deep_readiness"]
+    assert payload["status"] == "ready"
+    assert check["status"] == "ok"
+    assert set(check["probes"]) == {
+        "scontrol_ping",
+        "sinfo",
+        "verdi_status",
+        "verdi_profile",
+    }
+
+
+def test_ready_returns_503_when_aiida_profile_is_missing_from_verdi_profile_list(
+    monkeypatch: Any,
+) -> None:
+    _clear_aiida_env(monkeypatch)
+    monkeypatch.setenv("AIIA_USER_MANAGED_DEEP_READY_ENABLED", "true")
+    monkeypatch.setenv("AIIDA_PROFILE", "target-profile")
+
+    def _run_probe(command: list[str], **kwargs: Any) -> Any:
+        _ = kwargs
+        stdout = "ok"
+        if command[:3] == ["verdi", "profile", "list"]:
+            stdout = "* default\n  staging"
+        return subprocess.CompletedProcess(
+            args=command,
+            returncode=0,
+            stdout=stdout,
+            stderr="",
+        )
+
+    monkeypatch.setattr("services.aiida_runtime_checks.subprocess.run", _run_probe)
+    client = TestClient(main.app)
+
+    response = client.get("/api/ready")
+
+    assert response.status_code == 503
+    payload = response.json()
+    check = payload["checks"]["user_managed_deep_readiness"]
+    assert payload["status"] == "not_ready"
+    assert check["status"] == "failed"
+    assert check["error"] == "misconfigured"
+    assert check["failed_probe"] == "verdi_profile"
+
+
+def test_ready_returns_503_when_aiida_profile_matches_only_as_substring(
+    monkeypatch: Any,
+) -> None:
+    _clear_aiida_env(monkeypatch)
+    monkeypatch.setenv("AIIA_USER_MANAGED_DEEP_READY_ENABLED", "true")
+    monkeypatch.setenv("AIIDA_PROFILE", "fault")
+
+    def _run_probe(command: list[str], **kwargs: Any) -> Any:
+        _ = kwargs
+        stdout = "ok"
+        if command[:3] == ["verdi", "profile", "list"]:
+            stdout = "* default\n  staging"
+        return subprocess.CompletedProcess(
+            args=command,
+            returncode=0,
+            stdout=stdout,
+            stderr="",
+        )
+
+    monkeypatch.setattr("services.aiida_runtime_checks.subprocess.run", _run_probe)
+    client = TestClient(main.app)
+
+    response = client.get("/api/ready")
+
+    assert response.status_code == 503
+    payload = response.json()
+    check = payload["checks"]["user_managed_deep_readiness"]
+    assert payload["status"] == "not_ready"
+    assert check["status"] == "failed"
+    assert check["error"] == "misconfigured"
+    assert check["failed_probe"] == "verdi_profile"
+
+
+def test_ready_returns_200_when_aiida_profile_exists_beyond_truncation_boundary(
+    monkeypatch: Any,
+) -> None:
+    _clear_aiida_env(monkeypatch)
+    monkeypatch.setenv("AIIA_USER_MANAGED_DEEP_READY_ENABLED", "true")
+    monkeypatch.setenv("AIIDA_PROFILE", "target-profile")
+
+    long_profile_list = "\n".join([f"  profile-{idx:03d}" for idx in range(45)])
+    long_profile_list = f"{long_profile_list}\n* target-profile"
+
+    def _run_probe(command: list[str], **kwargs: Any) -> Any:
+        _ = kwargs
+        stdout = "ok"
+        if command[:3] == ["verdi", "profile", "list"]:
+            stdout = long_profile_list
+        return subprocess.CompletedProcess(
+            args=command,
+            returncode=0,
+            stdout=stdout,
+            stderr="",
+        )
+
+    monkeypatch.setattr("services.aiida_runtime_checks.subprocess.run", _run_probe)
+    client = TestClient(main.app)
+
+    response = client.get("/api/ready")
+
+    assert response.status_code == 200
+    payload = response.json()
+    check = payload["checks"]["user_managed_deep_readiness"]
+    assert payload["status"] == "ready"
+    assert check["status"] == "ok"

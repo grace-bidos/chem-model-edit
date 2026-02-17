@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import logging
 from pathlib import Path
 from typing import Any, Dict
 from uuid import uuid4
@@ -24,9 +25,16 @@ from .result_store import ResultStore, ZPEJobStatus, get_result_store
 from .settings import ZPESettings, get_zpe_settings
 from .slurm_policy import (
     SlurmAdapterBoundaryStub,
+    SlurmAdapterMode,
+    SlurmAdapterRollbackGuard,
+    parse_slurm_adapter_mode,
+    parse_slurm_adapter_rollback_guard,
+    resolve_effective_slurm_adapter_mode,
+    resolve_slurm_adapter_real,
     SlurmQueueResolution,
     resolve_slurm_adapter_stub,
 )
+from .structured_log import log_event
 from .submit_idempotency import (
     SubmitIdempotencyRecord,
     compute_submit_request_fingerprint,
@@ -47,6 +55,9 @@ def _now_iso() -> str:
 
 def _default_kpts() -> tuple[int, int, int]:
     return (1, 1, 1)
+
+
+logger = logging.getLogger(__name__)
 
 
 class NoActiveQueueTargetError(RuntimeError):
@@ -92,16 +103,43 @@ class SubmitComputeFailureOutcome:
     job_meta: Dict[str, Any]
 
 
+@dataclass(frozen=True)
+class SlurmAdapterSelection:
+    resolution: SlurmAdapterBoundaryStub
+    configured_mode: SlurmAdapterMode
+    effective_mode: SlurmAdapterMode
+    rollback_guard: SlurmAdapterRollbackGuard
+
+
 def _resolve_submission_queue(
     requested_queue: str, *, settings: ZPESettings
-) -> SlurmAdapterBoundaryStub:
-    if settings.slurm_adapter == "passthrough":
-        return resolve_slurm_adapter_stub(requested_queue, policy_path=None)
+) -> SlurmAdapterSelection:
+    configured_mode = parse_slurm_adapter_mode(settings.slurm_adapter)
+    rollback_guard = parse_slurm_adapter_rollback_guard(settings.slurm_adapter_rollback_guard)
+    effective_mode = resolve_effective_slurm_adapter_mode(
+        configured_mode, rollback_guard=rollback_guard
+    )
 
     policy_path = Path(settings.slurm_policy_path) if settings.slurm_policy_path else None
-    return resolve_slurm_adapter_stub(
-        requested_queue,
-        policy_path=policy_path,
+    if effective_mode == "passthrough":
+        resolution = resolve_slurm_adapter_stub(requested_queue, policy_path=None)
+    elif effective_mode == "real-policy":
+        resolution = resolve_slurm_adapter_real(
+            requested_queue,
+            policy_path=policy_path,
+            command_timeout_seconds=max(settings.slurm_real_adapter_probe_timeout_seconds, 1),
+        )
+    else:
+        resolution = resolve_slurm_adapter_stub(
+            requested_queue,
+            policy_path=policy_path,
+        )
+
+    return SlurmAdapterSelection(
+        resolution=resolution,
+        configured_mode=configured_mode,
+        effective_mode=effective_mode,
+        rollback_guard=rollback_guard,
     )
 
 
@@ -114,7 +152,8 @@ def submit_job(
     target = target_store.get_active_target(user_id)
     if not target:
         raise NoActiveQueueTargetError("no active queue target")
-    adapter_resolution = _resolve_submission_queue(target.queue_name, settings=settings)
+    adapter_selection = _resolve_submission_queue(target.queue_name, settings=settings)
+    adapter_resolution = adapter_selection.resolution
     resolution = (
         SlurmQueueResolution(
             requested_queue=adapter_resolution.requested_queue,
@@ -126,6 +165,38 @@ def submit_job(
         else None
     )
     resolved_queue_name = adapter_resolution.resolved_queue
+    if adapter_selection.effective_mode != adapter_selection.configured_mode:
+        log_event(
+            logger,
+            event="slurm_adapter_guard_applied",
+            service="control-plane",
+            stage="slurm_adapter",
+            status="degraded",
+            request_id=request_id,
+            tenant_id=tenant_id,
+            user_id=user_id,
+            requested_queue_name=target.queue_name,
+            resolved_queue_name=resolved_queue_name,
+            slurm_adapter_configured=adapter_selection.configured_mode,
+            slurm_adapter_effective=adapter_selection.effective_mode,
+            slurm_adapter_rollback_guard=adapter_selection.rollback_guard,
+        )
+    if adapter_resolution.used_fallback:
+        log_event(
+            logger,
+            event="slurm_queue_fallback_applied",
+            service="control-plane",
+            stage="slurm_adapter",
+            status="degraded",
+            request_id=request_id,
+            tenant_id=tenant_id,
+            user_id=user_id,
+            requested_queue_name=target.queue_name,
+            resolved_queue_name=resolved_queue_name,
+            slurm_adapter=adapter_resolution.adapter,
+            slurm_contract_version=adapter_resolution.contract_version,
+            slurm_adapter_rollback_guard=adapter_selection.rollback_guard,
+        )
     if request.structure_id:
         structure = get_structure(request.structure_id)
         fixed_indices = extract_fixed_indices(request.content)
@@ -212,6 +283,9 @@ def submit_job(
     slurm_resolution_meta: Dict[str, Any] = {
         "slurm_adapter": adapter_resolution.adapter,
         "slurm_contract_version": adapter_resolution.contract_version,
+        "slurm_adapter_configured": adapter_selection.configured_mode,
+        "slurm_adapter_effective": adapter_selection.effective_mode,
+        "slurm_adapter_rollback_guard": adapter_selection.rollback_guard,
     }
     if resolution is not None:
         slurm_resolution_meta = {

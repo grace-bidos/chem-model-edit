@@ -8,6 +8,7 @@ This directory defines the fixed runtime contracts for BYO AiiDA/Slurm execution
 - `event-execution-lifecycle.md`: event contract from management node to FastAPI.
 - `projection-update.md`: projection update contract from FastAPI to Convex.
 - `redis-rq-retirement-boundary.md`: migration boundary and retirement gate for Redis/RQ.
+- `slurm-real-adapter-cutover.md`: stub-to-real Slurm adapter cutover contract and acceptance gates.
 
 ## Contract policy
 

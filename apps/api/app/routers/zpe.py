@@ -58,7 +58,7 @@ from services.zpe.backends import (
 )
 from services.zpe.enroll import get_enroll_store
 from services.zpe.job_meta import get_job_meta_store
-from services.zpe.lease import lease_next_job
+from services.zpe.lease import lease_next_job, release_lease
 from services.zpe.ops_flags import OpsFlags, get_ops_flags, set_ops_flags
 from services.zpe.parse import (
     extract_fixed_indices,
@@ -71,9 +71,10 @@ from services.zpe.queue_targets import get_queue_target_store
 from services.zpe.slurm_policy import (
     SlurmPolicyConfigError,
     SlurmPolicyDeniedError,
+    SlurmRealAdapterPreconditionError,
 )
 from services.zpe.structured_log import log_event, write_audit_event
-from services.zpe.worker_auth import get_worker_token_store
+from services.zpe.worker_auth import WorkerPrincipal, get_worker_token_store
 
 logger = logging.getLogger(__name__)
 
@@ -88,13 +89,46 @@ def _require_legacy_worker_endpoints(flags: OpsFlags) -> None:
         )
 
 
-def _require_job_tenant_meta(job_id: str) -> dict[str, Any]:
+def _require_job_scope_meta(job_id: str) -> tuple[dict[str, Any], str, str]:
     meta_store = get_job_meta_store()
     job_meta = meta_store.get_meta(job_id)
-    tenant_id = job_meta.get("tenant_id")
-    if not isinstance(tenant_id, str) or not tenant_id.strip():
+    tenant_raw = job_meta.get("tenant_id")
+    if not isinstance(tenant_raw, str) or not tenant_raw.strip():
         raise HTTPException(status_code=409, detail="job tenant metadata missing")
-    return job_meta
+    tenant_id = tenant_raw.strip()
+    workspace_raw = job_meta.get("workspace_id")
+    if workspace_raw is None:
+        workspace_id = tenant_id
+    elif not isinstance(workspace_raw, str) or not workspace_raw.strip():
+        raise HTTPException(status_code=409, detail="job workspace metadata invalid")
+    else:
+        workspace_id = workspace_raw.strip()
+    return job_meta, tenant_id, workspace_id
+
+
+def _enforce_worker_scope(
+    worker: WorkerPrincipal, *, tenant_id: str, workspace_id: str
+) -> None:
+    if worker.tenant_id is not None and worker.tenant_id != tenant_id:
+        raise HTTPException(status_code=403, detail="worker token tenant scope violation")
+    if worker.workspace_id is not None and worker.workspace_id != workspace_id:
+        raise HTTPException(
+            status_code=403,
+            detail="worker token workspace scope violation",
+        )
+
+
+def _scope_from_job_meta(job_meta: dict[str, Any]) -> tuple[str | None, str | None]:
+    tenant_raw = job_meta.get("tenant_id")
+    tenant_id = tenant_raw.strip() if isinstance(tenant_raw, str) and tenant_raw.strip() else None
+    workspace_raw = job_meta.get("workspace_id")
+    if workspace_raw is None:
+        workspace_id = tenant_id
+    elif isinstance(workspace_raw, str) and workspace_raw.strip():
+        workspace_id = workspace_raw.strip()
+    else:
+        workspace_id = None
+    return tenant_id, workspace_id
 
 
 def _write_audit_or_raise_unavailable(
@@ -185,6 +219,11 @@ async def zpe_jobs(request: ZPEJobRequest, raw: Request) -> ZPEJobResponse:
         raise HTTPException(
             status_code=503,
             detail=f"slurm policy configuration error: {exc}",
+        ) from exc
+    except SlurmRealAdapterPreconditionError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"slurm real-adapter precondition failed: {exc}",
         ) from exc
     resolution = outcome.slurm_resolution
     log_event(
@@ -367,7 +406,8 @@ async def zpe_compute_revoke(
 
 @router.post("/compute/jobs/lease", response_model=ComputeLeaseResponse)
 async def zpe_compute_lease(raw: Request) -> Response | ComputeLeaseResponse:
-    worker_id = require_worker(raw)
+    worker = require_worker(raw)
+    worker_id = worker.worker_id
     request_id = get_request_id(raw)
     flags = get_ops_flags()
     _require_legacy_worker_endpoints(flags)
@@ -385,7 +425,20 @@ async def zpe_compute_lease(raw: Request) -> Response | ComputeLeaseResponse:
             result_store=settings.result_store,
         )
         return Response(status_code=204)
-    lease = lease_next_job(worker_id)
+    lease = None
+    for _ in range(32):
+        candidate = lease_next_job(worker_id)
+        if candidate is None:
+            return Response(status_code=204)
+        tenant_id, workspace_id = _scope_from_job_meta(candidate.meta)
+        if worker.tenant_id is not None and tenant_id != worker.tenant_id:
+            release_lease(candidate.job_id, requeue=True)
+            continue
+        if worker.workspace_id is not None and workspace_id != worker.workspace_id:
+            release_lease(candidate.job_id, requeue=True)
+            continue
+        lease = candidate
+        break
     if lease is None:
         return Response(status_code=204)
     meta = lease.meta
@@ -428,17 +481,20 @@ async def zpe_compute_result(
     request: ComputeResultRequest,
     raw: Request,
 ) -> ComputeResultResponse:
-    worker_id = require_worker(raw)
+    worker = require_worker(raw)
+    worker_id = worker.worker_id
     flags = get_ops_flags()
     _require_legacy_worker_endpoints(flags)
-    job_meta = _require_job_tenant_meta(job_id)
-    tenant_id = str(job_meta["tenant_id"])
+    job_meta, tenant_id, workspace_id = _require_job_scope_meta(job_id)
+    _enforce_worker_scope(worker, tenant_id=tenant_id, workspace_id=workspace_id)
     if request.tenant_id != tenant_id:
         raise HTTPException(status_code=403, detail="tenant boundary violation")
     execution_event = request.execution_event
     if execution_event is not None:
         if execution_event.tenant_id != tenant_id:
             raise HTTPException(status_code=403, detail="tenant boundary violation")
+        if execution_event.workspace_id != workspace_id:
+            raise HTTPException(status_code=403, detail="workspace boundary violation")
         if execution_event.job_id != job_id:
             raise HTTPException(status_code=409, detail="execution_event job_id mismatch")
     raw.state.tenant_id = tenant_id
@@ -473,11 +529,7 @@ async def zpe_compute_result(
         request_id=trace_id,
         trace_id=trace_id,
         tenant_id=tenant_id,
-        workspace_id=(
-            execution_event.workspace_id
-            if execution_event is not None
-            else str(job_meta.get("workspace_id", tenant_id))
-        ),
+        workspace_id=workspace_id,
         submission_id=(
             execution_event.submission_id
             if execution_event is not None
@@ -546,17 +598,20 @@ async def zpe_compute_failed(
     request: ComputeFailedRequest,
     raw: Request,
 ) -> ComputeFailedResponse:
-    worker_id = require_worker(raw)
+    worker = require_worker(raw)
+    worker_id = worker.worker_id
     flags = get_ops_flags()
     _require_legacy_worker_endpoints(flags)
-    job_meta = _require_job_tenant_meta(job_id)
-    tenant_id = str(job_meta["tenant_id"])
+    job_meta, tenant_id, workspace_id = _require_job_scope_meta(job_id)
+    _enforce_worker_scope(worker, tenant_id=tenant_id, workspace_id=workspace_id)
     if request.tenant_id != tenant_id:
         raise HTTPException(status_code=403, detail="tenant boundary violation")
     execution_event = request.execution_event
     if execution_event is not None:
         if execution_event.tenant_id != tenant_id:
             raise HTTPException(status_code=403, detail="tenant boundary violation")
+        if execution_event.workspace_id != workspace_id:
+            raise HTTPException(status_code=403, detail="workspace boundary violation")
         if execution_event.job_id != job_id:
             raise HTTPException(status_code=409, detail="execution_event job_id mismatch")
         if execution_event.error.code != request.error_code:
@@ -601,11 +656,7 @@ async def zpe_compute_failed(
         request_id=trace_id,
         trace_id=trace_id,
         tenant_id=tenant_id,
-        workspace_id=(
-            execution_event.workspace_id
-            if execution_event is not None
-            else str(job_meta.get("workspace_id", tenant_id))
-        ),
+        workspace_id=workspace_id,
         submission_id=(
             execution_event.submission_id
             if execution_event is not None
