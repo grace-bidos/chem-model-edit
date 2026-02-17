@@ -13,6 +13,9 @@
     "test": {
       "cache": true
     },
+    "coverage": {
+      "cache": true
+    },
     "typecheck": {
       "cache": true
     },
@@ -32,6 +35,12 @@
       "cache": true
     },
     "fastcheck": {
+      "cache": true
+    },
+    "mutation": {
+      "cache": true
+    },
+    "e2e": {
       "cache": true
     },
     "schemathesis": {

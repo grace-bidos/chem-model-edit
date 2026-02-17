@@ -134,12 +134,6 @@ jobs:
         run: pnpm exec nx run web:test
       - name: A11y tests
         run: pnpm exec nx run web:a11y
-      - name: Fast-check
-        run: pnpm exec nx run web:fastcheck
-      - name: Knip (web)
-        run: pnpm exec nx run web:knip
-      - name: Knip (shared)
-        run: pnpm exec nx run shared:knip
 
   api:
     needs:

@@ -9,7 +9,7 @@
         "src/features/editor-v2/EditorV2Page.tsx"
       ],
       "project": ["tsconfig.json"],
-      "ignore": ["src/routeTree.gen.ts"],
+      "ignore": ["src/routeTree.gen.ts", ".stryker-tmp/**"],
       "ignoreDependencies": [
         "@chem-model/api-client",
         "@chem-model/shared",
@@ -36,7 +36,15 @@
         "tw-animate-css",
         "web-vitals"
       ],
-      "ignoreBinaries": ["test:a11y", "test:fastcheck", "build-storybook"]
+      "ignoreBinaries": [
+        "test:a11y",
+        "test:fastcheck",
+        "test:coverage",
+        "test:mutation",
+        "test:e2e",
+        "test:e2e:install",
+        "build-storybook"
+      ]
     },
     "packages/shared": {
       "entry": ["src/types.ts"],

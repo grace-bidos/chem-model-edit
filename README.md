@@ -88,6 +88,9 @@ just style      # web: prettier + eslint, api: ruff
 just typecheck  # web: tsc, api: mypy
 just test       # web: vitest, api: pytest
 just ci         # nx run-many -t lint,typecheck,test,knip
+just quality-quick     # local quick gate: lint + typecheck + unit
+just quality-standard  # local standard gate: + a11y + knip + fastcheck + coverage
+just quality-deep      # local deep gate: + depcruise + storybook/chromatic + stryker + playwright
 ```
 
 ## Repository layout

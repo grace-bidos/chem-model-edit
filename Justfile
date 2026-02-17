@@ -177,6 +177,36 @@ web-test:
   set -euo pipefail
   pnpm -C apps/web test
 
+web-test-coverage:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pnpm -C apps/web test:coverage
+
+web-test-a11y:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pnpm -C apps/web test:a11y
+
+web-test-fastcheck:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pnpm -C apps/web test:fastcheck
+
+web-test-mutation:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pnpm -C apps/web test:mutation
+
+web-test-e2e:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pnpm -C apps/web test:e2e
+
+web-test-e2e-install:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pnpm -C apps/web test:e2e:install
+
 web-test-ui:
   #!/usr/bin/env bash
   set -euo pipefail
@@ -377,6 +407,37 @@ test:
   set -euo pipefail
   just web-test
   just api-test
+
+quality-quick:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  just web-lint
+  just web-typecheck
+  just web-test
+
+quality-standard:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  just quality-quick
+  just web-test-a11y
+  pnpm exec nx run web:knip
+  just web-test-fastcheck
+  just web-test-coverage
+
+quality-deep:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  just quality-standard
+  just graph-web-deps
+  just storybook-build
+  if [[ -n "${CHROMATIC_PROJECT_TOKEN:-}" ]]; then
+    just chromatic
+  else
+    echo "skip chromatic: CHROMATIC_PROJECT_TOKEN is not set"
+  fi
+  just web-test-mutation
+  just web-test-e2e-install
+  just web-test-e2e
 
 typecheck:
   #!/usr/bin/env bash

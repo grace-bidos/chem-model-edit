@@ -54,4 +54,19 @@ Cloudflare Workers).
 pnpm -C apps/web lint
 pnpm -C apps/web typecheck
 pnpm -C apps/web test
+pnpm -C apps/web test:coverage
+pnpm -C apps/web test:a11y
+pnpm -C apps/web test:fastcheck
+pnpm -C apps/web test:mutation
+pnpm -C apps/web test:e2e:install
+pnpm -C apps/web test:e2e
 ```
+
+## Local-first quality workflow
+
+- CI required gates are intentionally minimal: `lint`, `typecheck`, `test`, `a11y`.
+- Heavier checks are local-first:
+  - Mutation testing: `pnpm -C apps/web test:mutation`
+  - Visual verification: `pnpm -C apps/web build-storybook` and `pnpm -C apps/web chromatic`
+- Optional E2E smoke: `pnpm -C apps/web test:e2e`
+- Playwright smoke is part of deep local quality checks; run `pnpm -C apps/web test:e2e:install` before first run.
