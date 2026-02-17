@@ -189,8 +189,8 @@ describe('fetchAggregatedZpeJobStatusFromUpstreams', () => {
     })
 
     expect(calls).toEqual([
-      '/zpe/jobs/job-9/projection|token-9',
-      '/zpe/jobs/job-9|token-9',
+      '/runtime/jobs/job-9/projection|token-9',
+      '/runtime/jobs/job-9|token-9',
     ])
     expect(normalized).toEqual({
       status: 'finished',

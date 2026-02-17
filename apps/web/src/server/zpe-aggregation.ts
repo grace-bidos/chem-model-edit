@@ -26,7 +26,9 @@ type ConvexProjectionJobStatusPayload = {
 
 type AdapterDetailJobStatusPayload = {
   jobId?: string
+  job_id?: string
   status?: JobState
+  state?: 'accepted' | 'running' | 'completed' | 'failed'
   detail?: string | null
   updated_at?: string | null
   updatedAt?: string | null
@@ -150,11 +152,32 @@ const isAdapterDetailStatusPayload = (
   }
   return (
     (value.jobId === undefined || typeof value.jobId === 'string') &&
+    (value.job_id === undefined || typeof value.job_id === 'string') &&
     (value.status === undefined || isJobState(value.status)) &&
+    (value.state === undefined ||
+      value.state === 'accepted' ||
+      value.state === 'running' ||
+      value.state === 'completed' ||
+      value.state === 'failed') &&
     isStringOrNullish(value.detail) &&
     isStringOrNullish(value.updated_at) &&
     isStringOrNullish(value.updatedAt)
   )
+}
+
+const runtimeToJobState = (state: AdapterDetailJobStatusPayload['state']): JobState => {
+  switch (state) {
+    case 'accepted':
+      return 'queued'
+    case 'running':
+      return 'started'
+    case 'completed':
+      return 'finished'
+    case 'failed':
+      return 'failed'
+    default:
+      return 'queued'
+  }
 }
 
 export const requireAuthToken = (token: string | null | undefined): string => {
@@ -220,23 +243,28 @@ export const normalizeAggregatedZpeJobStatusFromSources = (
     )
   }
 
-  if (adapterPayload.jobId && adapterPayload.jobId !== expectedJobId) {
+  const adapterJobId = adapterPayload.jobId ?? adapterPayload.job_id
+  if (adapterJobId && adapterJobId !== expectedJobId) {
     throw createAggregationError(
       'UPSTREAM_JOB_MISMATCH',
       'Upstream job status payload mismatch',
     )
   }
 
+  const adapterStatus =
+    adapterPayload.status ??
+    (adapterPayload.state ? runtimeToJobState(adapterPayload.state) : undefined)
+
   if (
-    adapterPayload.status !== undefined &&
-    adapterPayload.status !== projection.status
+    adapterStatus !== undefined &&
+    adapterStatus !== projection.status
   ) {
     throw createAggregationError(
       'UPSTREAM_STATUS_MISMATCH',
       'Upstream status payload mismatch',
       {
         projectionStatus: projection.status,
-        adapterStatus: adapterPayload.status,
+        adapterStatus,
       },
     )
   }
@@ -300,8 +328,8 @@ export const fetchAggregatedZpeJobStatusFromUpstreams = async ({
   timeoutMs?: number
 }): Promise<ZPEJobStatus> => {
   const safeJobId = encodeURIComponent(jobId)
-  const projectionPath = `/zpe/jobs/${safeJobId}/projection`
-  const adapterStatusPath = `/zpe/jobs/${safeJobId}`
+  const projectionPath = `/runtime/jobs/${safeJobId}/projection`
+  const adapterStatusPath = `/runtime/jobs/${safeJobId}`
 
   type Source = 'projection' | 'adapter'
   type SourceResult =
