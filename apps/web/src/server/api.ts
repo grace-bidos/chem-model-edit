@@ -6,6 +6,7 @@ export type ApiRequest = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   body?: unknown
   token?: string | null
+  tenantId?: string | null
   responseType?: 'json' | 'text'
 }
 
@@ -29,6 +30,59 @@ const API_BASE = normalizeApiBase(
     import.meta.env.VITE_API_BASE ??
     'http://localhost:8000',
 )
+
+const TENANT_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{1,127}$/
+
+const normalizeTenantId = (value: unknown): string | null => {
+  if (typeof value !== 'string') {
+    return null
+  }
+  const trimmed = value.trim()
+  return TENANT_ID_PATTERN.test(trimmed) ? trimmed : null
+}
+
+const decodeJwtPayload = (token: string): Record<string, unknown> | null => {
+  const parts = token.split('.')
+  if (parts.length < 2) {
+    return null
+  }
+  try {
+    const payloadPart = parts[1] ?? ''
+    const normalized = payloadPart.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = normalized.padEnd(
+      normalized.length + ((4 - (normalized.length % 4)) % 4),
+      '=',
+    )
+    const payload = JSON.parse(
+      atob(padded),
+    ) as unknown
+    return payload && typeof payload === 'object'
+      ? (payload as Record<string, unknown>)
+      : null
+  } catch (_error) {
+    return null
+  }
+}
+
+const resolveTenantId = (data: ApiRequest): string | null => {
+  const explicit = normalizeTenantId(data.tenantId)
+  if (explicit) {
+    return explicit
+  }
+  if (!data.token) {
+    return null
+  }
+  const claims = decodeJwtPayload(data.token)
+  if (!claims) {
+    return null
+  }
+  const direct =
+    normalizeTenantId(claims.tenant_id) ?? normalizeTenantId(claims.tenantId)
+  if (direct) {
+    return direct
+  }
+  return normalizeTenantId(claims.org_id) ?? normalizeTenantId(claims.orgId)
+}
 
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
@@ -83,6 +137,10 @@ export async function requestApiInternal<T = unknown>(
   }
   if (token) {
     headers.Authorization = `Bearer ${token}`
+  }
+  const tenantId = resolveTenantId(data)
+  if (tenantId) {
+    headers['x-tenant-id'] = tenantId
   }
 
   const response = await fetch(`${API_BASE}${path}`, {

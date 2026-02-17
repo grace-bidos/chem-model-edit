@@ -4,12 +4,24 @@ import { describe, expect, it } from 'vitest'
 import { requestApiInternal } from './api'
 import { server } from '@/test/msw/server'
 
+const toBase64Url = (value: string): string => {
+  const base64 = btoa(value)
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+}
+
+const unsignedJwt = (payload: Record<string, unknown>): string => {
+  const header = toBase64Url(JSON.stringify({ alg: 'none', typ: 'JWT' }))
+  const body = toBase64Url(JSON.stringify(payload))
+  return `${header}.${body}.`
+}
+
 describe('requestApiInternal with MSW', () => {
   it('requests JSON payload and forwards auth header', async () => {
     server.use(
       http.get('http://localhost:8000/api/jobs', ({ request }) => {
         return HttpResponse.json({
           auth: request.headers.get('authorization'),
+          tenantId: request.headers.get('x-tenant-id'),
           result: 'ok',
         })
       }),
@@ -17,6 +29,7 @@ describe('requestApiInternal with MSW', () => {
 
     const response = await requestApiInternal<{
       auth: string | null
+      tenantId: string | null
       result: string
     }>({
       path: '/jobs',
@@ -25,7 +38,51 @@ describe('requestApiInternal with MSW', () => {
 
     expect(response).toEqual({
       auth: 'Bearer token-msw',
+      tenantId: null,
       result: 'ok',
+    })
+  })
+
+  it('forwards explicit tenant header when tenantId is provided', async () => {
+    server.use(
+      http.get('http://localhost:8000/api/jobs-tenant-explicit', ({ request }) => {
+        return HttpResponse.json({
+          tenantId: request.headers.get('x-tenant-id'),
+        })
+      }),
+    )
+
+    const response = await requestApiInternal<{
+      tenantId: string | null
+    }>({
+      path: '/jobs-tenant-explicit',
+      tenantId: 'tenant-explicit-1',
+    })
+
+    expect(response).toEqual({
+      tenantId: 'tenant-explicit-1',
+    })
+  })
+
+  it('derives tenant header from JWT org_id claim when tenantId is omitted', async () => {
+    server.use(
+      http.get('http://localhost:8000/api/jobs-tenant-derived', ({ request }) => {
+        return HttpResponse.json({
+          tenantId: request.headers.get('x-tenant-id'),
+        })
+      }),
+    )
+
+    const token = unsignedJwt({ sub: 'user_1', org_id: 'org_abc123' })
+    const response = await requestApiInternal<{
+      tenantId: string | null
+    }>({
+      path: '/jobs-tenant-derived',
+      token,
+    })
+
+    expect(response).toEqual({
+      tenantId: 'org_abc123',
     })
   })
 
