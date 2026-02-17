@@ -33,8 +33,11 @@ dev = [
     "pytest>=9.0.2",
     "pytest-asyncio>=1.2.0",
     "pytest-cov>=7.0.0",
+    "pytest-env>=1.2.0",
     "pytest-mock>=3.15.1",
+    "pytest-randomly>=4.0.1",
     "pytest-sugar>=1.1.1",
+    "pytest-timeout>=2.4.0",
     "pytest-xdist>=3.8.0",
     "ruff>=0.14.10",
     "schemathesis>=3.30.0",
@@ -49,7 +52,12 @@ aiida = [
 markers = [
     "e2e: end-to-end tests that require external dependencies (QE, pseudopotentials)",
 ]
-addopts = "-ra --strict-markers"
+addopts = "-ra --strict-markers --randomly-seed=last"
+env = [
+    "TZ=UTC",
+]
+timeout = 120
+timeout_method = "thread"
 
 [tool.mypy]
 python_version = "3.13"
@@ -88,4 +96,4 @@ debug = true
 paths_to_mutate = ["services/zpe/slurm_policy.py"]
 tests_dir = ["tests/test_zpe_slurm_policy.py"]
 also_copy = ["app", "services", "main.py", "tests"]
-pytest_add_cli_args = ["-q"]
+pytest_add_cli_args = ["-q", "-o", "addopts=-ra --strict-markers"]

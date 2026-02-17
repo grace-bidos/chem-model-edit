@@ -28,6 +28,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+          fetch-depth: 0
+          fetch-depth: 0
       - name: Detect code changes
         id: filter
         uses: dorny/paths-filter@v3
@@ -261,8 +263,132 @@ jobs:
             .ci-security-summary.md
           if-no-files-found: warn
       - name: Pytest
-        run: uv run pytest
+        run: uv run pytest --cov=app --cov=services --cov=main --cov-report=term-missing --cov-report=xml:coverage.xml
         working-directory: apps/api
+      - name: Fetch PR base ref for diff coverage
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --prune origin "${{ github.base_ref }}"
+      - name: Changed-lines coverage gate
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          BASE_REF: origin/${{ github.base_ref }}
+          COVERAGE_DIFF_THRESHOLD: "90"
+        run: |
+          uv run --project apps/api python - "$BASE_REF" "$COVERAGE_DIFF_THRESHOLD" <<'PY'
+          import re
+          import subprocess
+          import sys
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          base_ref = sys.argv[1]
+          threshold = float(sys.argv[2])
+
+          coverage_path = Path("apps/api/coverage.xml")
+          if not coverage_path.exists():
+              print(f"coverage report not found: {coverage_path}", file=sys.stderr)
+              sys.exit(2)
+
+          tree = ET.parse(coverage_path)
+          root = tree.getroot()
+
+          measurable: dict[str, set[int]] = {}
+          covered: dict[str, set[int]] = {}
+
+          for klass in root.findall(".//class"):
+              filename = klass.attrib.get("filename")
+              if not filename:
+                  continue
+              key = Path(filename).as_posix()
+              measurable.setdefault(key, set())
+              covered.setdefault(key, set())
+              for line in klass.findall("./lines/line"):
+                  number_text = line.attrib.get("number")
+                  hits_text = line.attrib.get("hits", "0")
+                  if number_text is None:
+                      continue
+                  line_no = int(number_text)
+                  hits = int(hits_text)
+                  measurable[key].add(line_no)
+                  if hits > 0:
+                      covered[key].add(line_no)
+
+          diff = subprocess.check_output(
+              [
+                  "git",
+                  "diff",
+                  "--unified=0",
+                  "--no-color",
+                  f"{base_ref}...HEAD",
+                  "--",
+                  "apps/api",
+              ],
+              text=True,
+          )
+
+          changed: dict[str, set[int]] = {}
+          current_file: str | None = None
+          new_line: int | None = None
+
+          for raw in diff.splitlines():
+              if raw.startswith("+++ b/"):
+                  path = raw[6:]
+                  current_file = path if path.endswith(".py") else None
+                  if current_file is not None and current_file.startswith("apps/api/"):
+                      current_file = current_file[len("apps/api/") :]
+                  continue
+              if raw.startswith("@@"):
+                  match = re.search(r"\+(\d+)(?:,(\d+))?", raw)
+                  if not match:
+                      new_line = None
+                      continue
+                  new_line = int(match.group(1))
+                  continue
+              if current_file is None or new_line is None:
+                  continue
+              if raw.startswith("+") and not raw.startswith("+++"):
+                  changed.setdefault(current_file, set()).add(new_line)
+                  new_line += 1
+              elif raw.startswith("-") and not raw.startswith("---"):
+                  continue
+              elif raw.startswith(" "):
+                  new_line += 1
+
+          measured_total = 0
+          covered_total = 0
+          missing: list[str] = []
+
+          for filename, changed_lines in sorted(changed.items()):
+              measurable_lines = measurable.get(filename, set())
+              covered_lines = covered.get(filename, set())
+              for line_no in sorted(changed_lines):
+                  if line_no not in measurable_lines:
+                      continue
+                  measured_total += 1
+                  if line_no in covered_lines:
+                      covered_total += 1
+                  else:
+                      missing.append(f"{filename}:{line_no}")
+
+          if measured_total == 0:
+              print(f"Changed-lines coverage: no measurable Python lines changed vs {base_ref}; gate passes.")
+              sys.exit(0)
+
+          percent = (covered_total / measured_total) * 100.0
+          print(
+              f"Changed-lines coverage: {covered_total}/{measured_total} = {percent:.2f}% "
+              f"(threshold {threshold:.2f}%, base {base_ref})"
+          )
+          if missing:
+              print("Uncovered changed lines:")
+              for item in missing:
+                  print(f"  - {item}")
+
+          if percent + 1e-9 < threshold:
+              sys.exit(1)
+          PY
       - name: Schemathesis
         env:
           SCHEMATHESIS_MODE: smoke
