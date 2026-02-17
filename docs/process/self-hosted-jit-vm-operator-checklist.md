@@ -20,7 +20,7 @@ This checklist is the concrete operator sequence for local rollout.
 1. Create a dedicated runner group for CI only.
 2. Restrict the group to this repository.
 3. Set workflow variable:
-   - `CI_SELF_HOSTED_TRUSTED_ROUTING=true` (default)
+   - `CI_SELF_HOSTED_TRUSTED_ROUTING=false` during initial setup
 4. Confirm required label set:
    - `self-hosted`, `linux`, `x64`, `chem-trusted-pr`
 
@@ -151,8 +151,9 @@ Behavior summary:
 
 ## 6) Validate traffic routing (canary)
 
-After one successful dry run, keep routing enabled and verify behavior:
+After setup + one successful dry run, enable trusted routing and verify behavior:
 
+- `gh variable set CI_SELF_HOSTED_TRUSTED_ROUTING --repo <owner>/<repo> --body true`
 - open a trusted PR and verify route job selects self-hosted label target
 
 ## 7) Fast rollback
