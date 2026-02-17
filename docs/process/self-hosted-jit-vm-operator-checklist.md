@@ -243,7 +243,8 @@ scripts/runner/setup_pool_supervisor_one_command.sh \
   --token-source app \
   --app-id <APP_ID> \
   --app-installation-id <INSTALLATION_ID> \
-  --app-private-key-file <PRIVATE_KEY_PATH>
+  --app-private-key-file <PRIVATE_KEY_PATH> \
+  --allow-expiring-app-token
 ```
 
 Dry-run:
@@ -266,6 +267,7 @@ Token lifecycle rules:
 - Refresh installation tokens at least every 50 minutes for long-lived supervisors.
 - Never persist app private keys in repository paths.
 - Remove stale token files during incident cleanup.
+- The one-command `--token-source app` path is a bootstrap-only mode unless automated refresh is in place.
 
 ## 10) Emergency fallback to hosted routing
 

@@ -82,9 +82,6 @@ jobs:
           set -euo pipefail
           trusted="false"
           if [[ "${SELF_HOSTED_ENABLED}" == "true" ]] \
-            && [[ "${EVENT_NAME}" == "merge_group" ]]; then
-            trusted="true"
-          elif [[ "${SELF_HOSTED_ENABLED}" == "true" ]] \
             && [[ "${EVENT_NAME}" == "pull_request" ]] \
             && [[ "${PR_IS_FORK}" == "false" ]] \
             && [[ "${ACTOR}" != "dependabot[bot]" ]] \
@@ -412,7 +409,7 @@ jobs:
     needs:
       - changes
       - route
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.api == 'true' }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     # gitleaks-action cache extraction is unstable on our self-hosted pool (/tmp permission/path issues).
     # Keep this phase-1 non-blocking lane on GitHub-hosted runners for deterministic behavior.
     runs-on: ubuntu-latest

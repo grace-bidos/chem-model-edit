@@ -21,6 +21,8 @@ Options:
   --app-id <id>                     Required for app mode.
   --app-installation-id <id>        Required for app mode.
   --app-private-key-file <path>     Required for app mode.
+  --allow-expiring-app-token        Explicitly allow one-shot app token bootstrap
+                                    without automated refresh.
   --disable-timer                   Disable old reconcile timer (default: on)
   --dry-run                         Print actions only.
   -h, --help                        Show help.
@@ -29,7 +31,8 @@ Token source behavior:
   gh   : use `gh auth token`
   env  : use existing GH_TOKEN env var
   file : do not write token file; only use existing --gh-token-file
-  app  : request short-lived installation token via GitHub App credentials
+  app  : request short-lived installation token via GitHub App credentials.
+         Requires explicit `--allow-expiring-app-token` acknowledgement.
 EOF
 }
 
@@ -44,6 +47,7 @@ token_source="gh"
 app_id=""
 app_installation_id=""
 app_private_key_file=""
+allow_expiring_app_token=0
 disable_timer=1
 dry_run=0
 
@@ -61,6 +65,7 @@ while [[ $# -gt 0 ]]; do
     --app-id) app_id="${2:-}"; shift 2 ;;
     --app-installation-id) app_installation_id="${2:-}"; shift 2 ;;
     --app-private-key-file) app_private_key_file="${2:-}"; shift 2 ;;
+    --allow-expiring-app-token) allow_expiring_app_token=1; shift ;;
     --disable-timer) disable_timer=1; shift ;;
     --dry-run) dry_run=1; shift ;;
     -h|--help) usage; exit 0 ;;
@@ -105,6 +110,12 @@ elif [[ "$token_source" == "env" ]]; then
 elif [[ "$token_source" == "app" ]]; then
   if [[ -z "$app_id" || -z "$app_installation_id" || -z "$app_private_key_file" ]]; then
     echo "app mode requires --app-id, --app-installation-id, and --app-private-key-file" >&2
+    exit 1
+  fi
+  if [[ "$allow_expiring_app_token" -ne 1 ]]; then
+    echo "app mode requires --allow-expiring-app-token acknowledgement." >&2
+    echo "Reason: supervisor is long-running but app installation token is short-lived." >&2
+    echo "Use token-source gh|env|file or implement automated refresh before app mode." >&2
     exit 1
   fi
   app_token_script="${script_dir}/request_github_app_token.sh"
