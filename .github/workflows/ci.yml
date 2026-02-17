@@ -276,6 +276,7 @@ jobs:
           SCHEMATHESIS_MAX_EXAMPLES: "20"
           SCHEMATHESIS_MAX_FAILURES: "3"
           SCHEMATHESIS_TENANT_ID: tenant-ci
+          SCHEMATHESIS_EXTRA_ARGS: --suppress-health-check=filter_too_much
         run: uv run bash scripts/schemathesis.sh
         working-directory: apps/api
 
@@ -296,6 +297,7 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
 
   deadcode-hygiene:
     needs:
