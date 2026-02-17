@@ -80,7 +80,7 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=${refresh_script} --app-id ${app_id} --installation-id ${installation_id} --private-key-file ${private_key_file} --token-file ${token_file} --status-file ${status_file} --api-base ${api_base}
+ExecStart=\"${refresh_script}\" --app-id \"${app_id}\" --installation-id \"${installation_id}\" --private-key-file \"${private_key_file}\" --token-file \"${token_file}\" --status-file \"${status_file}\" --api-base \"${api_base}\"
 "
 
 timer_content="[Unit]

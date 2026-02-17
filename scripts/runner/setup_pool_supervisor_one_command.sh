@@ -98,6 +98,11 @@ if [[ ! -x "$install_script" ]]; then
   echo "missing executable: $install_script" >&2
   exit 1
 fi
+app_refresh_setup_script="${script_dir}/setup_github_app_token_refresh_one_command.sh"
+if [[ "$token_source" == "app" && "$disable_app_token_refresh_setup" -eq 0 && ! -x "$app_refresh_setup_script" ]]; then
+  echo "missing executable: $app_refresh_setup_script" >&2
+  exit 1
+fi
 
 token_value=""
 if [[ "$token_source" == "gh" ]]; then
@@ -147,11 +152,6 @@ if [[ "$dry_run" -eq 1 ]]; then
     echo "[dry-run] sudo install -d -m 0700 $(dirname "$gh_token_file")"
     echo "[dry-run] sudo sh -c \"umask 077; printf '%s\\n' '***' > '$gh_token_file'\""
   elif [[ "$token_source" == "app" ]]; then
-    app_refresh_setup_script="${script_dir}/setup_github_app_token_refresh_one_command.sh"
-    if [[ ! -x "$app_refresh_setup_script" ]]; then
-      echo "missing executable: $app_refresh_setup_script" >&2
-      exit 1
-    fi
     "$app_refresh_setup_script" \
       --app-id "$app_id" \
       --installation-id "$app_installation_id" \
@@ -185,11 +185,6 @@ if [[ "$token_source" == "gh" || "$token_source" == "env" || ( "$token_source" =
   printf '%s\n' "$token_value" | sudo tee "$gh_token_file" >/dev/null
   sudo chmod 600 "$gh_token_file"
 elif [[ "$token_source" == "app" ]]; then
-  app_refresh_setup_script="${script_dir}/setup_github_app_token_refresh_one_command.sh"
-  if [[ ! -x "$app_refresh_setup_script" ]]; then
-    echo "missing executable: $app_refresh_setup_script" >&2
-    exit 1
-  fi
   "$app_refresh_setup_script" \
     --app-id "$app_id" \
     --installation-id "$app_installation_id" \

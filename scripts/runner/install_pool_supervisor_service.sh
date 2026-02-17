@@ -89,7 +89,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/env bash -lc 'set -euo pipefail; ${supervisor_script} --repo ${repo} --min ${min_pool} --max ${max_parallel} --target ${target} --interval ${interval_seconds} --gh-token-file ${gh_token_file} --lock-file ${lock_file}'
+ExecStart=/usr/bin/env bash -lc 'set -euo pipefail; \"${supervisor_script}\" --repo \"${repo}\" --min \"${min_pool}\" --max \"${max_parallel}\" --target \"${target}\" --interval \"${interval_seconds}\" --gh-token-file \"${gh_token_file}\" --lock-file \"${lock_file}\"'
 Restart=always
 RestartSec=5s
 KillMode=process
