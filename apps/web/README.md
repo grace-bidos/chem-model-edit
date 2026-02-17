@@ -60,6 +60,7 @@ pnpm -C apps/web test:fastcheck
 pnpm -C apps/web test:mutation
 pnpm -C apps/web test:e2e:install
 pnpm -C apps/web test:e2e
+pnpm -C apps/web test:e2e:smoke
 ```
 
 ## Local-first quality workflow
@@ -68,5 +69,6 @@ pnpm -C apps/web test:e2e
 - Heavier checks are local-first:
   - Mutation testing: `pnpm -C apps/web test:mutation`
   - Visual verification: `pnpm -C apps/web build-storybook` and `pnpm -C apps/web chromatic`
-- Optional E2E smoke: `pnpm -C apps/web test:e2e`
-- Playwright smoke is part of deep local quality checks; run `pnpm -C apps/web test:e2e:install` before first run.
+- Optional E2E smoke: `pnpm -C apps/web test:e2e:smoke`
+- Playwright is local-only for now (not CI required). Run `pnpm -C apps/web test:e2e:install` before first run.
+- Strictness and promotion rubric: `docs/process/web-quality-playbook-v2.md`.

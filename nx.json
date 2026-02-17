@@ -63,6 +63,19 @@
         { "env": "CI" }
       ]
     },
+    "e2e-smoke": {
+      "cache": true,
+      "inputs": [
+        "default",
+        "{workspaceRoot}/pnpm-lock.yaml",
+        "{workspaceRoot}/package.json",
+        "{projectRoot}/package.json",
+        "{projectRoot}/playwright.config.ts",
+        "{projectRoot}/vite.config.ts",
+        { "env": "NODE_ENV" },
+        { "env": "CI" }
+      ]
+    },
     "schemathesis": {
       "cache": true
     }

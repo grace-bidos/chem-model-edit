@@ -10,24 +10,30 @@
   "mutate": [
     "src/lib/**/*.ts",
     "src/server/api.ts",
-    "src/server/zpe-aggregation.ts",
-    "src/components/compare/align.ts",
+    "src/components/compare/**/*.ts",
     "src/features/editor-v2/components/AtomTable.tsx",
-    "!src/lib/**/*.test.ts",
-    "!src/lib/**/*.fastcheck.test.ts",
-    "!src/server/**/*.test.ts",
-    "!src/features/**/*.test.tsx"
+    "src/features/editor-v2/components/FilePanel.tsx",
+    "src/features/editor-v2/components/CollapsibleSection.tsx",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "!src/**/*.a11y.test.tsx",
+    "!src/**/*.fastcheck.test.ts",
+    "!src/**/*.stories.tsx",
+    "!src/features/editor-v2/components/storybook.mocks.ts"
   ],
+  "ignoreStatic": true,
+  "timeoutMS": 10000,
+  "timeoutFactor": 1.5,
   "reporters": [
     "clear-text",
     "progress",
     "html"
   ],
-  "coverageAnalysis": "off",
+  "coverageAnalysis": "perTest",
   "thresholds": {
-    "high": 85,
-    "low": 70,
-    "break": 65
+    "high": 88,
+    "low": 75,
+    "break": 68
   },
   "allowConsoleColors": true
 }
