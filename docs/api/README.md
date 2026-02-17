@@ -42,8 +42,14 @@
 - CI: 段階導入で運用する
 - `pyright` / `bandit` / `pip-audit` / `gitleaks` / `deptry` / `vulture` / `mutmut` は phase-1 で non-blocking
 - ノイズ削減後、段階的に required check へ昇格する
-- pytest プラグイン: `pytest-asyncio` / `pytest-cov` / `pytest-mock` / `pytest-sugar` / `pytest-xdist` / `time-machine`
+- pytest プラグイン: `pytest-asyncio` / `pytest-cov` / `pytest-env` / `pytest-mock` / `pytest-randomly` / `pytest-sugar` / `pytest-timeout` / `pytest-xdist` / `time-machine`
 - `api-mutation-smoke` は実行後に `apps/api/mutants` を `.mutants_local_tmp.*` へ退避し、通常の `pytest` 実行と衝突しないようにする
+
+## Pytest Env Policy
+
+- `pytest-env` には共有で決定的な値のみを置く（現状は `TZ=UTC` のみ）。
+- テスト固有の環境値は `fixture` / `monkeypatch` で設定し、グローバル設定に追加しない。
+- `pytest-randomly` は `randomly_seed=last` を既定とし、失敗再現時は `uv run pytest --randomly-seed=<seed>` を使う。
 
 ## Security/Hygiene Gate Runbook
 
