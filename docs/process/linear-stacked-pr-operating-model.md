@@ -88,6 +88,12 @@ Required pre-merge checks (fast):
 - policy check (type/size labels or equivalent metadata)
 - merge-readiness gate: required checks green, unresolved review threads = 0, and PR head status is not `BEHIND` base
 
+Merge queue integration requirements:
+
+- CI must validate merge-queue heads via `merge_group` trigger.
+- Keep required checks stable and low-latency (`web`, `api`, `contract`) for stacked throughput.
+- Move heavy/non-blocking quality suites to post-merge `main` workflows.
+
 Optional post-merge checks (expand later):
 
 - heavy integration or E2E suites

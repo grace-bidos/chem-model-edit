@@ -26,6 +26,12 @@ Self-hosted route is selected only when all conditions match:
 
 Fallback target is always `ubuntu-latest`.
 
+Merge queue compatibility:
+
+- CI must also run on `merge_group` events.
+- Required checks for queue entry should remain fast (`web`, `api`, `contract`).
+- Heavy suites should run post-merge on `main` to avoid slowing stacked PR throughput.
+
 ## Architecture (JIT + VM Autoscaler)
 
 - A small controller receives queue pressure or polling signals.
@@ -65,6 +71,12 @@ The following requires your action:
 - GitHub org/repo auth configuration for JIT issuance
 - Runner group creation and repository access scope
 - host sudo tasks for VM image build, service install, and lifecycle hooks
+
+Recommended auth model for JIT issuance:
+
+- Prefer GitHub App installation tokens (short-lived) over long-lived PATs.
+- Treat token files as transient secrets (`0600`, root-owned, periodic refresh).
+- Keep PAT only as emergency fallback during incident recovery.
 
 ## Verification Checklist
 

@@ -20,6 +20,13 @@ Use a principal that can manage self-hosted runners at org or repo scope.
   - verify org/repo admin scope for Actions runner APIs
 - If using GitHub App:
   - ensure app can create JIT runner configuration
+  - prefer installation access tokens (short-lived) for runner operations
+  - keep app private key outside repository and host it with restricted file permissions
+
+Recommended default:
+
+- Use GitHub App installation tokens for routine runner operations.
+- Keep PAT flow only for emergency break-glass recovery.
 
 ## 2) VM base image prerequisites (operator action, sudo likely required)
 
@@ -45,7 +52,20 @@ scripts/runner/request_jit_config.sh \
   --runner-group-id <RUNNER_GROUP_ID> \
   --labels "self-hosted,linux,x64,chem-trusted-pr" \
   --name-prefix chem-jit \
+  --token-source env \
+  --token-env-var GH_TOKEN \
   --out /tmp/jit-config.json
+```
+
+When using GitHub App tokens, export `GH_TOKEN` with a short-lived installation token first:
+
+```bash
+export GH_TOKEN="$(
+  scripts/runner/request_github_app_token.sh \
+    --app-id <APP_ID> \
+    --installation-id <INSTALLATION_ID> \
+    --private-key-file <PRIVATE_KEY_PATH>
+)"
 ```
 
 ## 4) Launch ephemeral runner on VM
@@ -219,7 +239,11 @@ scripts/runner/setup_pool_supervisor_one_command.sh \
   --min 1 \
   --max 4 \
   --target 4 \
-  --interval 15
+  --interval 15 \
+  --token-source app \
+  --app-id <APP_ID> \
+  --app-installation-id <INSTALLATION_ID> \
+  --app-private-key-file <PRIVATE_KEY_PATH>
 ```
 
 Dry-run:
@@ -236,6 +260,12 @@ gh api repos/grace-bidos/chem-model-edit/actions/runners --jq '.runners[] | {nam
 ```
 
 Optional: timer mode remains available as fallback, but supervisor mode should be the default for steady 4-slot operation.
+
+Token lifecycle rules:
+
+- Refresh installation tokens at least every 50 minutes for long-lived supervisors.
+- Never persist app private keys in repository paths.
+- Remove stale token files during incident cleanup.
 
 ## 10) Emergency fallback to hosted routing
 
