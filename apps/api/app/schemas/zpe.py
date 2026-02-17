@@ -24,6 +24,12 @@ _AIIA_STATE_MAP: dict[str, str] = {
 }
 
 
+def _to_string_key_dict(value: Any) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+    return {key: item for key, item in value.items() if isinstance(key, str)}
+
+
 def _first_present(payload: dict[str, Any], *keys: str) -> Any:
     for key in keys:
         value = payload.get(key)
@@ -40,9 +46,9 @@ def _normalize_aiida_state(value: Any) -> Any:
 
 
 def _normalize_scheduler_ref_payload(value: Any) -> Any:
-    if not isinstance(value, dict):
+    payload = _to_string_key_dict(value)
+    if payload is None:
         return value
-    payload = dict(value)
     slurm_job_id = _first_present(payload, "slurm_job_id", "slurmJobId")
     partition = _first_present(payload, "partition")
     qos = _first_present(payload, "qos")
@@ -53,13 +59,13 @@ def _normalize_scheduler_ref_payload(value: Any) -> Any:
         normalized["partition"] = partition
     if qos is not None:
         normalized["qos"] = qos
-    return normalized or value
+    return normalized or payload
 
 
 def _normalize_result_ref_payload(value: Any) -> Any:
-    if not isinstance(value, dict):
+    payload = _to_string_key_dict(value)
+    if payload is None:
         return value
-    payload = dict(value)
     output_uri = _first_present(payload, "output_uri", "outputUri")
     metadata_uri = _first_present(payload, "metadata_uri", "metadataUri")
     normalized: dict[str, Any] = {}
@@ -67,13 +73,13 @@ def _normalize_result_ref_payload(value: Any) -> Any:
         normalized["output_uri"] = output_uri
     if metadata_uri is not None:
         normalized["metadata_uri"] = metadata_uri
-    return normalized or value
+    return normalized or payload
 
 
 def _normalize_error_payload(value: Any) -> Any:
-    if not isinstance(value, dict):
+    payload = _to_string_key_dict(value)
+    if payload is None:
         return value
-    payload = dict(value)
     code = _first_present(payload, "code", "error_code", "errorCode")
     message = _first_present(payload, "message", "error_message", "errorMessage")
     retryable = _first_present(payload, "retryable", "retriable")
@@ -84,13 +90,13 @@ def _normalize_error_payload(value: Any) -> Any:
         normalized["message"] = message
     if retryable is not None:
         normalized["retryable"] = retryable
-    return normalized or value
+    return normalized or payload
 
 
 def _normalize_execution_event_payload(value: Any) -> Any:
-    if not isinstance(value, dict):
+    payload = _to_string_key_dict(value)
+    if payload is None:
         return value
-    payload = dict(value)
     normalized: dict[str, Any] = {}
     fields: tuple[tuple[str, tuple[str, ...]], ...] = (
         ("event_id", ("event_id", "eventId")),
@@ -125,7 +131,7 @@ def _normalize_execution_event_payload(value: Any) -> Any:
     if error is not None:
         normalized["error"] = _normalize_error_payload(error)
 
-    return normalized or value
+    return normalized or payload
 
 
 class ZPEParseRequest(ApiModel):
@@ -318,9 +324,9 @@ class ComputeResultRequest(ApiModel):
     @model_validator(mode="before")
     @classmethod
     def _normalize_result_execution_event(cls, value: Any) -> Any:
-        if not isinstance(value, dict):
+        payload = _to_string_key_dict(value)
+        if payload is None:
             return value
-        payload = dict(value)
         execution_event = payload.get("execution_event")
         if execution_event is not None:
             payload["execution_event"] = _normalize_execution_event_payload(
@@ -345,9 +351,9 @@ class ComputeFailedRequest(ApiModel):
     @model_validator(mode="before")
     @classmethod
     def _normalize_failed_execution_event(cls, value: Any) -> Any:
-        if not isinstance(value, dict):
+        payload = _to_string_key_dict(value)
+        if payload is None:
             return value
-        payload = dict(value)
         # Accept legacy top-level aliases while keeping ApiModel(extra="forbid") strict.
         if "error_code" not in payload and "errorCode" in payload:
             payload["error_code"] = payload["errorCode"]

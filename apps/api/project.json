@@ -27,7 +27,35 @@
     "typecheck": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "uv run mypy --strict app services main.py",
+        "command": "uv run mypy --config-file pyproject.toml app services main.py",
+        "cwd": "apps/api"
+      }
+    },
+    "typecheck-pyright": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "uv run pyright --project pyrightconfig.json",
+        "cwd": "apps/api"
+      }
+    },
+    "security": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "uv run bandit -q -r app services main.py && uv run pip-audit --progress-spinner off",
+        "cwd": "apps/api"
+      }
+    },
+    "deadcode": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "uv run deptry . --extend-exclude \".*/mutants/\" && uv run vulture app services --min-confidence 90 --ignore-names cls",
+        "cwd": "apps/api"
+      }
+    },
+    "mutation-smoke": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash scripts/mutmut_smoke.sh",
         "cwd": "apps/api"
       }
     },

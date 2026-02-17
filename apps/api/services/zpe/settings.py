@@ -8,7 +8,7 @@ from typing import Literal, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-def _resolve_env_file() -> str:
+def resolve_env_file() -> str:
     override = os.getenv("ZPE_ENV_FILE")
     if override:
         return override
@@ -23,7 +23,6 @@ def _resolve_env_file() -> str:
 class ZPESettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="ZPE_",
-        env_file=".env",
         extra="ignore",
     )
 
@@ -84,6 +83,10 @@ class ZPESettings(BaseSettings):
     slurm_real_adapter_probe_timeout_seconds: int = 5
 
 
+def load_zpe_settings_uncached() -> ZPESettings:
+    return ZPESettings(_env_file=resolve_env_file())  # pyright: ignore[reportCallIssue]
+
+
 @lru_cache
 def get_zpe_settings() -> ZPESettings:
     """ZPE設定を環境変数から読み込み，キャッシュして返す．
@@ -91,4 +94,4 @@ def get_zpe_settings() -> ZPESettings:
     Returns:
         解決済みの設定オブジェクト．
     """
-    return ZPESettings(_env_file=_resolve_env_file())  # type: ignore[call-arg]
+    return load_zpe_settings_uncached()
