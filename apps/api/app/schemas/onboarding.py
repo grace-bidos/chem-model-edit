@@ -20,6 +20,10 @@ OnboardingIssueSection = Literal[
 ]
 
 
+def _empty_validation_issues() -> list[OnboardingValidationIssue]:
+    return []
+
+
 class OnboardingDryRunRequest(ApiModel):
     schema_version: OnboardingSchemaVersion = "byo_onboarding_manifest/v1"
     path_mode: OnboardingPathMode
@@ -57,4 +61,6 @@ class OnboardingDryRunResponse(ApiModel):
     status: Literal["valid", "invalid"]
     normalized_manifest: OnboardingDryRunRequest
     report: OnboardingDryRunReport
-    errors: list[OnboardingValidationIssue] = Field(default_factory=list)
+    errors: list[OnboardingValidationIssue] = Field(
+        default_factory=_empty_validation_issues
+    )

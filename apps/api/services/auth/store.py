@@ -53,7 +53,8 @@ class AuthStore:
         settings = get_auth_settings()
         if settings.redis_url is None:
             raise RuntimeError("AUTH_REDIS_URL must be set")
-        self.redis = Redis.from_url(settings.redis_url)
+        redis_cls = cast(Any, Redis)
+        self.redis = cast(Redis, redis_cls.from_url(settings.redis_url))
 
     def create_user(self, email: str, password: str) -> AuthUser:
         normalized = email.strip().lower()
@@ -80,21 +81,20 @@ class AuthStore:
         user_key = f"{_USER_PREFIX}{user_id}"
         payload = json.dumps(user.__dict__)
 
-        pipe = self.redis.pipeline(transaction=True)
-        pipe_any = cast(Any, pipe)
+        pipe_any = cast(Any, self.redis).pipeline(transaction=True)
         for _ in range(5):
             try:
                 pipe_any.watch(email_key)
-                if pipe.exists(email_key):
-                    pipe.reset()
+                if pipe_any.exists(email_key):
+                    pipe_any.reset()
                     raise ValueError("email already registered")
-                pipe.multi()
-                pipe.set(email_key, user_id)
-                pipe.set(user_key, payload)
-                pipe.execute()
+                pipe_any.multi()
+                pipe_any.set(email_key, user_id)
+                pipe_any.set(user_key, payload)
+                pipe_any.execute()
                 break
             except WatchError:
-                pipe.reset()
+                pipe_any.reset()
                 continue
         else:
             raise RuntimeError("failed to create user")

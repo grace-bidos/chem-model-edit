@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from app.schemas.onboarding import (
     OnboardingDryRunReport,
@@ -15,6 +15,14 @@ ALLOWED_FALLBACK_MODES = {"deny", "route-default"}
 BLOCKED_STATES = {"down", "drain", "draining", "fail"}
 
 
+def _as_any_list(value: list[object]) -> list[Any]:
+    return [item for item in value]
+
+
+def _as_any_dict(value: dict[object, object]) -> dict[Any, Any]:
+    return {key: item for key, item in value.items()}
+
+
 def _is_non_empty_text(value: Any) -> bool:
     return isinstance(value, str) and bool(value.strip())
 
@@ -23,10 +31,14 @@ def _normalize_json(value: Any) -> Any:
     if isinstance(value, str):
         return value.strip()
     if isinstance(value, list):
-        return [_normalize_json(item) for item in value]
+        items = _as_any_list(
+            cast(list[object], value)
+        )
+        return [_normalize_json(item) for item in items]
     if isinstance(value, dict):
         normalized: dict[str, Any] = {}
-        for key, item in value.items():
+        value_dict = _to_string_key_dict(value)
+        for key, item in value_dict.items():
             normalized[key] = _normalize_json(item)
         return normalized
     return value
@@ -35,7 +47,13 @@ def _normalize_json(value: Any) -> Any:
 def _to_string_key_dict(value: Any) -> dict[str, Any]:
     if not isinstance(value, dict):
         return {}
-    return {key: item for key, item in value.items() if isinstance(key, str)}
+    normalized: dict[str, Any] = {}
+    for key, item in _as_any_dict(
+        cast(dict[object, object], value)
+    ).items():
+        if isinstance(key, str):
+            normalized[key] = item
+    return normalized
 
 
 def _issue(
@@ -75,7 +93,7 @@ def _validate_text_list(
         return []
 
     values: list[str] = []
-    items: list[Any] = data
+    items = _as_any_list(cast(list[object], data))
     for index, item in enumerate(items):
         if not isinstance(item, str) or not item.strip():
             errors.append(
@@ -163,7 +181,9 @@ def _validate_policy(policy: dict[str, Any]) -> list[OnboardingValidationIssue]:
         )
         queue_mappings: list[Any] = []
     else:
-        queue_mappings = queue_mappings_raw
+        queue_mappings = _as_any_list(
+            cast(list[object], queue_mappings_raw)
+        )
 
     queue_names: list[str] = []
     for index, mapping_raw in enumerate(queue_mappings):
@@ -411,7 +431,9 @@ def _validate_registration(
         )
         enabled_queues: list[Any] = []
     else:
-        enabled_queues = enabled_queues_raw
+        enabled_queues = _as_any_list(
+            cast(list[object], enabled_queues_raw)
+        )
         for index, queue in enumerate(enabled_queues):
             if not _is_non_empty_text(queue):
                 errors.append(
@@ -429,7 +451,10 @@ def _validate_registration(
     mapped_queues: set[str] = set()
     queue_mappings_raw = policy.get("queue_mappings", [])
     if isinstance(queue_mappings_raw, list):
-        for mapping_raw in queue_mappings_raw:
+        queue_mappings_list = _as_any_list(
+            cast(list[object], queue_mappings_raw)
+        )
+        for mapping_raw in queue_mappings_list:
             mapping = _to_string_key_dict(mapping_raw)
             queue_name = mapping.get("queue")
             if isinstance(queue_name, str) and queue_name.strip():
@@ -463,11 +488,20 @@ def _validate_registration(
                 code="invalid_object",
             )
         )
-        labels = {}
-    for label in required_labels if isinstance(required_labels, list) else []:
+        labels_dict: dict[str, Any] = {}
+    else:
+        labels_dict = _to_string_key_dict(labels)
+    labels_list = (
+        _as_any_list(
+            cast(list[object], required_labels)
+        )
+        if isinstance(required_labels, list)
+        else []
+    )
+    for label in labels_list:
         if not isinstance(label, str):
             continue
-        value = labels.get(label)
+        value = labels_dict.get(label)
         if not _is_non_empty_text(value):
             errors.append(
                 _issue(
@@ -494,11 +528,20 @@ def _validate_registration(
                 code="invalid_object",
             )
         )
-        checks = {}
-    for check_name in required_checks if isinstance(required_checks, list) else []:
+        checks_dict: dict[str, Any] = {}
+    else:
+        checks_dict = _to_string_key_dict(checks)
+    checks_list = (
+        _as_any_list(
+            cast(list[object], required_checks)
+        )
+        if isinstance(required_checks, list)
+        else []
+    )
+    for check_name in checks_list:
         if not isinstance(check_name, str):
             continue
-        if checks.get(check_name) is not True:
+        if checks_dict.get(check_name) is not True:
             errors.append(
                 _issue(
                     section="registration",
@@ -549,7 +592,10 @@ def _resolve_queue(policy: dict[str, Any], requested_queue: str) -> tuple[str, b
     queue_names: set[str] = set()
     queue_mappings_raw = policy.get("queue_mappings", [])
     if isinstance(queue_mappings_raw, list):
-        for mapping_raw in queue_mappings_raw:
+        queue_mappings_list = _as_any_list(
+            cast(list[object], queue_mappings_raw)
+        )
+        for mapping_raw in queue_mappings_list:
             mapping = _to_string_key_dict(mapping_raw)
             queue_name = mapping.get("queue")
             if isinstance(queue_name, str) and queue_name.strip():
