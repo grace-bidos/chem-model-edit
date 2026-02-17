@@ -312,9 +312,12 @@ class RuntimeStore:
         except Exception:
             logger.warning("runtime projection dispatch failed", exc_info=True)
 
-    def get_status(self, job_id: str) -> RuntimeJobStatusResponse:
+    def get_status(self, job_id: str, *, tenant_id: str) -> RuntimeJobStatusResponse:
         with self._connect() as conn:
-            row = conn.execute("SELECT * FROM runtime_jobs WHERE job_id = ?", (job_id,)).fetchone()
+            row = conn.execute(
+                "SELECT * FROM runtime_jobs WHERE job_id = ? AND tenant_id = ?",
+                (job_id, tenant_id),
+            ).fetchone()
         if row is None:
             raise RuntimeNotFoundError(job_id)
         return RuntimeJobStatusResponse(
@@ -327,17 +330,20 @@ class RuntimeStore:
             trace_id=row["trace_id"],
         )
 
-    def get_projection_status(self, job_id: str) -> ZPEJobStatus:
-        status = self.get_status(job_id)
+    def get_projection_status(self, job_id: str, *, tenant_id: str) -> ZPEJobStatus:
+        status = self.get_status(job_id, tenant_id=tenant_id)
         return ZPEJobStatus(
             status=_to_job_state(status.state),
             detail=status.detail,
             updated_at=status.updated_at,
         )
 
-    def get_detail(self, job_id: str) -> dict[str, Any]:
+    def get_detail(self, job_id: str, *, tenant_id: str) -> dict[str, Any]:
         with self._connect() as conn:
-            job = conn.execute("SELECT * FROM runtime_jobs WHERE job_id = ?", (job_id,)).fetchone()
+            job = conn.execute(
+                "SELECT * FROM runtime_jobs WHERE job_id = ? AND tenant_id = ?",
+                (job_id, tenant_id),
+            ).fetchone()
             event = conn.execute(
                 """
                 SELECT event_id, occurred_at, state, detail, trace_id

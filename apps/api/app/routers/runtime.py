@@ -59,9 +59,9 @@ async def post_runtime_event(job_id: str, event: ExecutionEvent, request: Reques
 @router.get("/jobs/{job_id}", response_model=RuntimeJobStatusResponse)
 async def get_runtime_job(job_id: str, request: Request) -> RuntimeJobStatusResponse:
     _ = require_user_identity(request)
-    _ = require_tenant_id(request)
+    tenant_id = require_tenant_id(request)
     try:
-        return get_runtime_store().get_status(job_id)
+        return get_runtime_store().get_status(job_id, tenant_id=tenant_id)
     except RuntimeNotFoundError as exc:
         raise HTTPException(status_code=404, detail="job not found") from exc
 
@@ -69,9 +69,9 @@ async def get_runtime_job(job_id: str, request: Request) -> RuntimeJobStatusResp
 @router.get("/jobs/{job_id}/detail")
 async def get_runtime_job_detail(job_id: str, request: Request) -> dict[str, object]:
     _ = require_user_identity(request)
-    _ = require_tenant_id(request)
+    tenant_id = require_tenant_id(request)
     try:
-        return get_runtime_store().get_detail(job_id)
+        return get_runtime_store().get_detail(job_id, tenant_id=tenant_id)
     except RuntimeNotFoundError as exc:
         raise HTTPException(status_code=404, detail="job not found") from exc
 
@@ -79,8 +79,8 @@ async def get_runtime_job_detail(job_id: str, request: Request) -> dict[str, obj
 @router.get("/jobs/{job_id}/projection", response_model=ZPEJobStatus)
 async def get_runtime_job_projection(job_id: str, request: Request) -> ZPEJobStatus:
     _ = require_user_identity(request)
-    _ = require_tenant_id(request)
+    tenant_id = require_tenant_id(request)
     try:
-        return get_runtime_store().get_projection_status(job_id)
+        return get_runtime_store().get_projection_status(job_id, tenant_id=tenant_id)
     except RuntimeNotFoundError as exc:
         raise HTTPException(status_code=404, detail="job not found") from exc

@@ -91,3 +91,18 @@ def test_runtime_event_updates_status(monkeypatch, tmp_path: Path):
     projection_response = client.get("/api/runtime/jobs/job-1/projection", headers=_headers())
     assert projection_response.status_code == 200
     assert projection_response.json()["status"] == "started"
+
+
+def test_runtime_status_isolated_by_tenant(monkeypatch, tmp_path: Path):
+    store = RuntimeStore(tmp_path / "runtime.sqlite3")
+    monkeypatch.setattr("app.routers.runtime.get_runtime_store", lambda: store)
+
+    client = TestClient(app)
+    submit = client.post("/api/runtime/jobs:submit", json=_submit_payload(), headers=_headers())
+    assert submit.status_code == 202
+
+    response = client.get(
+        "/api/runtime/jobs/job-1",
+        headers=_headers(tenant_id="tenant-other"),
+    )
+    assert response.status_code == 404
