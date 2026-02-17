@@ -11,6 +11,7 @@ if str(ROOT) not in sys.path:
 
 import app.deps as deps  # noqa: E402
 from services.authn.settings import AuthnSettings  # noqa: E402
+from services.zpe.settings import ZPESettings  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -24,3 +25,10 @@ def _default_auth_mode_dev_bypass(monkeypatch: pytest.MonkeyPatch) -> None:
             dev_bypass_email_header="X-Dev-User-Email",
         ),
     )
+
+
+@pytest.fixture
+def admin_auth_headers(monkeypatch: pytest.MonkeyPatch) -> dict[str, str]:
+    token = "test-admin-token"
+    monkeypatch.setattr(deps, "get_zpe_settings", lambda: ZPESettings(admin_token=token))
+    return {"Authorization": f"Bearer {token}"}

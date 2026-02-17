@@ -49,10 +49,20 @@ aiida = [
 ]
 
 [tool.pytest.ini_options]
+addopts = "-ra --strict-markers --strict-config --tb=short --durations=10 --randomly-seed=last"
+testpaths = ["tests"]
+xfail_strict = true
+asyncio_mode = "auto"
 markers = [
     "e2e: end-to-end tests that require external dependencies (QE, pseudopotentials)",
+    "contract: API contract validation tests",
+    "slow: long-running tests",
+    "schemathesis: schema-based API fuzzing tests",
 ]
-addopts = "-ra --strict-markers --randomly-seed=last"
+filterwarnings = [
+    "error::pytest.PytestUnhandledThreadExceptionWarning",
+    "error::pytest.PytestUnraisableExceptionWarning",
+]
 env = [
     "TZ=UTC",
 ]
