@@ -3,9 +3,14 @@
   "workspaces": {
     "apps/web": {
       "entry": [
+        ".storybook/main.ts",
+        ".storybook/preview.ts",
+        "playwright.config.ts",
+        "e2e/**/*.ts",
         "src/start.tsx",
         "src/router.tsx",
         "src/routes/**/*.tsx",
+        "src/**/*.stories.tsx",
         "src/features/editor-v2/EditorV2Page.tsx"
       ],
       "project": ["tsconfig.json"],
@@ -42,6 +47,7 @@
         "test:coverage",
         "test:mutation",
         "test:e2e",
+        "test:e2e:smoke",
         "test:e2e:install",
         "build-storybook"
       ]
