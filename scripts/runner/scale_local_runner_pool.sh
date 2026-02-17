@@ -334,7 +334,10 @@ emit_inventory() {
     union_rows+=("${idx}"$'\t'"${name}")
   done
 
-  mapfile -t union_sorted < <(printf '%s\n' "${union_rows[@]}" | sort -n -k1,1 -k2,2 | cut -f2-)
+  declare -a union_sorted=()
+  if [[ "${#union_rows[@]}" -gt 0 ]]; then
+    mapfile -t union_sorted < <(printf '%s\n' "${union_rows[@]}" | sort -n -k1,1 -k2,2 | cut -f2-)
+  fi
 
   declare -a runner_objs=()
   for name in "${union_sorted[@]}"; do
@@ -394,7 +397,7 @@ emit_inventory() {
     --argjson github_managed_names "$github_json" \
     --argjson local_managed_names "$local_json" \
     --argjson runners "$runners_json" \
-    '{script:$script,script_version:$script_version,repo:$repo,base_name:$base_name,base_dir:$base_dir,control:{min:$min,max:$max,target_requested:$requested_target,target_effective:$effective_target},dry_run:$dry_run,desired_names:$desired_names,github_managed_names:$github_managed_names,local_managed_names:$local_managed_names,runners:$runners}')"
+    '{script:$script,script_version:$script_version,repo:$repo,base_name:$base_name,base_dir:$base_dir,control:{min:$min,max:$max,target_requested:$requested_target,target_effective:$effective_target},consistency:{github_runner_inventory:"eventual"},dry_run:$dry_run,desired_names:$desired_names,github_managed_names:$github_managed_names,local_managed_names:$local_managed_names,runners:$runners}')"
 
   write_output_file "$INVENTORY_OUT" "$content"
 }

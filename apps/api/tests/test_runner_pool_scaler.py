@@ -179,3 +179,48 @@ def test_scale_local_runner_pool_rejects_conflicting_min_and_baseline(tmp_path: 
 
     assert result.returncode == 1
     assert "--min and --baseline conflict" in result.stderr
+
+
+def test_scale_local_runner_pool_scale_to_zero_writes_inventory_and_status(tmp_path: Path) -> None:
+    bindir = _prepare_stub_bin(tmp_path)
+    inventory_path = tmp_path / "inventory-zero.json"
+    status_path = tmp_path / "status-zero.json"
+    base_dir = tmp_path / "runner-base-empty"
+
+    env = os.environ.copy()
+    env["PATH"] = f"{bindir}:{env['PATH']}"
+    env["GH_STUB_RUNNERS_JSON"] = '{"runners":[]}'
+
+    result = _run_scaler(
+        [
+            "--repo",
+            "grace-bidos/chem-model-edit",
+            "--base-dir",
+            str(base_dir),
+            "--base-name",
+            "runner",
+            "--min",
+            "0",
+            "--max",
+            "4",
+            "--target",
+            "0",
+            "--dry-run",
+            "--inventory-out",
+            str(inventory_path),
+            "--status-out",
+            str(status_path),
+        ],
+        env,
+    )
+
+    assert result.returncode == 0, result.stderr
+    inventory = json.loads(inventory_path.read_text(encoding="utf-8"))
+    status = json.loads(status_path.read_text(encoding="utf-8"))
+
+    assert inventory["runners"] == []
+    assert inventory["control"]["target_effective"] == 0
+    assert inventory["consistency"]["github_runner_inventory"] == "eventual"
+    assert status["counts"]["desired"] == 0
+    assert status["counts"]["github_managed"] == 0
+    assert status["counts"]["operations"] == 0
