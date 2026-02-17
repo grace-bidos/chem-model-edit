@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import hashlib
 import secrets
-from typing import Optional, cast
+from typing import Any, Optional, cast
 
 from redis import Redis
 
@@ -91,7 +91,8 @@ class WorkerTokenStore:
             "label": label or "",
             "revoked_at": "",
         }
-        pipe = self.redis.pipeline(transaction=True)
+        redis_any = cast(Any, self.redis)
+        pipe = redis_any.pipeline(transaction=True)
         pipe.hset(key, mapping=payload)
         pipe.expire(key, ttl)
         pipe.sadd(f"{_WORKER_INDEX_PREFIX}{worker_id}", token_hash)
@@ -113,7 +114,8 @@ class WorkerTokenStore:
         if self.redis.zscore(_REVOKED_SET, token_hash) is not None:
             raise PermissionError("token revoked")
         key = f"{_TOKEN_PREFIX}{token_hash}"
-        data = cast(dict[bytes, bytes], self.redis.hgetall(key))
+        redis_any = cast(Any, self.redis)
+        data = cast(dict[bytes, bytes], redis_any.hgetall(key))
         if not data:
             raise PermissionError("token invalid or expired")
         worker_id = data.get(b"worker_id", b"").decode("utf-8")
@@ -128,10 +130,11 @@ class WorkerTokenStore:
     def revoke_tokens_for_worker(self, worker_id: str) -> int:
         settings = get_zpe_settings()
         index_key = f"{_WORKER_INDEX_PREFIX}{worker_id}"
-        token_hashes = cast(set[bytes], self.redis.smembers(index_key))
+        redis_any = cast(Any, self.redis)
+        token_hashes = cast(set[bytes], redis_any.smembers(index_key))
         if not token_hashes:
             return 0
-        pipe = self.redis.pipeline(transaction=True)
+        pipe = redis_any.pipeline(transaction=True)
         revoked_at = _now_ts()
         for token_hash_raw in token_hashes:
             token_hash = token_hash_raw.decode("utf-8")

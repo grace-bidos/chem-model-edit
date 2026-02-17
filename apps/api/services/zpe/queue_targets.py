@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
-from typing import Optional, cast
+from typing import Any, Optional, cast
 from uuid import uuid4
 
 from redis import Redis
@@ -72,7 +72,8 @@ class QueueTargetStore:
         key = f"{_TARGET_PREFIX}{target_id}"
         list_key = f"{_USER_TARGETS_PREFIX}{user_id}"
         payload = json.dumps(target.__dict__)
-        pipe = self.redis.pipeline(transaction=True)
+        redis_any = cast(Any, self.redis)
+        pipe = redis_any.pipeline(transaction=True)
         pipe.set(key, payload)
         pipe.rpush(list_key, target_id)
         pipe.execute()
@@ -80,7 +81,8 @@ class QueueTargetStore:
 
     def list_targets(self, user_id: str) -> list[QueueTarget]:
         list_key = f"{_USER_TARGETS_PREFIX}{user_id}"
-        ids = cast(list[bytes], self.redis.lrange(list_key, 0, -1))
+        redis_any = cast(Any, self.redis)
+        ids = cast(list[bytes], redis_any.lrange(list_key, 0, -1))
         targets: list[QueueTarget] = []
         for raw in ids:
             target = self.get_target(raw.decode("utf-8"))
@@ -92,9 +94,10 @@ class QueueTargetStore:
         raw = cast(Optional[bytes], self.redis.get(f"{_TARGET_PREFIX}{target_id}"))
         if not raw:
             return None
-        payload = json.loads(raw)
-        if not isinstance(payload, dict):
+        payload_raw = json.loads(raw)
+        if not isinstance(payload_raw, dict):
             return None
+        payload = cast(dict[str, Any], payload_raw)
         did_normalize = False
         queue_name = payload.get("queue_name")
         if not isinstance(queue_name, str) or not queue_name.strip():

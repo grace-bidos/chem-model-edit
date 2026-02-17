@@ -270,6 +270,11 @@ jobs:
         run: |
           set -euo pipefail
           git fetch --no-tags --prune origin "${{ github.base_ref }}"
+      - name: Pyright touched-files gate
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          BASE_REF: origin/${{ github.base_ref }}
+        run: uv run --project apps/api python scripts/api/pyright_touched_gate.py --base-ref "$BASE_REF"
       - name: Changed-lines coverage gate
         if: ${{ github.event_name == 'pull_request' }}
         env:

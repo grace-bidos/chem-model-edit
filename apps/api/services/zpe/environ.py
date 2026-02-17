@@ -16,7 +16,7 @@ def resolve_environ_path(
         path = Path(settings.environ_path)
         if path.exists():
             return path
-    candidates = []
+    candidates: list[Path] = []
     if input_dir:
         candidates.append(Path(input_dir) / "environ.in")
     candidates.append(job_dir / "environ.in")

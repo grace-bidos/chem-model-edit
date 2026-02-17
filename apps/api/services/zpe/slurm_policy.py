@@ -113,9 +113,10 @@ def _parse_queue_mappings(policy: Mapping[str, Any]) -> dict[str, SlurmQueueMapp
         raise SlurmPolicyConfigError("slurm policy queue_mappings must be a non-empty list")
 
     mappings: dict[str, SlurmQueueMapping] = {}
-    for index, raw_mapping in enumerate(raw_mappings):
-        if not isinstance(raw_mapping, dict):
+    for index, raw_mapping_value in enumerate(cast(list[object], raw_mappings)):
+        if not isinstance(raw_mapping_value, Mapping):
             raise SlurmPolicyConfigError(f"queue_mappings[{index}] must be an object")
+        raw_mapping = cast(Mapping[str, object], raw_mapping_value)
         queue = raw_mapping.get("queue")
         partition = raw_mapping.get("partition")
         account = raw_mapping.get("account")
@@ -181,12 +182,13 @@ def _validate_fallback_policy(
     *, policy: Mapping[str, Any], mappings: Mapping[str, SlurmQueueMapping]
 ) -> tuple[Literal["deny", "route-default"], str]:
     fallback_policy = policy.get("fallback_policy")
-    if not isinstance(fallback_policy, dict):
+    if not isinstance(fallback_policy, Mapping):
         raise SlurmPolicyConfigError("fallback_policy must be an object")
+    fallback_policy_map = cast(Mapping[str, object], fallback_policy)
 
-    mode = fallback_policy.get("mode")
+    mode = fallback_policy_map.get("mode")
     if mode == "route-default":
-        default_queue = fallback_policy.get("default_queue")
+        default_queue = fallback_policy_map.get("default_queue")
         if not _is_non_empty_text(default_queue):
             raise SlurmPolicyConfigError(
                 "fallback_policy.default_queue must be set for route-default mode"

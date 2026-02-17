@@ -2,20 +2,22 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from importlib import import_module
 from io import StringIO
 import json
 import os
 from pathlib import Path
 import sqlite3
 from threading import RLock
-from typing import Dict, Optional, cast
+from typing import Any, Callable, Dict, Optional, cast
 from uuid import uuid4
 
 from ase import Atoms as ASEAtoms
-from ase.io import read as ase_read
 from app.schemas.common import QeParameters, Structure
 from services.cif import atoms_to_cif
 from services.parse import extract_qe_params, parse_qe_atoms, structure_from_ase
+
+ase_read = cast(Callable[..., Any], getattr(import_module("ase.io"), "read"))
 
 
 @dataclass
@@ -191,12 +193,12 @@ def _build_store() -> InMemoryStructureStore | SQLiteStructureStore:
     return SQLiteStructureStore(db_path, reset_on_start=reset_on_start)
 
 
-_STORE = _build_store()
+_store = _build_store()
 
 
 def reload_structure_store() -> None:
-    global _STORE
-    _STORE = _build_store()
+    global _store
+    _store = _build_store()
 
 
 def create_structure_from_qe(
@@ -206,7 +208,7 @@ def create_structure_from_qe(
     cif = atoms_to_cif(atoms)
     structure = structure_from_ase(atoms)
     params = extract_qe_params(content)
-    structure_id = _STORE.create(
+    structure_id = _store.create(
         atoms=atoms,
         source=source,
         cif=cif,
@@ -217,14 +219,14 @@ def create_structure_from_qe(
 
 
 def get_structure_cif(structure_id: str) -> str:
-    entry = _STORE.get(structure_id)
+    entry = _store.get(structure_id)
     if not entry:
         raise KeyError(structure_id)
     return entry.cif
 
 
 def get_structure_entry(structure_id: str) -> StoredStructure:
-    entry = _STORE.get(structure_id)
+    entry = _store.get(structure_id)
     if not entry:
         raise KeyError(structure_id)
     return entry
@@ -247,7 +249,7 @@ def get_structure_raw_input(structure_id: str) -> str | None:
 
 def register_structure_atoms(atoms: ASEAtoms, source: str) -> str:
     cif = atoms_to_cif(atoms)
-    return _STORE.create(
+    return _store.create(
         atoms=atoms,
         source=source,
         cif=cif,

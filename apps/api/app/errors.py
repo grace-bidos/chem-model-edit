@@ -29,6 +29,14 @@ _STATUS_CODE_MAP = {
 }
 
 
+def _as_any_list(value: list[object]) -> list[Any]:
+    return [item for item in value]
+
+
+def _as_any_dict(value: dict[object, object]) -> dict[Any, Any]:
+    return {key: item for key, item in value.items()}
+
+
 def _error_payload(
     *, status_code: int, message: str, details: Optional[Any] = None
 ) -> dict[str, Any]:
@@ -43,15 +51,25 @@ def _sanitize_error_details(details: Any) -> Any:
     if isinstance(details, BaseException):
         return str(details)
     if isinstance(details, dict):
-        return {key: _sanitize_error_details(value) for key, value in details.items()}
+        sanitized: dict[Any, Any] = {}
+        for key, value in _as_any_dict(
+            cast(dict[object, object], details)
+        ).items():
+            sanitized[key] = _sanitize_error_details(value)
+        return sanitized
     if isinstance(details, list):
-        return [_sanitize_error_details(value) for value in details]
+        sanitized_list: list[Any] = []
+        for value in _as_any_list(
+            cast(list[object], details)
+        ):
+            sanitized_list.append(_sanitize_error_details(value))
+        return sanitized_list
     return details
 
 
 def http_exception_handler(_: Request, exc: Exception) -> JSONResponse:
     http_exc = cast(HTTPException, exc)
-    detail = http_exc.detail
+    detail: Any = http_exc.detail
     message = detail if isinstance(detail, str) else "request failed"
     details: Any = (
         None
