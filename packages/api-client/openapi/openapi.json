@@ -456,6 +456,30 @@
         "title": "ErrorResponse",
         "type": "object"
       },
+      "EventError": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "retryable": {
+            "title": "Retryable",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "retryable"
+        ],
+        "title": "EventError",
+        "type": "object"
+      },
       "ExecutionCompletedEvent": {
         "additionalProperties": false,
         "properties": {
@@ -534,6 +558,107 @@
           "result_ref"
         ],
         "title": "ExecutionCompletedEvent",
+        "type": "object"
+      },
+      "ExecutionEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EventError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "event_id": {
+            "title": "Event Id",
+            "type": "string"
+          },
+          "execution_id": {
+            "title": "Execution Id",
+            "type": "string"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "occurred_at": {
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "result_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResultRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scheduler_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SchedulerRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "enum": [
+              "accepted",
+              "running",
+              "completed",
+              "failed"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "status_detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Detail"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "trace_id": {
+            "title": "Trace Id",
+            "type": "string"
+          },
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_id",
+          "tenant_id",
+          "workspace_id",
+          "job_id",
+          "submission_id",
+          "execution_id",
+          "state",
+          "occurred_at",
+          "trace_id"
+        ],
+        "title": "ExecutionEvent",
         "type": "object"
       },
       "ExecutionEventError": {
@@ -1222,6 +1347,144 @@
         "title": "QueueTargetSelectResponse",
         "type": "object"
       },
+      "ResultRef": {
+        "additionalProperties": false,
+        "properties": {
+          "metadata_uri": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata Uri"
+          },
+          "output_uri": {
+            "title": "Output Uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "output_uri"
+        ],
+        "title": "ResultRef",
+        "type": "object"
+      },
+      "RuntimeEventAck": {
+        "additionalProperties": false,
+        "properties": {
+          "idempotent": {
+            "default": false,
+            "title": "Idempotent",
+            "type": "boolean"
+          },
+          "ok": {
+            "default": true,
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "title": "RuntimeEventAck",
+        "type": "object"
+      },
+      "RuntimeJobStatusResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "execution_owner": {
+            "title": "Execution Owner",
+            "type": "string"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "accepted",
+              "running",
+              "completed",
+              "failed"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          },
+          "trace_id": {
+            "title": "Trace Id",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "submission_id",
+          "execution_owner",
+          "state",
+          "updated_at",
+          "trace_id"
+        ],
+        "title": "RuntimeJobStatusResponse",
+        "type": "object"
+      },
+      "SchedulerRef": {
+        "additionalProperties": false,
+        "properties": {
+          "partition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partition"
+          },
+          "qos": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Qos"
+          },
+          "slurm_job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slurm Job Id"
+          }
+        },
+        "title": "SchedulerRef",
+        "type": "object"
+      },
       "Structure-Input": {
         "additionalProperties": false,
         "properties": {
@@ -1464,6 +1727,203 @@
           "structure"
         ],
         "title": "StructureParseResponse",
+        "type": "object"
+      },
+      "SubmitExecutionProfile": {
+        "additionalProperties": false,
+        "properties": {
+          "account": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account"
+          },
+          "qos": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Qos"
+          },
+          "queue_name": {
+            "title": "Queue Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "queue_name"
+        ],
+        "title": "SubmitExecutionProfile",
+        "type": "object"
+      },
+      "SubmitJobAccepted": {
+        "additionalProperties": false,
+        "properties": {
+          "accepted_at": {
+            "title": "Accepted At",
+            "type": "string"
+          },
+          "execution_owner": {
+            "title": "Execution Owner",
+            "type": "string"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          },
+          "trace_id": {
+            "title": "Trace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "submission_id",
+          "execution_owner",
+          "accepted_at",
+          "trace_id"
+        ],
+        "title": "SubmitJobAccepted",
+        "type": "object"
+      },
+      "SubmitJobCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "execution_profile": {
+            "$ref": "#/components/schemas/SubmitExecutionProfile"
+          },
+          "idempotency_key": {
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "management_node_id": {
+            "title": "Management Node Id",
+            "type": "string"
+          },
+          "payload_ref": {
+            "$ref": "#/components/schemas/SubmitPayloadRef"
+          },
+          "requested_by": {
+            "$ref": "#/components/schemas/SubmitRequestedBy"
+          },
+          "resource_shape": {
+            "$ref": "#/components/schemas/SubmitResourceShape"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "workspace_id",
+          "job_id",
+          "idempotency_key",
+          "management_node_id",
+          "execution_profile",
+          "resource_shape",
+          "payload_ref",
+          "requested_by"
+        ],
+        "title": "SubmitJobCommand",
+        "type": "object"
+      },
+      "SubmitPayloadRef": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_bucket": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artifact Bucket"
+          },
+          "input_uri": {
+            "title": "Input Uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "input_uri"
+        ],
+        "title": "SubmitPayloadRef",
+        "type": "object"
+      },
+      "SubmitRequestedBy": {
+        "additionalProperties": false,
+        "properties": {
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id"
+        ],
+        "title": "SubmitRequestedBy",
+        "type": "object"
+      },
+      "SubmitResourceShape": {
+        "additionalProperties": false,
+        "properties": {
+          "cpu": {
+            "minimum": 1.0,
+            "title": "Cpu",
+            "type": "integer"
+          },
+          "memory_mib": {
+            "minimum": 1.0,
+            "title": "Memory Mib",
+            "type": "integer"
+          },
+          "walltime_seconds": {
+            "minimum": 1.0,
+            "title": "Walltime Seconds",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cpu",
+          "memory_mib",
+          "walltime_seconds"
+        ],
+        "title": "SubmitResourceShape",
         "type": "object"
       },
       "SupercellBuildMeta": {
@@ -2162,6 +2622,227 @@
         "summary": "Ready",
         "tags": [
           "health"
+        ]
+      }
+    },
+    "/api/runtime/jobs/{job_id}": {
+      "get": {
+        "operationId": "get_runtime_job_api_runtime_jobs__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeJobStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Runtime Job",
+        "tags": [
+          "runtime"
+        ]
+      }
+    },
+    "/api/runtime/jobs/{job_id}/detail": {
+      "get": {
+        "operationId": "get_runtime_job_detail_api_runtime_jobs__job_id__detail_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Runtime Job Detail Api Runtime Jobs  Job Id  Detail Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Runtime Job Detail",
+        "tags": [
+          "runtime"
+        ]
+      }
+    },
+    "/api/runtime/jobs/{job_id}/events": {
+      "post": {
+        "operationId": "post_runtime_event_api_runtime_jobs__job_id__events_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExecutionEvent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeEventAck"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Runtime Event",
+        "tags": [
+          "runtime"
+        ]
+      }
+    },
+    "/api/runtime/jobs/{job_id}/projection": {
+      "get": {
+        "operationId": "get_runtime_job_projection_api_runtime_jobs__job_id__projection_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZPEJobStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Runtime Job Projection",
+        "tags": [
+          "runtime"
+        ]
+      }
+    },
+    "/api/runtime/jobs:submit": {
+      "post": {
+        "operationId": "submit_runtime_job_api_runtime_jobs_submit_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitJobCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmitJobAccepted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit Runtime Job",
+        "tags": [
+          "runtime"
         ]
       }
     },

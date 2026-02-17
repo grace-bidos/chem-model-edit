@@ -160,6 +160,28 @@ describe('normalizeAggregatedZpeJobStatusFromSources', () => {
       ),
     ).toThrow('Upstream status payload mismatch')
   })
+
+  it('maps runtime state payload to job status when adapter returns state field', () => {
+    const normalized = normalizeAggregatedZpeJobStatusFromSources(
+      {
+        jobId: 'job-8b',
+        status: 'started',
+        updatedAt: '2026-02-15T08:12:00Z',
+      },
+      {
+        job_id: 'job-8b',
+        state: 'running',
+        detail: 'runtime-running',
+      },
+      'job-8b',
+    )
+
+    expect(normalized).toEqual({
+      status: 'started',
+      detail: 'runtime-running',
+      updated_at: '2026-02-15T08:12:00Z',
+    })
+  })
 })
 
 describe('fetchAggregatedZpeJobStatusFromUpstreams', () => {
@@ -189,8 +211,8 @@ describe('fetchAggregatedZpeJobStatusFromUpstreams', () => {
     })
 
     expect(calls).toEqual([
-      '/zpe/jobs/job-9/projection|token-9',
-      '/zpe/jobs/job-9|token-9',
+      '/runtime/jobs/job-9/projection|token-9',
+      '/runtime/jobs/job-9|token-9',
     ])
     expect(normalized).toEqual({
       status: 'finished',

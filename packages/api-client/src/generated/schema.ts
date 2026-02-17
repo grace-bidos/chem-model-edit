@@ -38,6 +38,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/runtime/jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Runtime Job */
+        get: operations["get_runtime_job_api_runtime_jobs__job_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/runtime/jobs/{job_id}/detail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Runtime Job Detail */
+        get: operations["get_runtime_job_detail_api_runtime_jobs__job_id__detail_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/runtime/jobs/{job_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Runtime Event */
+        post: operations["post_runtime_event_api_runtime_jobs__job_id__events_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/runtime/jobs/{job_id}/projection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Runtime Job Projection */
+        get: operations["get_runtime_job_projection_api_runtime_jobs__job_id__projection_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/runtime/jobs:submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit Runtime Job */
+        post: operations["submit_runtime_job_api_runtime_jobs_submit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/structures": {
         parameters: {
             query?: never;
@@ -604,6 +689,15 @@ export interface components {
         ErrorResponse: {
             error: components["schemas"]["ErrorInfo"];
         };
+        /** EventError */
+        EventError: {
+            /** Code */
+            code: string;
+            /** Message */
+            message: string;
+            /** Retryable */
+            retryable: boolean;
+        };
         /** ExecutionCompletedEvent */
         ExecutionCompletedEvent: {
             /** Event Id */
@@ -621,6 +715,35 @@ export interface components {
              * @constant
              */
             state: "completed";
+            /** Status Detail */
+            status_detail?: string | null;
+            /** Submission Id */
+            submission_id: string;
+            /** Tenant Id */
+            tenant_id: string;
+            /** Trace Id */
+            trace_id: string;
+            /** Workspace Id */
+            workspace_id: string;
+        };
+        /** ExecutionEvent */
+        ExecutionEvent: {
+            error?: components["schemas"]["EventError"] | null;
+            /** Event Id */
+            event_id: string;
+            /** Execution Id */
+            execution_id: string;
+            /** Job Id */
+            job_id: string;
+            /** Occurred At */
+            occurred_at: string;
+            result_ref?: components["schemas"]["ResultRef"] | null;
+            scheduler_ref?: components["schemas"]["SchedulerRef"] | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "accepted" | "running" | "completed" | "failed";
             /** Status Detail */
             status_detail?: string | null;
             /** Submission Id */
@@ -873,6 +996,55 @@ export interface components {
             /** Active Target Id */
             active_target_id: string;
         };
+        /** ResultRef */
+        ResultRef: {
+            /** Metadata Uri */
+            metadata_uri?: string | null;
+            /** Output Uri */
+            output_uri: string;
+        };
+        /** RuntimeEventAck */
+        RuntimeEventAck: {
+            /**
+             * Idempotent
+             * @default false
+             */
+            idempotent: boolean;
+            /**
+             * Ok
+             * @default true
+             */
+            ok: boolean;
+        };
+        /** RuntimeJobStatusResponse */
+        RuntimeJobStatusResponse: {
+            /** Detail */
+            detail?: string | null;
+            /** Execution Owner */
+            execution_owner: string;
+            /** Job Id */
+            job_id: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "accepted" | "running" | "completed" | "failed";
+            /** Submission Id */
+            submission_id: string;
+            /** Trace Id */
+            trace_id: string;
+            /** Updated At */
+            updated_at: string;
+        };
+        /** SchedulerRef */
+        SchedulerRef: {
+            /** Partition */
+            partition?: string | null;
+            /** Qos */
+            qos?: string | null;
+            /** Slurm Job Id */
+            slurm_job_id?: string | null;
+        };
         /** Structure */
         "Structure-Input": {
             /** Atoms */
@@ -933,6 +1105,68 @@ export interface components {
         /** StructureParseResponse */
         StructureParseResponse: {
             structure: components["schemas"]["Structure-Output"];
+        };
+        /** SubmitExecutionProfile */
+        SubmitExecutionProfile: {
+            /** Account */
+            account?: string | null;
+            /** Qos */
+            qos?: string | null;
+            /** Queue Name */
+            queue_name: string;
+        };
+        /** SubmitJobAccepted */
+        SubmitJobAccepted: {
+            /** Accepted At */
+            accepted_at: string;
+            /** Execution Owner */
+            execution_owner: string;
+            /** Job Id */
+            job_id: string;
+            /** Submission Id */
+            submission_id: string;
+            /** Trace Id */
+            trace_id: string;
+        };
+        /** SubmitJobCommand */
+        SubmitJobCommand: {
+            execution_profile: components["schemas"]["SubmitExecutionProfile"];
+            /** Idempotency Key */
+            idempotency_key: string;
+            /** Job Id */
+            job_id: string;
+            /** Management Node Id */
+            management_node_id: string;
+            payload_ref: components["schemas"]["SubmitPayloadRef"];
+            requested_by: components["schemas"]["SubmitRequestedBy"];
+            resource_shape: components["schemas"]["SubmitResourceShape"];
+            /** Tenant Id */
+            tenant_id: string;
+            /** Workspace Id */
+            workspace_id: string;
+        };
+        /** SubmitPayloadRef */
+        SubmitPayloadRef: {
+            /** Artifact Bucket */
+            artifact_bucket?: string | null;
+            /** Input Uri */
+            input_uri: string;
+        };
+        /** SubmitRequestedBy */
+        SubmitRequestedBy: {
+            /** Session Id */
+            session_id?: string | null;
+            /** User Id */
+            user_id: string;
+        };
+        /** SubmitResourceShape */
+        SubmitResourceShape: {
+            /** Cpu */
+            cpu: number;
+            /** Memory Mib */
+            memory_mib: number;
+            /** Walltime Seconds */
+            walltime_seconds: number;
         };
         /** SupercellBuildMeta */
         SupercellBuildMeta: {
@@ -1201,6 +1435,169 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+        };
+    };
+    get_runtime_job_api_runtime_jobs__job_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuntimeJobStatusResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_runtime_job_detail_api_runtime_jobs__job_id__detail_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_runtime_event_api_runtime_jobs__job_id__events_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExecutionEvent"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuntimeEventAck"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_runtime_job_projection_api_runtime_jobs__job_id__projection_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZPEJobStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_runtime_job_api_runtime_jobs_submit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmitJobCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmitJobAccepted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
