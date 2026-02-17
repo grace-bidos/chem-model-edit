@@ -111,7 +111,7 @@ sudo -v
 
 echo
 echo "==> Systemd status (${refresh_timer})"
-sudo systemctl status "$refresh_timer" --no-pager -l
+sudo systemctl status "$refresh_timer" --no-pager -l || true
 
 echo
 echo "==> Systemd status (${refresh_service})"
@@ -119,7 +119,7 @@ sudo systemctl status "$refresh_service" --no-pager -l || true
 
 echo
 echo "==> Systemd status (${supervisor_service})"
-sudo systemctl status "$supervisor_service" --no-pager -l
+sudo systemctl status "$supervisor_service" --no-pager -l || true
 
 echo
 echo "==> Recent logs (${refresh_service})"
@@ -127,7 +127,7 @@ sudo journalctl -u "$refresh_service" -n 50 --no-pager || true
 
 echo
 echo "==> Token file metadata (${token_file})"
-sudo stat "$token_file"
+sudo stat "$token_file" || true
 
 echo
 echo "==> Refresh status file (${status_file})"

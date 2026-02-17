@@ -207,7 +207,7 @@ scripts/runner/recover_base_runner_one_command.sh \
   --repo chem-model-edit \
   --labels "self-hosted,linux,x64,chem-trusted-pr" \
   --group "Default" \
-  --runner-home /opt/actions-runner/actions-runner
+  --runner-home /opt/actions-runner
 ```
 
 Dry-run preview (safe):
@@ -218,7 +218,7 @@ scripts/runner/recover_base_runner_one_command.sh \
   --repo chem-model-edit \
   --labels "self-hosted,linux,x64,chem-trusted-pr" \
   --group "Default" \
-  --runner-home /opt/actions-runner/actions-runner \
+  --runner-home /opt/actions-runner \
   --dry-run
 ```
 

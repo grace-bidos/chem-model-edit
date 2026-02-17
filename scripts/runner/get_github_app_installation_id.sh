@@ -129,7 +129,7 @@ unsigned_token="$(printf '%s' "$header" | b64url).$(printf '%s' "$payload" | b64
 signature="$(printf '%s' "$unsigned_token" | openssl dgst -sha256 -sign "$signing_key_file" -binary | b64url)"
 jwt="${unsigned_token}.${signature}"
 
-response_and_code="$(curl -fsS -w '\n%{http_code}' \
+response_and_code="$(curl -sS -w '\n%{http_code}' \
   -H "Accept: application/vnd.github+json" \
   -H "Authorization: Bearer ${jwt}" \
   "${api_base}/repos/${owner}/${repo}/installation" || true)"

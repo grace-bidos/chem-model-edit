@@ -45,10 +45,10 @@ dry_run=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --owner) owner="${2:-}"; shift 2 ;;
-    --repo) repo="${2:-}"; shift 2 ;;
-    --labels) labels="${2:-}"; shift 2 ;;
-    --var-name) var_name="${2:-}"; shift 2 ;;
+    --owner) [[ $# -ge 2 ]] || die "--owner requires a value"; owner="${2:-}"; shift 2 ;;
+    --repo) [[ $# -ge 2 ]] || die "--repo requires a value"; repo="${2:-}"; shift 2 ;;
+    --labels) [[ $# -ge 2 ]] || die "--labels requires a value"; labels="${2:-}"; shift 2 ;;
+    --var-name) [[ $# -ge 2 ]] || die "--var-name requires a value"; var_name="${2:-}"; shift 2 ;;
     --no-toggle) no_toggle=1; shift ;;
     --strict-gh) strict_gh=1; shift ;;
     --allow-zero-capacity) allow_zero_capacity=1; shift ;;

@@ -96,7 +96,7 @@ unsigned="$(printf '%s' "$header" | b64url).$(printf '%s' "$payload" | b64url)"
 sig="$(printf '%s' "$unsigned" | openssl dgst -sha256 -sign "$signing_key_file" -binary | b64url)"
 jwt="${unsigned}.${sig}"
 
-resp_and_code="$(curl -fsS -w '\n%{http_code}' \
+resp_and_code="$(curl -sS -w '\n%{http_code}' \
   -H "Accept: application/vnd.github+json" \
   -H "Authorization: Bearer ${jwt}" \
   "${api_base}/app" || true)"
