@@ -52,6 +52,12 @@
         "command": "pnpm -C apps/web test:ui"
       }
     },
+    "coverage": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm -C apps/web test:coverage"
+      }
+    },
     "a11y": {
       "executor": "nx:run-commands",
       "options": {
@@ -88,6 +94,30 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "pnpm exec knip --workspace apps/web"
+      }
+    },
+    "mutation": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm -C apps/web test:mutation"
+      }
+    },
+    "e2e": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm -C apps/web test:e2e"
+      }
+    },
+    "e2e-smoke": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm -C apps/web test:e2e:smoke"
+      }
+    },
+    "e2e-install": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm -C apps/web test:e2e:install"
       }
     }
   }

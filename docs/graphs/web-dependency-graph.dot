@@ -1,0 +1,36 @@
+strict digraph "dependency-cruiser output"{
+    rankdir="LR" splines="true" overlap="false" nodesep="0.16" ranksep="0.18" fontname="Helvetica-bold" fontsize="9" style="rounded,bold,filled" fillcolor="#ffffff" compound="true"
+    node [shape="box" style="rounded, filled" height="0.2" color="black" fillcolor="#ffffcc" fontcolor="black" fontname="Helvetica" fontsize="9"]
+    edge [arrowhead="normal" arrowsize="0.6" penwidth="2.0" color="#00000033" fontname="Helvetica" fontsize="9"]
+
+    subgraph "cluster_apps" {label="apps" subgraph "cluster_apps/web" {label="web" subgraph "cluster_apps/web/src" {label="src" "apps/web/src/components" [label=<components> tooltip="no-orphans" URL="apps/web/src/components" fontcolor="orange" color="orange" shape="box3d"] } } }
+    "apps/web/src/components" -> "apps/web/src/components/ui"
+    "apps/web/src/components" -> "apps/web/src/lib"
+    subgraph "cluster_apps" {label="apps" subgraph "cluster_apps/web" {label="web" subgraph "cluster_apps/web/src" {label="src" subgraph "cluster_apps/web/src/components" {label="components" "apps/web/src/components/ui" [label=<ui> tooltip="ui" URL="apps/web/src/components/ui" shape="box3d"] } } } }
+    "apps/web/src/components/ui" -> "apps/web/src/lib"
+    subgraph "cluster_apps" {label="apps" subgraph "cluster_apps/web" {label="web" subgraph "cluster_apps/web/src" {label="src" "apps/web/src/data" [label=<data> tooltip="no-orphans" URL="apps/web/src/data" fillcolor="#ccffcc" fontcolor="orange" color="orange" shape="box3d"] } } }
+    subgraph "cluster_apps" {label="apps" subgraph "cluster_apps/web" {label="web" subgraph "cluster_apps/web/src" {label="src" "apps/web/src/features" [label=<features> tooltip="no-orphans" URL="apps/web/src/features" fillcolor="#ccffcc" fontcolor="orange" color="orange" shape="box3d"] } } }
+    "apps/web/src/features" -> "apps/web/src/features/editor-v2/components"
+    "apps/web/src/features" -> "apps/web/src/lib"
+    subgraph "cluster_apps" {label="apps" subgraph "cluster_apps/web" {label="web" subgraph "cluster_apps/web/src" {label="src" subgraph "cluster_apps/web/src/features" {label="features" subgraph "cluster_apps/web/src/features/editor-v2" {label="editor-v2" "apps/web/src/features/editor-v2/components" [label=<components> tooltip="no-orphans" URL="apps/web/src/features/editor-v2/components" fillcolor="#ccffcc" fontcolor="orange" color="orange" shape="box3d"] } } } } }
+    "apps/web/src/features/editor-v2/components" -> "apps/web/src/components"
+    "apps/web/src/features/editor-v2/components" -> "apps/web/src/components/ui"
+    "apps/web/src/features/editor-v2/components" -> "apps/web/src/lib"
+    subgraph "cluster_apps" {label="apps" subgraph "cluster_apps/web" {label="web" subgraph "cluster_apps/web/src" {label="src" "apps/web/src/lib" [label=<lib> tooltip="no-orphans" URL="apps/web/src/lib" fillcolor="#ccffcc" fontcolor="orange" color="orange" shape="box3d"] } } }
+    "apps/web/src/lib" -> "apps/web/src/server"
+    subgraph "cluster_apps" {label="apps" subgraph "cluster_apps/web" {label="web" subgraph "cluster_apps/web/src" {label="src" "apps/web/src/routeTree.gen.ts" [label=<routeTree.gen.ts> tooltip="routeTree.gen.ts" URL="apps/web/src/routeTree.gen.ts" fillcolor="#ddfeff"] } } }
+    "apps/web/src/routeTree.gen.ts" -> "apps/web/src/routes"
+    subgraph "cluster_apps" {label="apps" subgraph "cluster_apps/web" {label="web" subgraph "cluster_apps/web/src" {label="src" "apps/web/src/router.tsx" [label=<router.tsx> tooltip="router.tsx" URL="apps/web/src/router.tsx" fillcolor="#bbfeff"] } } }
+    "apps/web/src/router.tsx" -> "apps/web/src/routeTree.gen.ts"
+    subgraph "cluster_apps" {label="apps" subgraph "cluster_apps/web" {label="web" subgraph "cluster_apps/web/src" {label="src" "apps/web/src/routes" [label=<routes> tooltip="routes" URL="apps/web/src/routes" shape="box3d"] } } }
+    "apps/web/src/routes" -> "apps/web/src/components"
+    "apps/web/src/routes" -> "apps/web/src/lib"
+    "apps/web/src/routes" -> "apps/web/src/styles.css"
+    "apps/web/src/routes" -> "apps/web/src/features" [style="dashed"]
+    subgraph "cluster_apps" {label="apps" subgraph "cluster_apps/web" {label="web" subgraph "cluster_apps/web/src" {label="src" "apps/web/src/server" [label=<server> tooltip="server" URL="apps/web/src/server" shape="box3d"] } } }
+    subgraph "cluster_apps" {label="apps" subgraph "cluster_apps/web" {label="web" subgraph "cluster_apps/web/src" {label="src" "apps/web/src/start.tsx" [label=<start.tsx> tooltip="start.tsx" URL="apps/web/src/start.tsx" fillcolor="#ccffcc"] } } }
+    subgraph "cluster_apps" {label="apps" subgraph "cluster_apps/web" {label="web" subgraph "cluster_apps/web/src" {label="src" "apps/web/src/styles.css" [label=<styles.css> tooltip="styles.css" URL="apps/web/src/styles.css" ] } } }
+    subgraph "cluster_apps" {label="apps" subgraph "cluster_apps/web" {label="web" subgraph "cluster_apps/web/src" {label="src" "apps/web/src/test" [label=<test> tooltip="test" URL="apps/web/src/test" shape="box3d"] } } }
+    subgraph "cluster_apps" {label="apps" subgraph "cluster_apps/web" {label="web" subgraph "cluster_apps/web/src" {label="src" "apps/web/src/types" [label=<types> tooltip="types" URL="apps/web/src/types" fillcolor="#ccffcc" shape="box3d"] } } }
+    subgraph "cluster_apps" {label="apps" subgraph "cluster_apps/web" {label="web" subgraph "cluster_apps/web/src" {label="src" "apps/web/src/worker.ts" [label=<worker.ts> tooltip="worker.ts" URL="apps/web/src/worker.ts" fillcolor="#ccffcc"] } } }
+}

@@ -86,13 +86,6 @@ api-test:
   uv run pytest
   popd >/dev/null
 
-api-test-fast:
-  #!/usr/bin/env bash
-  set -euo pipefail
-  pushd apps/api >/dev/null
-  uv run pytest -q -n auto -m "not e2e and not contract and not slow and not schemathesis"
-  popd >/dev/null
-
 api-ruff:
   #!/usr/bin/env bash
   set -euo pipefail
@@ -104,8 +97,113 @@ api-mypy:
   #!/usr/bin/env bash
   set -euo pipefail
   pushd apps/api >/dev/null
-  uv run mypy .
+  uv run mypy --config-file pyproject.toml app services main.py
   popd >/dev/null
+
+api-pyright:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pushd apps/api >/dev/null
+  uv run pyright --project pyrightconfig.json
+  popd >/dev/null
+
+api-pyright-diff:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  base_ref="${BASE_REF:-origin/main}"
+  uv run --project apps/api python scripts/api/pyright_touched_gate.py --base-ref "$base_ref"
+
+api-typecheck-strict:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  just api-mypy
+  just api-pyright
+
+api-security:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pushd apps/api >/dev/null
+  uv run bandit -q -r app services main.py
+  uv run pip-audit --progress-spinner off
+  popd >/dev/null
+
+api-security-bandit:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pushd apps/api >/dev/null
+  uv run bandit -q -r app services main.py
+  popd >/dev/null
+
+api-security-audit:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pushd apps/api >/dev/null
+  uv run pip-audit --progress-spinner off
+  popd >/dev/null
+
+api-security-promotion-evidence:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  uv run python scripts/gh/security_phase1_promotion_report.py \
+    --workflow ci.yml \
+    --branch main \
+    --event push \
+    --window-size 10 \
+    --streak-size 5 \
+    --run-limit 20 \
+    --format markdown \
+    --markdown-out .ci-security-promotion-report.md \
+    --json-out .ci-security-promotion-report.json
+
+api-deadcode:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pushd apps/api >/dev/null
+  uv run deptry . --extend-exclude ".*/mutants/"
+  uv run vulture app services --min-confidence 90 --ignore-names cls
+  popd >/dev/null
+
+api-schemathesis-smoke:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pushd apps/api >/dev/null
+  SCHEMATHESIS_MODE=smoke uv run bash scripts/schemathesis.sh
+  popd >/dev/null
+
+api-schemathesis-broad:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pushd apps/api >/dev/null
+  SCHEMATHESIS_MODE=broad uv run bash scripts/schemathesis.sh
+  popd >/dev/null
+
+api-mutation-smoke:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pushd apps/api >/dev/null
+  bash scripts/mutmut_smoke.sh
+  popd >/dev/null
+
+api-quality-fast:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  just api-ruff
+  just api-typecheck-strict
+  just api-test
+
+api-quality-security-hygiene:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  just api-security
+  just api-deadcode
+
+api-quality-phase1:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  just api-quality-fast
+  just api-quality-security-hygiene
+  just api-schemathesis-smoke
+  just api-mutation-smoke
 
 api-openapi-export:
   #!/usr/bin/env bash
@@ -155,19 +253,136 @@ api-pyreverse:
   echo "generated: docs/graphs/api-classes.dot"
   echo "generated: docs/graphs/api-packages.dot"
 
-api-test-coverage:
+api-cov:
   #!/usr/bin/env bash
   set -euo pipefail
   pushd apps/api >/dev/null
-  uv run pytest -m "not e2e and not schemathesis" --cov=app --cov=services --cov-report=term-missing --cov-report=html:htmlcov --cov-report=xml:coverage.xml --cov-fail-under=75.5
+  uv run pytest --cov=app --cov=services --cov=main --cov-report=term-missing --cov-report=html:htmlcov --cov-report=xml:coverage.xml
   popd >/dev/null
   echo "generated: apps/api/htmlcov/index.html"
   echo "generated: apps/api/coverage.xml"
 
-api-cov:
+api-cov-diff:
   #!/usr/bin/env bash
   set -euo pipefail
-  just api-test-coverage
+  base_ref="${BASE_REF:-origin/main}"
+  threshold="${COVERAGE_DIFF_THRESHOLD:-90}"
+  if [[ ! -f apps/api/coverage.xml ]]; then
+    just api-cov
+  fi
+  uv run --project apps/api python - "$base_ref" "$threshold" <<'PY'
+  import re
+  import subprocess
+  import sys
+  import xml.etree.ElementTree as ET
+  from pathlib import Path
+
+  base_ref = sys.argv[1]
+  threshold = float(sys.argv[2])
+
+  coverage_path = Path("apps/api/coverage.xml")
+  if not coverage_path.exists():
+      print(f"coverage report not found: {coverage_path}", file=sys.stderr)
+      sys.exit(2)
+
+  tree = ET.parse(coverage_path)
+  root = tree.getroot()
+
+  measurable: dict[str, set[int]] = {}
+  covered: dict[str, set[int]] = {}
+
+  for klass in root.findall(".//class"):
+      filename = klass.attrib.get("filename")
+      if not filename:
+          continue
+      key = Path(filename).as_posix()
+      measurable.setdefault(key, set())
+      covered.setdefault(key, set())
+      for line in klass.findall("./lines/line"):
+          number_text = line.attrib.get("number")
+          hits_text = line.attrib.get("hits", "0")
+          if number_text is None:
+              continue
+          line_no = int(number_text)
+          hits = int(hits_text)
+          measurable[key].add(line_no)
+          if hits > 0:
+              covered[key].add(line_no)
+
+  diff = subprocess.check_output(
+      [
+          "git",
+          "diff",
+          "--unified=0",
+          "--no-color",
+          f"{base_ref}...HEAD",
+          "--",
+          "apps/api",
+      ],
+      text=True,
+  )
+
+  changed: dict[str, set[int]] = {}
+  current_file: str | None = None
+  new_line: int | None = None
+
+  for raw in diff.splitlines():
+      if raw.startswith("+++ b/"):
+          path = raw[6:]
+          current_file = path if path.endswith(".py") else None
+          if current_file is not None and current_file.startswith("apps/api/"):
+              current_file = current_file[len("apps/api/") :]
+          continue
+      if raw.startswith("@@"):
+          match = re.search(r"\+(\d+)(?:,(\d+))?", raw)
+          if not match:
+              new_line = None
+              continue
+          new_line = int(match.group(1))
+          continue
+      if current_file is None or new_line is None:
+          continue
+      if raw.startswith("+") and not raw.startswith("+++"):
+          changed.setdefault(current_file, set()).add(new_line)
+          new_line += 1
+      elif raw.startswith("-") and not raw.startswith("---"):
+          continue
+      elif raw.startswith(" "):
+          new_line += 1
+
+  measured_total = 0
+  covered_total = 0
+  missing: list[str] = []
+
+  for filename, changed_lines in sorted(changed.items()):
+      measurable_lines = measurable.get(filename, set())
+      covered_lines = covered.get(filename, set())
+      for line_no in sorted(changed_lines):
+          if line_no not in measurable_lines:
+              continue
+          measured_total += 1
+          if line_no in covered_lines:
+              covered_total += 1
+          else:
+              missing.append(f"{filename}:{line_no}")
+
+  if measured_total == 0:
+      print(f"Changed-lines coverage: no measurable Python lines changed vs {base_ref}; gate passes.")
+      sys.exit(0)
+
+  percent = (covered_total / measured_total) * 100.0
+  print(
+      f"Changed-lines coverage: {covered_total}/{measured_total} = {percent:.2f}% "
+      f"(threshold {threshold:.2f}%, base {base_ref})"
+  )
+  if missing:
+      print("Uncovered changed lines:")
+      for item in missing:
+          print(f"  - {item}")
+
+  if percent + 1e-9 < threshold:
+      sys.exit(1)
+  PY
 
 web-format:
   #!/usr/bin/env bash
@@ -188,6 +403,41 @@ web-test:
   #!/usr/bin/env bash
   set -euo pipefail
   pnpm -C apps/web test
+
+web-test-coverage:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pnpm -C apps/web test:coverage
+
+web-test-a11y:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pnpm -C apps/web test:a11y
+
+web-test-fastcheck:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pnpm -C apps/web test:fastcheck
+
+web-test-mutation:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pnpm -C apps/web test:mutation
+
+web-test-e2e:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pnpm -C apps/web test:e2e
+
+web-test-e2e-smoke:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pnpm -C apps/web test:e2e:smoke
+
+web-test-e2e-install:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pnpm -C apps/web test:e2e:install
 
 web-test-ui:
   #!/usr/bin/env bash
@@ -295,6 +545,7 @@ graph-web-deps:
   pnpm exec depcruise --config .dependency-cruiser.cjs --include-only "^apps/web/src" --output-type dot --output-to docs/graphs/web-dependency-graph.dot apps/web/src
   pnpm exec depcruise --config .dependency-cruiser.cjs --include-only "^apps/web/src" --output-type mermaid --output-to docs/graphs/web-dependency-graph.mmd apps/web/src
   pnpm exec depcruise --config .dependency-cruiser.cjs --include-only "^apps/web/src" --output-type json --output-to docs/graphs/web-dependency-graph.json apps/web/src
+  node -e "const fs=require('fs'); const p='docs/graphs/web-dependency-graph.json'; const data=JSON.parse(fs.readFileSync(p,'utf8')); if (data?.summary?.optionsUsed?.baseDir) data.summary.optionsUsed.baseDir='.'; fs.writeFileSync(p, JSON.stringify(data, null, 2) + '\n');"
   if command -v dot >/dev/null 2>&1; then
     dot -Tsvg docs/graphs/web-dependency-graph.dot -o docs/graphs/web-dependency-graph.svg
     echo "generated: docs/graphs/web-dependency-graph.svg"
@@ -390,11 +641,42 @@ test:
   just web-test
   just api-test
 
+quality-quick:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  just web-lint
+  just web-typecheck
+  just web-test
+
+quality-standard:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  just quality-quick
+  just web-test-a11y
+  pnpm exec nx run web:knip
+  just web-test-fastcheck
+  just web-test-coverage
+
+quality-deep:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  just quality-standard
+  just graph-web-deps
+  just storybook-build
+  if [[ -n "${CHROMATIC_PROJECT_TOKEN:-}" ]]; then
+    just chromatic
+  else
+    echo "skip chromatic: CHROMATIC_PROJECT_TOKEN is not set"
+  fi
+  just web-test-mutation
+  just web-test-e2e-install
+  just web-test-e2e-smoke
+
 typecheck:
   #!/usr/bin/env bash
   set -euo pipefail
   just web-typecheck
-  just api-mypy
+  just api-typecheck-strict
 
 ci:
   #!/usr/bin/env bash

@@ -379,6 +379,100 @@ def test_zpe_submission_routes_to_default_queue_with_slurm_route_default_policy(
     assert meta["slurm_partition"] == "short"
     assert meta["slurm_account"] == "chem-default"
     assert meta["slurm_qos"] == "normal"
+    assert meta["slurm_adapter_configured"] == "stub-policy"
+    assert meta["slurm_adapter_effective"] == "stub-policy"
+    assert meta["slurm_adapter_rollback_guard"] == "allow"
+
+
+def test_zpe_submission_with_real_policy_surfaces_precondition_failure_as_503(
+    monkeypatch,
+    tmp_path,
+):
+    fake = _patch_redis(monkeypatch)
+    store = RedisResultStore(redis=fake)
+    policy_path = tmp_path / "onboarding.policy.json"
+    _write_slurm_policy(policy_path, fallback_mode="route-default")
+    settings = ZPESettings(
+        compute_mode="mock",
+        result_store="redis",
+        slurm_policy_path=str(policy_path),
+        slurm_adapter="real-policy",
+    )
+
+    def _missing_scontrol(*args, **kwargs):
+        _ = (args, kwargs)
+        raise FileNotFoundError("scontrol")
+
+    monkeypatch.setattr(zpe_backends, "get_result_store", lambda: store)
+    monkeypatch.setattr(zpe_backends, "get_zpe_settings", lambda: settings)
+    monkeypatch.setattr("services.zpe.slurm_policy.subprocess.run", _missing_scontrol)
+
+    client = TestClient(main.app)
+    headers, _user_id = _setup_user_and_target(client, monkeypatch, fake)
+
+    response = client.post(
+        "/api/zpe/jobs",
+        json={
+            "content": QE_INPUT,
+            "mobile_indices": [0],
+            "use_environ": False,
+            "input_dir": None,
+            "calc_mode": "continue",
+        },
+        headers=headers,
+    )
+    assert response.status_code == 503
+    assert "slurm real-adapter precondition failed" in response.json()["error"]["message"]
+
+
+def test_zpe_submission_with_guard_forces_stub_policy_and_records_override(
+    monkeypatch,
+    tmp_path,
+):
+    fake = _patch_redis(monkeypatch)
+    store = RedisResultStore(redis=fake)
+    policy_path = tmp_path / "onboarding.policy.json"
+    _write_slurm_policy(policy_path, fallback_mode="route-default")
+    settings = ZPESettings(
+        compute_mode="mock",
+        result_store="redis",
+        slurm_policy_path=str(policy_path),
+        slurm_adapter="real-policy",
+        slurm_adapter_rollback_guard="force-stub-policy",
+    )
+    monkeypatch.setattr(zpe_backends, "get_result_store", lambda: store)
+    monkeypatch.setattr(zpe_backends, "get_zpe_settings", lambda: settings)
+    monkeypatch.setattr(
+        zpe_backends,
+        "enqueue_zpe_job",
+        lambda payload, *, queue_name=None: "job-guarded-real-policy",
+    )
+    client = TestClient(main.app)
+    headers, _user_id = _setup_user_and_target(
+        client,
+        monkeypatch,
+        fake,
+        queue_name="legacy",
+    )
+
+    response = client.post(
+        "/api/zpe/jobs",
+        json={
+            "content": QE_INPUT,
+            "mobile_indices": [0],
+            "use_environ": False,
+            "input_dir": None,
+            "calc_mode": "continue",
+        },
+        headers=headers,
+    )
+    assert response.status_code == 200
+
+    meta = zpe_job_meta.JobMetaStore(redis=fake).get_meta("job-guarded-real-policy")
+    assert meta["slurm_adapter"] == "stub-policy"
+    assert meta["slurm_adapter_configured"] == "real-policy"
+    assert meta["slurm_adapter_effective"] == "stub-policy"
+    assert meta["slurm_adapter_rollback_guard"] == "force-stub-policy"
 
 
 def test_zpe_result_read_projection_keeps_read_hotpath_available(monkeypatch):

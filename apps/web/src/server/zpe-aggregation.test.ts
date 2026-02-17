@@ -288,6 +288,31 @@ describe('fetchAggregatedZpeJobStatusFromUpstreams', () => {
       vi.useRealTimers()
     }
   })
+
+  it('throws unavailable when secondary source stays pending then rejects', async () => {
+    vi.useFakeTimers()
+    try {
+      const request = fetchAggregatedZpeJobStatusFromUpstreams({
+        jobId: 'job-14',
+        token: 'token-14',
+        timeoutMs: 10,
+        requester: (input: { path: string }) => {
+          if (input.path.endsWith('/projection')) {
+            return Promise.reject(new Error('projection down'))
+          }
+          return new Promise<unknown>(() => {})
+        },
+      })
+
+      const assertion = expect(request).rejects.toThrow(
+        'Failed to fetch upstream job status',
+      )
+      await vi.advanceTimersByTimeAsync(40)
+      await assertion
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })
 
 describe('toAggregatedZpeErrorEnvelope', () => {
@@ -315,6 +340,15 @@ describe('toAggregatedZpeErrorEnvelope', () => {
       error: {
         code: 'UNKNOWN',
         message: 'boom',
+      },
+    })
+  })
+
+  it('maps non-error throwables to UNKNOWN envelope shape', () => {
+    expect(toAggregatedZpeErrorEnvelope('boom')).toEqual({
+      error: {
+        code: 'UNKNOWN',
+        message: 'Unknown aggregation error',
       },
     })
   })

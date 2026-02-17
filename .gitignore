@@ -11,6 +11,11 @@ apps/web/dist
 apps/web/.tanstack
 apps/web/.vinxi
 apps/web/storybook-static
+apps/web/coverage
+apps/web/reports
+apps/web/.stryker-tmp
+apps/web/playwright-report
+apps/web/test-results
 .nx
 
 # Python
@@ -21,7 +26,13 @@ __pycache__
 .mypy_cache
 .pytest_cache
 .hypothesis
+.schemathesis
 .coverage
+coverage.xml
+htmlcov/
+apps/api/mutants/
+apps/api/.mutants_local_tmp/
+apps/api/.mutants_local_tmp.*/
 .uv-cache
 .uv-tmp
 

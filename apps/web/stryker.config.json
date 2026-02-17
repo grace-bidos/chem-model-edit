@@ -1,0 +1,39 @@
+{
+  "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker-js/master/packages/core/schema/stryker-schema.json",
+  "plugins": [
+    "@stryker-mutator/vitest-runner"
+  ],
+  "testRunner": "vitest",
+  "vitest": {
+    "configFile": "vite.config.ts"
+  },
+  "mutate": [
+    "src/lib/**/*.ts",
+    "src/server/api.ts",
+    "src/components/compare/**/*.ts",
+    "src/features/editor-v2/components/AtomTable.tsx",
+    "src/features/editor-v2/components/FilePanel.tsx",
+    "src/features/editor-v2/components/CollapsibleSection.tsx",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "!src/**/*.a11y.test.tsx",
+    "!src/**/*.fastcheck.test.ts",
+    "!src/**/*.stories.tsx",
+    "!src/features/editor-v2/components/storybook.mocks.ts"
+  ],
+  "ignoreStatic": true,
+  "timeoutMS": 10000,
+  "timeoutFactor": 1.5,
+  "reporters": [
+    "clear-text",
+    "progress",
+    "html"
+  ],
+  "coverageAnalysis": "perTest",
+  "thresholds": {
+    "high": 88,
+    "low": 75,
+    "break": 68
+  },
+  "allowConsoleColors": true
+}

@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from importlib import import_module
 from io import BytesIO
+from typing import Callable, cast
 
 from ase import Atoms as ASEAtoms
-from ase.io import write as ase_write
+
+ase_write = cast(Callable[..., None], getattr(import_module("ase.io"), "write"))
 
 
 def atoms_to_cif(atoms: ASEAtoms, *, wrap: bool = False) -> str:

@@ -1,32 +1,22 @@
 # API Visualization
 
-## Testing
-
-API tests are executed with `pytest` profiles below.
-
-- `just api-test`: default full API test run (backward-compatible command)
-- `just api-test-fast`: local fast profile (`-n auto`, excludes `e2e/contract/slow/schemathesis`)
-- `just api-test-coverage`: coverage profile, generates HTML/XML reports (`--cov-fail-under=75.5`, phase-1 gate)
-- `just api-cov`: compatibility alias to `just api-test-coverage`
-- `pnpm nx test api --configuration=fast`: Nx fast profile
-- `pnpm nx test api --configuration=coverage`: Nx coverage profile
-
-Coverage gate roadmap (phase plan):
-
-- Phase 1 (current): `--cov-fail-under=75.5` (locked to current measured baseline)
-- Phase 2 (next cycle target): `--cov-fail-under=76`
-- Phase 3 (target): `--cov-fail-under=80`
-
-Plugin note:
-
-- `pytest-time-machine` package does not exist on PyPI; this repo uses `time-machine` (pytest-compatible) for time-travel tests.
-
 バックエンドの仕様・構造可視化は次のレシピで生成する。
 
 - `just api-openapi-export`: OpenAPI JSON を更新
 - `just api-openapi-generate`: openapi-generator で HTML/Markdown を生成
 - `just api-pyreverse`: `app/` と `services/` の UML 風依存図を生成
 - `just api-cov`: pytest coverage レポートを生成
+- `just api-typecheck-strict`: mypy + pyright の厳密型チェック
+- `just api-security`: bandit + pip-audit
+- `just api-security-bandit`: bandit のみ実行
+- `just api-security-audit`: pip-audit のみ実行
+- `just api-deadcode`: deptry + vulture
+- `just api-quality-security-hygiene`: security + deadcode hygiene をまとめて実行
+- `just api-quality-phase1`: 開発向け phase-1 品質ゲート一式を実行
+- `just api-schemathesis-smoke`: Schemathesis（高速スモーク）
+- `just api-schemathesis-broad`: Schemathesis（広範囲探索）
+- `just api-mutation-smoke`: mutmut のスモーク実行
+- `just api-quality-fast`: 日常開発向けの高速品質ゲート
 
 主な出力:
 
@@ -38,28 +28,44 @@ Plugin note:
 - `apps/api/htmlcov/index.html`
 - `apps/api/coverage.xml`
 
-## Schemathesis (`/api/*` 全パス対象)
+## Schemathesis Playbook
 
-`apps/api/scripts/schemathesis.sh` は OpenAPI の `/api/*` 全パスを対象に実行する。
-デフォルトは CI 向けの軽量 `smoke` モードで、`SCHEMATHESIS_MODE=deep` を指定すると探索量を増やせる。
+- 既定の `smoke` モードは高速重視（`max-examples=8`）で、`not_a_server_error` に加えて `content_type_conformance` / `response_headers_conformance` を実行する。
+- `broad` モードは探索重視（`max-examples=30`）で、`status_code_conformance` / `response_schema_conformance` / `negative_data_rejection` を含む拡張チェックセットを実行する。
+- 再現性のため、既定で `--seed` と `--generation-deterministic` を有効化する（この場合 generation DB は無効）。`SCHEMATHESIS_DETERMINISTIC=0` のときは `.schemathesis/examples.db` を利用できる。
+- 実行ログには mode / include regex / checks / seed / 失敗上限 / deterministic / generation DB / reports などの再実行メタデータを出力する。
+- 必要に応じて `SCHEMATHESIS_REPORTS=ndjson,junit` と `SCHEMATHESIS_REPORT_DIR=...` を指定してレポートを保存する。
+- broad の対象パスには `/api/ready` を含める（readiness 契約も探索対象）。
 
-基本実行:
+### Reproducible Run Examples
 
-- `pnpm exec nx run api:schemathesis`
+- 実行ディレクトリ: `apps/api`
+- smoke（高速・再現可能）:
+  - `SCHEMATHESIS_MODE=smoke uv run bash scripts/schemathesis.sh`
+- broad（探索重視、例数を明示）:
+  - `SCHEMATHESIS_MODE=broad SCHEMATHESIS_MAX_EXAMPLES=8 uv run bash scripts/schemathesis.sh`
+- seed を固定した再実行:
+  - `SCHEMATHESIS_MODE=broad SCHEMATHESIS_MAX_EXAMPLES=8 SCHEMATHESIS_SEED=137 uv run bash scripts/schemathesis.sh`
+- レポート出力付き:
+  - `SCHEMATHESIS_MODE=smoke SCHEMATHESIS_REPORTS=ndjson,junit SCHEMATHESIS_REPORT_DIR=schemathesis-report/smoke uv run bash scripts/schemathesis.sh`
 
-主な環境変数:
+## Type & Quality Policy
 
-- `SCHEMATHESIS_MODE=smoke|deep` (`smoke` 既定)
-- `SCHEMATHESIS_SEED=<int>` (既定: `137`, 再現実行用)
-- `SCHEMATHESIS_MAX_EXAMPLES=<int>` / `SCHEMATHESIS_MAX_FAILURES=<int>` (モード既定の上書き)
-- `SCHEMATHESIS_AUTH_TOKEN=<token>` または `SCHEMATHESIS_AUTH_HEADER='Authorization: Bearer <token>'`
-- `SCHEMATHESIS_TENANT_ID=<tenant-id>` (`x-tenant-id` ヘッダーとして付与)
-- `SCHEMATHESIS_DEV_USER_ID=<id>` / `SCHEMATHESIS_DEV_USER_EMAIL=<email>` (dev-bypass ヘッダー)
+- ローカル: できるだけ早く厳密に実行する（`api-quality-fast` + `api-security` を推奨）
+- CI: 段階導入で運用する
+- `pyright` / `bandit` / `pip-audit` / `gitleaks` / `deptry` / `vulture` / `mutmut` は phase-1 で non-blocking
+- ノイズ削減後、段階的に required check へ昇格する
+- pytest プラグイン: `pytest-asyncio` / `pytest-cov` / `pytest-env` / `pytest-mock` / `pytest-randomly` / `pytest-sugar` / `pytest-timeout` / `pytest-xdist` / `time-machine`
+- `api-mutation-smoke` は実行後に `apps/api/mutants` を `.mutants_local_tmp.*` へ退避し、通常の `pytest` 実行と衝突しないようにする
 
-認証付きエンドポイントをローカル検証する例:
+## Pytest Env Policy
 
-- `AUTH_MODE=dev-bypass ZPE_ADMIN_TOKEN=secret SCHEMATHESIS_DEV_USER_ID=user-1 SCHEMATHESIS_DEV_USER_EMAIL=user-1@example.com SCHEMATHESIS_TENANT_ID=tenant-dev SCHEMATHESIS_AUTH_TOKEN=secret pnpm exec nx run api:schemathesis`
+- `pytest-env` には共有で決定的な値のみを置く（現状は `TZ=UTC` のみ）。
+- テスト固有の環境値は `fixture` / `monkeypatch` で設定し、グローバル設定に追加しない。
+- `pytest-randomly` は `randomly_seed=last` を既定とし、失敗再現時は `uv run pytest --randomly-seed=<seed>` を使う。
 
-深掘り実行の例:
+## Security/Hygiene Gate Runbook
 
-- `SCHEMATHESIS_MODE=deep SCHEMATHESIS_SEED=137 SCHEMATHESIS_MAX_EXAMPLES=50 pnpm exec nx run api:schemathesis`
+- 方針と昇格基準: `docs/process/security-hygiene-gate-policy.md`
+- CI では phase-1 を non-blocking としつつ、Bandit/Pip-audit の件数をサマリと artifact で追跡する
+- ローカル実行の推奨順: `just api-security-bandit` → `just api-security-audit` → `just api-quality-security-hygiene`

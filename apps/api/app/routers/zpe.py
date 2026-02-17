@@ -71,6 +71,7 @@ from services.zpe.queue_targets import get_queue_target_store
 from services.zpe.slurm_policy import (
     SlurmPolicyConfigError,
     SlurmPolicyDeniedError,
+    SlurmRealAdapterPreconditionError,
 )
 from services.zpe.structured_log import log_event, write_audit_event
 from services.zpe.worker_auth import WorkerPrincipal, get_worker_token_store
@@ -218,6 +219,11 @@ async def zpe_jobs(request: ZPEJobRequest, raw: Request) -> ZPEJobResponse:
         raise HTTPException(
             status_code=503,
             detail=f"slurm policy configuration error: {exc}",
+        ) from exc
+    except SlurmRealAdapterPreconditionError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"slurm real-adapter precondition failed: {exc}",
         ) from exc
     resolution = outcome.slurm_resolution
     log_event(

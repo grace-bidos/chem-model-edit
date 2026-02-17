@@ -28,11 +28,31 @@ with socket.socket() as sock:
 PY
   )"
 fi
+
 BASE_URL="${SCHEMATHESIS_BASE_URL:-http://${HOST}:${PORT}}"
 SCHEMA_URL="${SCHEMATHESIS_SCHEMA_URL:-${BASE_URL}/api/openapi.json}"
-SCHEMATHESIS_MODE="${SCHEMATHESIS_MODE:-smoke}"
-SCHEMATHESIS_SEED="${SCHEMATHESIS_SEED:-137}"
-SCHEMATHESIS_STARTUP_TIMEOUT="${SCHEMATHESIS_STARTUP_TIMEOUT:-30}"
+MODE="${SCHEMATHESIS_MODE:-smoke}"
+SMOKE_CHECKS="not_a_server_error,content_type_conformance,response_headers_conformance"
+BROAD_CHECKS="not_a_server_error,status_code_conformance,content_type_conformance,response_headers_conformance,response_schema_conformance,negative_data_rejection"
+
+if [ "${MODE}" = "broad" ]; then
+  DEFAULT_CHECKS="${BROAD_CHECKS}"
+  DEFAULT_MAX_EXAMPLES=30
+else
+  DEFAULT_CHECKS="${SMOKE_CHECKS}"
+  DEFAULT_MAX_EXAMPLES=8
+fi
+
+CHECKS="${SCHEMATHESIS_CHECKS:-${DEFAULT_CHECKS}}"
+MAX_EXAMPLES="${SCHEMATHESIS_MAX_EXAMPLES:-${DEFAULT_MAX_EXAMPLES}}"
+MAX_FAILURES="${SCHEMATHESIS_MAX_FAILURES:-5}"
+SEED="${SCHEMATHESIS_SEED:-137}"
+TENANT_ID="${SCHEMATHESIS_TENANT_ID:-tenant-dev}"
+AUTH_TOKEN="${SCHEMATHESIS_AUTH_TOKEN:-}"
+DETERMINISTIC="${SCHEMATHESIS_DETERMINISTIC:-1}"
+GEN_DB="${SCHEMATHESIS_GENERATION_DB:-.schemathesis/examples.db}"
+REPORT_DIR="${SCHEMATHESIS_REPORT_DIR:-schemathesis-report/${MODE}}"
+REQUEST_TIMEOUT="${SCHEMATHESIS_STARTUP_TIMEOUT:-30}"
 
 SERVER_LOG="$(mktemp -t schemathesis-api.XXXXXX.log)"
 uvicorn main:app --host "${HOST}" --port "${PORT}" --log-level warning >"${SERVER_LOG}" 2>&1 &
@@ -43,7 +63,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-export SCHEMA_URL BASE_URL SCHEMATHESIS_STARTUP_TIMEOUT
+export SCHEMA_URL REQUEST_TIMEOUT
 ready=0
 for _ in {1..120}; do
   if ! kill -0 "${server_pid}" 2>/dev/null; then
@@ -59,7 +79,7 @@ import sys
 import urllib.request
 
 url = os.environ["SCHEMA_URL"]
-timeout = float(os.environ["SCHEMATHESIS_STARTUP_TIMEOUT"])
+timeout = float(os.environ["REQUEST_TIMEOUT"])
 try:
     with urllib.request.urlopen(url, timeout=timeout) as resp:
         sys.exit(0 if resp.status == 200 else 1)
@@ -80,55 +100,42 @@ if [ "${ready}" -ne 1 ]; then
   exit 1
 fi
 
-max_examples="${SCHEMATHESIS_MAX_EXAMPLES:-}"
-max_failures="${SCHEMATHESIS_MAX_FAILURES:-}"
-phases="${SCHEMATHESIS_PHASES:-}"
+# Keep smoke mode Redis-free for CI stability.
+SMOKE_REGEX='^/api/(health|structures/parse|structures|structures/export|transforms/delta-transplant|supercells/builds)$'
+BROAD_REGEX='^/api/(health|ready|structures.*|transforms.*|supercells.*|zpe.*)$'
 
-case "${SCHEMATHESIS_MODE}" in
-  smoke)
-    max_examples="${max_examples:-5}"
-    max_failures="${max_failures:-10}"
-    phases="${phases:-coverage}"
-    ;;
-  deep)
-    max_examples="${max_examples:-30}"
-    max_failures="${max_failures:-100}"
-    ;;
-  *)
-    echo "Invalid SCHEMATHESIS_MODE='${SCHEMATHESIS_MODE}' (expected: smoke or deep)" >&2
-    exit 1
-    ;;
-esac
+if [ "${MODE}" = "broad" ]; then
+  INCLUDE_REGEX="${BROAD_REGEX}"
+else
+  INCLUDE_REGEX="${SMOKE_REGEX}"
+fi
 
 cmd=(
   schemathesis run "${SCHEMA_URL}"
   --url "${BASE_URL}"
-  --checks "${SCHEMATHESIS_CHECKS:-not_a_server_error}"
-  --include-path-regex '^/api/'
-  --max-examples "${max_examples}"
-  --max-failures "${max_failures}"
-  --seed "${SCHEMATHESIS_SEED}"
-  --generation-deterministic
+  --checks "${CHECKS}"
+  --include-path-regex "${INCLUDE_REGEX}"
+  --seed "${SEED}"
+  --max-examples "${MAX_EXAMPLES}"
+  --max-failures "${MAX_FAILURES}"
+  --header "x-tenant-id: ${TENANT_ID}"
 )
 
-if [ -n "${phases}" ]; then
-  cmd+=(--phases "${phases}")
+if [ "${DETERMINISTIC}" = "1" ]; then
+  cmd+=(--generation-deterministic)
+  effective_gen_db="disabled"
+else
+  cmd+=(--generation-database "${GEN_DB}")
+  effective_gen_db="${GEN_DB}"
 fi
 
-if [ -n "${SCHEMATHESIS_AUTH_HEADER:-}" ]; then
-  cmd+=(--header "${SCHEMATHESIS_AUTH_HEADER}")
-elif [ -n "${SCHEMATHESIS_AUTH_TOKEN:-}" ]; then
-  cmd+=(--header "Authorization: Bearer ${SCHEMATHESIS_AUTH_TOKEN}")
+if [ -n "${SCHEMATHESIS_REPORTS:-}" ]; then
+  cmd+=(--report "${SCHEMATHESIS_REPORTS}")
+  cmd+=(--report-dir "${REPORT_DIR}")
 fi
 
-if [ -n "${SCHEMATHESIS_TENANT_ID:-}" ]; then
-  cmd+=(--header "x-tenant-id: ${SCHEMATHESIS_TENANT_ID}")
-fi
-if [ -n "${SCHEMATHESIS_DEV_USER_ID:-}" ]; then
-  cmd+=(--header "X-Dev-User-Id: ${SCHEMATHESIS_DEV_USER_ID}")
-fi
-if [ -n "${SCHEMATHESIS_DEV_USER_EMAIL:-}" ]; then
-  cmd+=(--header "X-Dev-User-Email: ${SCHEMATHESIS_DEV_USER_EMAIL}")
+if [ -n "${AUTH_TOKEN}" ]; then
+  cmd+=(--header "authorization: Bearer ${AUTH_TOKEN}")
 fi
 
 if [ -n "${SCHEMATHESIS_EXTRA_ARGS:-}" ]; then
@@ -137,9 +144,9 @@ if [ -n "${SCHEMATHESIS_EXTRA_ARGS:-}" ]; then
   cmd+=("${extra_args[@]}")
 fi
 
-echo "Running Schemathesis mode='${SCHEMATHESIS_MODE}' against ${SCHEMA_URL}" >&2
-echo "Deterministic seed: ${SCHEMATHESIS_SEED}" >&2
+schemathesis_version="$(schemathesis --version | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | sed 's/[[:space:]]$//')"
+echo "Schemathesis mode=${MODE} include=${INCLUDE_REGEX} checks=${CHECKS} seed=${SEED} max_examples=${MAX_EXAMPLES} max_failures=${MAX_FAILURES} deterministic=${DETERMINISTIC} generation_db=${effective_gen_db} reports=${SCHEMATHESIS_REPORTS:-none} report_dir=${REPORT_DIR} tenant=${TENANT_ID} auth_header=$([ -n "${AUTH_TOKEN}" ] && echo present || echo absent) version=${schemathesis_version}"
+echo "Schemathesis command: ${cmd[*]}"
 echo "Server log: ${SERVER_LOG}" >&2
-echo "To reproduce with identical data generation, reuse SCHEMATHESIS_SEED=${SCHEMATHESIS_SEED}" >&2
 
 "${cmd[@]}"

@@ -186,7 +186,7 @@ def _count_incremental_overlaps_np(
         hit_existing = False
         if existing_positions.shape[0] > 0:
             diff_existing = existing_positions - point
-            d2_existing = np.einsum("ij,ij->i", diff_existing, diff_existing)
+            d2_existing = np.sum(diff_existing * diff_existing, axis=1)
             hit_existing = bool(np.any(d2_existing <= tolerance_sq))
         if hit_existing:
             overlap_count += 1
@@ -194,7 +194,7 @@ def _count_incremental_overlaps_np(
         if index > 0:
             prev = new_positions[:index]
             diff_prev = prev - point
-            d2_prev = np.einsum("ij,ij->i", diff_prev, diff_prev)
+            d2_prev = np.sum(diff_prev * diff_prev, axis=1)
             if bool(np.any(d2_prev <= tolerance_sq)):
                 overlap_count += 1
     return overlap_count
@@ -307,9 +307,8 @@ def build_supercell_from_grid(
                 if existing_positions.shape[0] == 0:
                     existing_positions = shifted_positions.copy()
                 else:
-                    existing_positions = cast(
-                        FloatArray,
-                        np.concatenate((existing_positions, shifted_positions), axis=0),
+                    existing_positions = np.concatenate(
+                        (existing_positions, shifted_positions), axis=0
                     )
 
             symbols.extend(tile_symbols)
@@ -325,7 +324,7 @@ def build_supercell_from_grid(
     )
 
     if position_chunks:
-        positions_array = cast(FloatArray, np.concatenate(position_chunks, axis=0))
+        positions_array = np.concatenate(position_chunks, axis=0)
     else:
         positions_array = np.empty((0, 3), dtype=np.float64)
 

@@ -53,7 +53,8 @@ def _decode_map(data: Dict[bytes, bytes]) -> Dict[str, str]:
 
 
 def _get_lease(redis: Redis, job_id: str) -> Dict[str, str]:
-    raw = cast(dict[bytes, bytes], redis.hgetall(f"{_LEASE_PREFIX}{job_id}"))
+    redis_any = cast(Any, redis)
+    raw = cast(dict[bytes, bytes], redis_any.hgetall(f"{_LEASE_PREFIX}{job_id}"))
     return _decode_map(raw) if raw else {}
 
 
@@ -120,10 +121,10 @@ def _acquire_dispatch_lock(
 def _release_dispatch_lock(*, redis: Redis, job_id: str, token: str) -> None:
     lock_key = f"{_RELAY_DISPATCH_LOCK_PREFIX}{job_id}"
     for _ in range(3):
-        pipe = redis.pipeline()
-        pipe_any = cast(Any, pipe)
+        redis_any = cast(Any, redis)
+        pipe = redis_any.pipeline()
         try:
-            pipe_any.watch(lock_key)
+            pipe.watch(lock_key)
             current = cast(Optional[bytes], pipe.get(lock_key))
             if not current or current.decode("utf-8") != token:
                 pipe.unwatch()
@@ -311,13 +312,13 @@ def submit_result(
     )
 
     for _ in range(3):
-        pipe = redis.pipeline()
-        pipe_any = cast(Any, pipe)
+        redis_any = cast(Any, redis)
+        pipe = redis_any.pipeline()
         try:
             watch_keys = [status_key, lease_key]
             if submit_key:
                 watch_keys.append(submit_key)
-            pipe_any.watch(*watch_keys)
+            pipe.watch(*watch_keys)
             existing_submit = (
                 _decode_map(cast(dict[bytes, bytes], pipe.hgetall(submit_key)))
                 if submit_key
@@ -409,10 +410,11 @@ def submit_result(
                     },
                 )
                 pipe.expire(submit_key, ttl)
-            response = cast(list[Any], pipe.execute())
+            response = pipe.execute()
             sequence = int(response[4])
             if submit_key:
-                redis.hset(submit_key, mapping={"sequence": str(sequence)})
+                redis_any = cast(Any, redis)
+                redis_any.hset(submit_key, mapping={"sequence": str(sequence)})
             _dispatch_runtime_state_transition(
                 redis=redis,
                 job_id=job_id,
@@ -476,13 +478,13 @@ def submit_failure(
             return _failure_outcome_from_record(existing)
 
     for _ in range(3):
-        pipe = redis.pipeline()
-        pipe_any = cast(Any, pipe)
+        redis_any = cast(Any, redis)
+        pipe = redis_any.pipeline()
         try:
             watch_keys = [status_key, lease_key, retry_key, submit_key]
             if legacy_submit_key:
                 watch_keys.append(legacy_submit_key)
-            pipe_any.watch(*watch_keys)
+            pipe.watch(*watch_keys)
             existing = _load_existing_failure_record(pipe)
             if existing:
                 _validate_recorded_failure_payload(
@@ -560,7 +562,7 @@ def submit_failure(
                     },
                 )
                 pipe.expire(submit_key, ttl)
-                response = cast(list[Any], pipe.execute())
+                response = pipe.execute()
                 sequence = int(response[3])
                 _dispatch_runtime_state_transition(
                     redis=redis,
@@ -598,7 +600,7 @@ def submit_failure(
                 },
             )
             pipe.expire(submit_key, ttl)
-            response = cast(list[Any], pipe.execute())
+            response = pipe.execute()
             sequence = int(response[3])
             _dispatch_runtime_state_transition(
                 redis=redis,

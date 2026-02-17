@@ -5,7 +5,13 @@ import tsdoc from 'eslint-plugin-tsdoc'
 
 export default [
   {
-    ignores: ['.output/**', 'dist/**', '.tanstack/**'],
+    ignores: [
+      '.output/**',
+      'dist/**',
+      '.tanstack/**',
+      '.stryker-tmp/**',
+      'storybook-static/**',
+    ],
   },
   ...tanstackConfig,
   {

@@ -1,14 +1,16 @@
 from __future__ import annotations
 
+from importlib import import_module
 from io import StringIO
 import re
-from typing import Any, Dict, List, Mapping, Optional, Sequence, SupportsFloat, Tuple, cast
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, SupportsFloat, Tuple, cast
 
 from ase import Atoms as ASEAtoms
-from ase.io import read as ase_read
 from pymatgen.io.pwscf import PWInput
 
 from app.schemas.common import Atom, Lattice, QeParameters, Structure, Vector3
+
+ase_read = cast(Callable[..., Any], getattr(import_module("ase.io"), "read"))
 
 
 def _as_float3(value: object) -> tuple[float, float, float]:
@@ -39,26 +41,35 @@ def _ase_lattice_vectors(atoms_obj: ASEAtoms) -> list[list[float]]:
 
 
 def _ase_atoms_from_content(content: str) -> ASEAtoms:
-    atoms_result = ase_read(StringIO(content), format="espresso-in")
+    atoms_result: object = ase_read(StringIO(content), format="espresso-in")
     if isinstance(atoms_result, list):
         if not atoms_result:
             raise ValueError("ASEが構造を返しませんでした。")
-        return atoms_result[0]
-    return atoms_result
+        return cast(ASEAtoms, atoms_result[0])
+    return cast(ASEAtoms, atoms_result)
 
 
 def _pymatgen_atoms_from_content(content: str) -> ASEAtoms:
     pw_input = PWInput.from_str(content)
-    structure = pw_input.structure
+    structure = cast(Any, pw_input).structure
+    sites = cast(Sequence[Any], structure.sites)
     symbols = [
         getattr(site.specie, "symbol", str(site.specie))
-        for site in structure.sites
+        for site in sites
     ]
-    positions = [site.coords for site in structure.sites]
+    positions = [
+        (
+            float(cast(SupportsFloat, site.coords[0])),
+            float(cast(SupportsFloat, site.coords[1])),
+            float(cast(SupportsFloat, site.coords[2])),
+        )
+        for site in sites
+    ]
+    cell = cast(list[list[float]], structure.lattice.matrix.tolist())
     return ASEAtoms(
         symbols=symbols,
         positions=positions,
-        cell=structure.lattice.matrix.tolist(),
+        cell=cell,
         pbc=True,
     )
 
@@ -132,9 +143,10 @@ def _safe_mapping(value: object) -> Dict[str, Any]:
     if value is None:
         return {}
     if isinstance(value, Mapping):
-        return {str(key): item for key, item in value.items()}
+        mapping = cast(Mapping[object, Any], value)
+        return {str(key): item for key, item in mapping.items()}
     try:
-        mapped = cast(dict[object, Any], dict(cast(Any, value)))
+        mapped = cast(Mapping[object, Any], dict(cast(Any, value)))
     except Exception:
         return {}
     return {str(key): item for key, item in mapped.items()}
@@ -150,7 +162,10 @@ def _safe_dict_like(value: object) -> Optional[Dict[str, Any]]:
                 result = fn()
             except Exception:
                 return None
-            return result if isinstance(result, dict) else None
+            if isinstance(result, Mapping):
+                mapping = cast(Mapping[object, Any], result)
+                return {str(key): item for key, item in mapping.items()}
+            return None
     return None
 
 

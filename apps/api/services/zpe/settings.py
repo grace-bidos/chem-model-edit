@@ -8,7 +8,7 @@ from typing import Literal, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-def _resolve_env_file() -> str:
+def resolve_env_file() -> str:
     override = os.getenv("ZPE_ENV_FILE")
     if override:
         return override
@@ -23,7 +23,6 @@ def _resolve_env_file() -> str:
 class ZPESettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="ZPE_",
-        env_file=".env",
         extra="ignore",
     )
 
@@ -75,7 +74,17 @@ class ZPESettings(BaseSettings):
     convex_relay_token: Optional[str] = None
     convex_relay_timeout_seconds: int = 5
     slurm_policy_path: Optional[str] = None
-    slurm_adapter: Literal["stub-policy", "passthrough"] = "stub-policy"
+    slurm_adapter: Literal["stub-policy", "passthrough", "real-policy"] = "stub-policy"
+    slurm_adapter_rollback_guard: Literal[
+        "allow",
+        "force-stub-policy",
+        "force-passthrough",
+    ] = "allow"
+    slurm_real_adapter_probe_timeout_seconds: int = 5
+
+
+def load_zpe_settings_uncached() -> ZPESettings:
+    return ZPESettings(_env_file=resolve_env_file())  # pyright: ignore[reportCallIssue]
 
 
 @lru_cache
@@ -85,4 +94,4 @@ def get_zpe_settings() -> ZPESettings:
     Returns:
         解決済みの設定オブジェクト．
     """
-    return ZPESettings(_env_file=_resolve_env_file())  # type: ignore[call-arg]
+    return load_zpe_settings_uncached()
