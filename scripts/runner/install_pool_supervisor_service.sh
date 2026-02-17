@@ -42,6 +42,7 @@ gh_token_file=""
 repo_root=""
 disable_timer=0
 dry_run=0
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -71,7 +72,7 @@ if [[ -z "$target" ]]; then
   target="$max_parallel"
 fi
 if [[ -z "$repo_root" ]]; then
-  repo_root="$(git rev-parse --show-toplevel)"
+  repo_root="$(git -C "$script_dir" rev-parse --show-toplevel)"
 fi
 
 supervisor_script="${repo_root}/scripts/runner/supervise_ephemeral_pool.sh"

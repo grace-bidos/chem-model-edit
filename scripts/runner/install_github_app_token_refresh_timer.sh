@@ -36,6 +36,7 @@ service_name="chem-github-app-token-refresh"
 repo_root=""
 api_base="https://api.github.com"
 dry_run=0
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -61,7 +62,7 @@ if [[ -z "$app_id" || -z "$installation_id" || -z "$private_key_file" ]]; then
 fi
 
 if [[ -z "$repo_root" ]]; then
-  repo_root="$(git rev-parse --show-toplevel)"
+  repo_root="$(git -C "$script_dir" rev-parse --show-toplevel)"
 fi
 
 refresh_script="${repo_root}/scripts/runner/refresh_github_app_token_file.sh"
