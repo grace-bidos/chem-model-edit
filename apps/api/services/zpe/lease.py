@@ -142,11 +142,15 @@ def release_lease(job_id: str, *, requeue: bool = True) -> None:
 def _reap_expired_leases(redis: Redis, store: Any) -> None:
     now_ts = int(_now().timestamp())
     redis_any = cast(Any, redis)
-    expired = cast(list[bytes], redis_any.zrangebyscore(_LEASE_INDEX, 0, now_ts))
+    expired = cast(list[bytes | str], redis_any.zrangebyscore(_LEASE_INDEX, 0, now_ts))
     if not expired:
         return
     for job_id_raw in expired:
-        job_id = job_id_raw.decode("utf-8")
+        job_id = (
+            job_id_raw.decode("utf-8")
+            if isinstance(job_id_raw, bytes)
+            else job_id_raw
+        )
         lease_key = f"{_LEASE_PREFIX}{job_id}"
         lease = cast(dict[bytes, bytes], redis_any.hgetall(lease_key))
         if not lease:
