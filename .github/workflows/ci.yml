@@ -289,7 +289,10 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+      - name: Cleanup gitleaks temp file (runner quirk)
+        run: rm -f /tmp/gitleaks.tmp || true
       - name: Gitleaks (phase-1 non-blocking)
+        continue-on-error: true
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
