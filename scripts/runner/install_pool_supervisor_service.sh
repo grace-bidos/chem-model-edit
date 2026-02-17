@@ -8,7 +8,7 @@ Install systemd supervisor service to keep ephemeral runner pool at target size.
 Usage:
   scripts/runner/install_pool_supervisor_service.sh \
     --repo grace-bidos/chem-model-edit \
-    --baseline 1 \
+    --min 1 \
     --max 4 \
     --target 4 \
     --interval 15 \
@@ -16,7 +16,8 @@ Usage:
 
 Options:
   --repo <owner/repo>               Required.
-  --baseline <n>                    Optional. Default: 1
+  --min <n>                         Optional. Default: 1
+  --baseline <n>                    Deprecated alias for --min.
   --max <n>                         Optional. Default: 4
   --target <n>                      Optional. Default: max
   --interval <seconds>              Optional. Default: 15
@@ -31,7 +32,7 @@ EOF
 }
 
 repo=""
-baseline="1"
+min_pool="1"
 max_parallel="4"
 target=""
 interval_seconds="15"
@@ -45,7 +46,8 @@ dry_run=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --repo) repo="${2:-}"; shift 2 ;;
-    --baseline) baseline="${2:-}"; shift 2 ;;
+    --min) min_pool="${2:-}"; shift 2 ;;
+    --baseline) min_pool="${2:-}"; shift 2 ;;
     --max) max_parallel="${2:-}"; shift 2 ;;
     --target) target="${2:-}"; shift 2 ;;
     --interval) interval_seconds="${2:-}"; shift 2 ;;
@@ -87,7 +89,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/env bash -lc 'set -euo pipefail; token_file=${gh_token_file}; export GH_TOKEN=\"\$(cat \"\$token_file\")\"; ${supervisor_script} --repo ${repo} --baseline ${baseline} --max ${max_parallel} --target ${target} --interval ${interval_seconds} --lock-file ${lock_file}'
+ExecStart=/usr/bin/env bash -lc 'set -euo pipefail; token_file=${gh_token_file}; export GH_TOKEN=\"\$(cat \"\$token_file\")\"; ${supervisor_script} --repo ${repo} --min ${min_pool} --max ${max_parallel} --target ${target} --interval ${interval_seconds} --lock-file ${lock_file}'
 Restart=always
 RestartSec=5s
 KillMode=process

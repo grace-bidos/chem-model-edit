@@ -10,7 +10,8 @@ Usage:
 
 Options:
   --repo <owner/repo>               Default: grace-bidos/chem-model-edit
-  --baseline <n>                    Default: 1
+  --min <n>                         Default: 1
+  --baseline <n>                    Deprecated alias for --min
   --max <n>                         Default: 4
   --target <n>                      Default: max
   --interval <seconds>              Default: 15
@@ -29,7 +30,7 @@ EOF
 }
 
 repo="grace-bidos/chem-model-edit"
-baseline="1"
+min_pool="1"
 max_parallel="4"
 target=""
 interval_seconds="15"
@@ -42,7 +43,8 @@ dry_run=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --repo) repo="${2:-}"; shift 2 ;;
-    --baseline) baseline="${2:-}"; shift 2 ;;
+    --min) min_pool="${2:-}"; shift 2 ;;
+    --baseline) min_pool="${2:-}"; shift 2 ;;
     --max) max_parallel="${2:-}"; shift 2 ;;
     --target) target="${2:-}"; shift 2 ;;
     --interval) interval_seconds="${2:-}"; shift 2 ;;
@@ -93,7 +95,7 @@ elif [[ "$token_source" == "env" ]]; then
 fi
 
 if [[ "$dry_run" -eq 1 ]]; then
-  echo "[dry-run] repo=${repo} baseline=${baseline} max=${max_parallel} target=${target} interval=${interval_seconds}"
+  echo "[dry-run] repo=${repo} min=${min_pool} max=${max_parallel} target=${target} interval=${interval_seconds}"
   echo "[dry-run] lock_file=${lock_file} token_source=${token_source} gh_token_file=${gh_token_file}"
   if [[ "$token_source" == "gh" || "$token_source" == "env" ]]; then
     echo "[dry-run] token_length=$(printf '%s' "$token_value" | wc -c | tr -d ' ')"
@@ -104,7 +106,7 @@ if [[ "$dry_run" -eq 1 ]]; then
   fi
   "$install_script" \
     --repo "$repo" \
-    --baseline "$baseline" \
+    --min "$min_pool" \
     --max "$max_parallel" \
     --target "$target" \
     --interval "$interval_seconds" \
@@ -127,7 +129,7 @@ fi
 
 install_args=(
   --repo "$repo"
-  --baseline "$baseline"
+  --min "$min_pool"
   --max "$max_parallel"
   --target "$target"
   --interval "$interval_seconds"

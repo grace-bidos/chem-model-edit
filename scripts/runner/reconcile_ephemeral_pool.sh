@@ -8,13 +8,14 @@ Reconcile local ephemeral runner pool count.
 Usage:
   scripts/runner/reconcile_ephemeral_pool.sh \
     --repo grace-bidos/chem-model-edit \
-    --baseline 1 \
+    --min 1 \
     --max 4 \
     --target 4
 
 Options:
   --repo <owner/repo>     Required.
-  --baseline <n>          Optional. Default: 1
+  --min <n>               Optional. Default: 1
+  --baseline <n>          Deprecated alias for --min.
   --max <n>               Optional. Default: 4
   --target <n>            Optional. Default: max
   --lock-file <path>      Optional. Default: /run/lock/chem-model-edit-runner-pool.lock
@@ -24,7 +25,7 @@ EOF
 }
 
 repo=""
-baseline="1"
+min_pool="1"
 max_parallel="4"
 target=""
 lock_file="/run/lock/chem-model-edit-runner-pool.lock"
@@ -33,7 +34,8 @@ dry_run=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --repo) repo="${2:-}"; shift 2 ;;
-    --baseline) baseline="${2:-}"; shift 2 ;;
+    --min) min_pool="${2:-}"; shift 2 ;;
+    --baseline) min_pool="${2:-}"; shift 2 ;;
     --max) max_parallel="${2:-}"; shift 2 ;;
     --target) target="${2:-}"; shift 2 ;;
     --lock-file) lock_file="${2:-}"; shift 2 ;;
@@ -68,7 +70,7 @@ fi
 cmd=(
   "${scale_script}"
   --repo "$repo"
-  --baseline "$baseline"
+  --min "$min_pool"
   --max "$max_parallel"
   --target "$target"
 )
