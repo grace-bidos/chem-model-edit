@@ -6,6 +6,7 @@ import tempfile
 
 from hypothesis import assume, given
 from hypothesis import strategies as st
+import pytest
 
 from services.zpe.slurm_policy import SlurmPolicyDeniedError, resolve_runtime_slurm_queue
 
@@ -100,11 +101,9 @@ def test_resolve_runtime_slurm_queue_unknown_queue_obeys_fallback_mode(
         )
 
         if fallback_mode == "deny":
-            try:
+            with pytest.raises(SlurmPolicyDeniedError):
                 resolve_runtime_slurm_queue(requested_queue, policy_path=policy_path)
-            except SlurmPolicyDeniedError:
-                return
-            raise AssertionError("deny fallback must reject unknown queue")
+            return
 
         resolution = resolve_runtime_slurm_queue(requested_queue, policy_path=policy_path)
     assert resolution.requested_queue == requested_queue
