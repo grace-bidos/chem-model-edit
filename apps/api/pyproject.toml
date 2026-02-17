@@ -52,11 +52,10 @@ aiida = [
 markers = [
     "e2e: end-to-end tests that require external dependencies (QE, pseudopotentials)",
 ]
-addopts = "-ra --strict-markers"
+addopts = "-ra --strict-markers --randomly-seed=last"
 env = [
     "TZ=UTC",
 ]
-randomly_seed = "last"
 timeout = 120
 timeout_method = "thread"
 

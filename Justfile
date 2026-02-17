@@ -250,7 +250,7 @@ api-cov-diff:
   if [[ ! -f apps/api/coverage.xml ]]; then
     just api-cov
   fi
-  python - "$base_ref" "$threshold" <<'PY'
+  uv run --project apps/api python - "$base_ref" "$threshold" <<'PY'
   import re
   import subprocess
   import sys
