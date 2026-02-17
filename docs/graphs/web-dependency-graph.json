@@ -1441,7 +1441,7 @@
     "totalCruised": 46,
     "totalDependenciesCruised": 54,
     "optionsUsed": {
-      "baseDir": "/home/grace/projects/chem-model-edit/.worktrees/feature-gra-118-jitvm-stabilize",
+      "baseDir": ".",
       "combinedDependencies": false,
       "detectJSDocImports": false,
       "detectProcessBuiltinModuleCalls": false,

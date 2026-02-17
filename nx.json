@@ -38,10 +38,30 @@
       "cache": true
     },
     "mutation": {
-      "cache": true
+      "cache": true,
+      "inputs": [
+        "default",
+        "{workspaceRoot}/pnpm-lock.yaml",
+        "{workspaceRoot}/package.json",
+        "{projectRoot}/package.json",
+        "{projectRoot}/stryker.config.json",
+        "{projectRoot}/vite.config.ts",
+        { "env": "NODE_ENV" },
+        { "env": "CI" }
+      ]
     },
     "e2e": {
-      "cache": true
+      "cache": true,
+      "inputs": [
+        "default",
+        "{workspaceRoot}/pnpm-lock.yaml",
+        "{workspaceRoot}/package.json",
+        "{projectRoot}/package.json",
+        "{projectRoot}/playwright.config.ts",
+        "{projectRoot}/vite.config.ts",
+        { "env": "NODE_ENV" },
+        { "env": "CI" }
+      ]
     },
     "schemathesis": {
       "cache": true

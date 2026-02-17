@@ -313,6 +313,7 @@ graph-web-deps:
   pnpm exec depcruise --config .dependency-cruiser.cjs --include-only "^apps/web/src" --output-type dot --output-to docs/graphs/web-dependency-graph.dot apps/web/src
   pnpm exec depcruise --config .dependency-cruiser.cjs --include-only "^apps/web/src" --output-type mermaid --output-to docs/graphs/web-dependency-graph.mmd apps/web/src
   pnpm exec depcruise --config .dependency-cruiser.cjs --include-only "^apps/web/src" --output-type json --output-to docs/graphs/web-dependency-graph.json apps/web/src
+  node -e "const fs=require('fs'); const p='docs/graphs/web-dependency-graph.json'; const data=JSON.parse(fs.readFileSync(p,'utf8')); if (data?.summary?.optionsUsed?.baseDir) data.summary.optionsUsed.baseDir='.'; fs.writeFileSync(p, JSON.stringify(data, null, 2) + '\n');"
   if command -v dot >/dev/null 2>&1; then
     dot -Tsvg docs/graphs/web-dependency-graph.dot -o docs/graphs/web-dependency-graph.svg
     echo "generated: docs/graphs/web-dependency-graph.svg"
