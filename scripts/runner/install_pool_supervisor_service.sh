@@ -42,6 +42,7 @@ gh_token_file=""
 repo_root=""
 disable_timer=0
 dry_run=0
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -71,7 +72,7 @@ if [[ -z "$target" ]]; then
   target="$max_parallel"
 fi
 if [[ -z "$repo_root" ]]; then
-  repo_root="$(git rev-parse --show-toplevel)"
+  repo_root="$(git -C "$script_dir" rev-parse --show-toplevel)"
 fi
 
 supervisor_script="${repo_root}/scripts/runner/supervise_ephemeral_pool.sh"
@@ -89,7 +90,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/env bash -lc 'set -euo pipefail; token_file=${gh_token_file}; export GH_TOKEN=\"\$(cat \"\$token_file\")\"; ${supervisor_script} --repo ${repo} --min ${min_pool} --max ${max_parallel} --target ${target} --interval ${interval_seconds} --lock-file ${lock_file}'
+ExecStart=/usr/bin/env bash -lc 'set -euo pipefail; \"${supervisor_script}\" --repo \"${repo}\" --min \"${min_pool}\" --max \"${max_parallel}\" --target \"${target}\" --interval \"${interval_seconds}\" --gh-token-file \"${gh_token_file}\" --lock-file \"${lock_file}\"'
 Restart=always
 RestartSec=5s
 KillMode=process
