@@ -45,7 +45,7 @@ class JobOwnerStore:
                 return None
             return JobOwnerRecord(
                 user_id=meta_user_id,
-                tenant_id=cast(str | None, meta_tenant_id),
+                tenant_id=meta_tenant_id,
             )
 
         # Backward-compatible fallback for pre-cutover legacy keys.

@@ -32,6 +32,12 @@ def _normalize_json(value: Any) -> Any:
     return value
 
 
+def _to_string_key_dict(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    return {key: item for key, item in value.items() if isinstance(key, str)}
+
+
 def _issue(
     *,
     section: OnboardingIssueSection,
@@ -69,8 +75,9 @@ def _validate_text_list(
         return []
 
     values: list[str] = []
-    for index, item in enumerate(data):
-        if not _is_non_empty_text(item):
+    items: list[Any] = data
+    for index, item in enumerate(items):
+        if not isinstance(item, str) or not item.strip():
             errors.append(
                 _issue(
                     section=section,
@@ -109,8 +116,8 @@ def _validate_policy(policy: dict[str, Any]) -> list[OnboardingValidationIssue]:
             )
         )
 
-    slurm = policy.get("slurm")
-    if not isinstance(slurm, dict):
+    slurm_raw = policy.get("slurm")
+    if not isinstance(slurm_raw, dict):
         errors.append(
             _issue(
                 section="policy",
@@ -120,7 +127,9 @@ def _validate_policy(policy: dict[str, Any]) -> list[OnboardingValidationIssue]:
                 code="invalid_object",
             )
         )
-        slurm = {}
+        slurm: dict[str, Any] = {}
+    else:
+        slurm = _to_string_key_dict(slurm_raw)
 
     partitions = _validate_text_list(
         section="policy",
@@ -141,8 +150,8 @@ def _validate_policy(policy: dict[str, Any]) -> list[OnboardingValidationIssue]:
         errors=errors,
     )
 
-    queue_mappings = policy.get("queue_mappings")
-    if not isinstance(queue_mappings, list) or not queue_mappings:
+    queue_mappings_raw = policy.get("queue_mappings")
+    if not isinstance(queue_mappings_raw, list) or not queue_mappings_raw:
         errors.append(
             _issue(
                 section="policy",
@@ -152,12 +161,14 @@ def _validate_policy(policy: dict[str, Any]) -> list[OnboardingValidationIssue]:
                 code="missing_or_invalid_list",
             )
         )
-        queue_mappings = []
+        queue_mappings: list[Any] = []
+    else:
+        queue_mappings = queue_mappings_raw
 
     queue_names: list[str] = []
-    for index, mapping in enumerate(queue_mappings):
+    for index, mapping_raw in enumerate(queue_mappings):
         prefix = f"queue_mappings[{index}]"
-        if not isinstance(mapping, dict):
+        if not isinstance(mapping_raw, dict):
             errors.append(
                 _issue(
                     section="policy",
@@ -168,6 +179,7 @@ def _validate_policy(policy: dict[str, Any]) -> list[OnboardingValidationIssue]:
                 )
             )
             continue
+        mapping = _to_string_key_dict(mapping_raw)
 
         queue = mapping.get("queue")
         partition = mapping.get("partition")
@@ -274,8 +286,8 @@ def _validate_policy(policy: dict[str, Any]) -> list[OnboardingValidationIssue]:
             )
         )
 
-    fallback_policy = policy.get("fallback_policy")
-    if not isinstance(fallback_policy, dict):
+    fallback_policy_raw = policy.get("fallback_policy")
+    if not isinstance(fallback_policy_raw, dict):
         errors.append(
             _issue(
                 section="policy",
@@ -285,7 +297,9 @@ def _validate_policy(policy: dict[str, Any]) -> list[OnboardingValidationIssue]:
                 code="invalid_object",
             )
         )
-        fallback_policy = {}
+        fallback_policy: dict[str, Any] = {}
+    else:
+        fallback_policy = _to_string_key_dict(fallback_policy_raw)
 
     mode = fallback_policy.get("mode")
     if mode not in ALLOWED_FALLBACK_MODES:
@@ -325,8 +339,8 @@ def _validate_policy(policy: dict[str, Any]) -> list[OnboardingValidationIssue]:
                 )
             )
 
-    registration_requirements = policy.get("registration_requirements")
-    if not isinstance(registration_requirements, dict):
+    registration_requirements_raw = policy.get("registration_requirements")
+    if not isinstance(registration_requirements_raw, dict):
         errors.append(
             _issue(
                 section="policy",
@@ -336,7 +350,9 @@ def _validate_policy(policy: dict[str, Any]) -> list[OnboardingValidationIssue]:
                 code="invalid_object",
             )
         )
-        registration_requirements = {}
+        registration_requirements: dict[str, Any] = {}
+    else:
+        registration_requirements = _to_string_key_dict(registration_requirements_raw)
 
     _validate_text_list(
         section="policy",
@@ -382,8 +398,8 @@ def _validate_registration(
             )
         )
 
-    enabled_queues = registration.get("enabled_queues")
-    if not isinstance(enabled_queues, list) or not enabled_queues:
+    enabled_queues_raw = registration.get("enabled_queues")
+    if not isinstance(enabled_queues_raw, list) or not enabled_queues_raw:
         errors.append(
             _issue(
                 section="registration",
@@ -393,8 +409,9 @@ def _validate_registration(
                 code="missing_or_invalid_list",
             )
         )
-        enabled_queues = []
+        enabled_queues: list[Any] = []
     else:
+        enabled_queues = enabled_queues_raw
         for index, queue in enumerate(enabled_queues):
             if not _is_non_empty_text(queue):
                 errors.append(
@@ -409,11 +426,14 @@ def _validate_registration(
                     )
                 )
 
-    mapped_queues = {
-        mapping.get("queue")
-        for mapping in policy.get("queue_mappings", [])
-        if isinstance(mapping, dict) and _is_non_empty_text(mapping.get("queue"))
-    }
+    mapped_queues: set[str] = set()
+    queue_mappings_raw = policy.get("queue_mappings", [])
+    if isinstance(queue_mappings_raw, list):
+        for mapping_raw in queue_mappings_raw:
+            mapping = _to_string_key_dict(mapping_raw)
+            queue_name = mapping.get("queue")
+            if isinstance(queue_name, str) and queue_name.strip():
+                mapped_queues.add(queue_name)
 
     for queue in enabled_queues:
         if isinstance(queue, str) and queue not in mapped_queues:
@@ -430,7 +450,7 @@ def _validate_registration(
                 )
             )
 
-    requirements = policy.get("registration_requirements", {})
+    requirements = _to_string_key_dict(policy.get("registration_requirements", {}))
     required_labels = requirements.get("required_node_labels", [])
     labels = registration.get("node_labels")
     if not isinstance(labels, dict):
@@ -445,6 +465,8 @@ def _validate_registration(
         )
         labels = {}
     for label in required_labels if isinstance(required_labels, list) else []:
+        if not isinstance(label, str):
+            continue
         value = labels.get(label)
         if not _is_non_empty_text(value):
             errors.append(
@@ -474,6 +496,8 @@ def _validate_registration(
         )
         checks = {}
     for check_name in required_checks if isinstance(required_checks, list) else []:
+        if not isinstance(check_name, str):
+            continue
         if checks.get(check_name) is not True:
             errors.append(
                 _issue(
@@ -522,19 +546,22 @@ def _validate_registration(
 
 
 def _resolve_queue(policy: dict[str, Any], requested_queue: str) -> tuple[str, bool]:
-    queue_names = {
-        mapping.get("queue")
-        for mapping in policy.get("queue_mappings", [])
-        if isinstance(mapping, dict) and _is_non_empty_text(mapping.get("queue"))
-    }
+    queue_names: set[str] = set()
+    queue_mappings_raw = policy.get("queue_mappings", [])
+    if isinstance(queue_mappings_raw, list):
+        for mapping_raw in queue_mappings_raw:
+            mapping = _to_string_key_dict(mapping_raw)
+            queue_name = mapping.get("queue")
+            if isinstance(queue_name, str) and queue_name.strip():
+                queue_names.add(queue_name)
     if requested_queue in queue_names:
         return requested_queue, False
 
-    fallback_policy = policy.get("fallback_policy", {})
+    fallback_policy = _to_string_key_dict(policy.get("fallback_policy", {}))
     mode = fallback_policy.get("mode")
     if mode == "route-default":
         default_queue = fallback_policy.get("default_queue")
-        if _is_non_empty_text(default_queue):
+        if isinstance(default_queue, str) and default_queue.strip():
             return default_queue, True
     raise ValueError(
         "requested queue '"

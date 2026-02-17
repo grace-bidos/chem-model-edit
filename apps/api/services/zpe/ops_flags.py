@@ -96,11 +96,11 @@ def get_ops_flags(*, redis: Optional[Redis] = None) -> OpsFlags:
     )
     submission_route = _parse_submission_route(
         cast(bytes | str | None, redis.get(_SUBMISSION_ROUTE_KEY)),
-        cast(SubmissionRoute, settings.cutover_submission_route),
+        settings.cutover_submission_route,
     )
     result_read_source = _parse_result_read_source(
         cast(bytes | str | None, redis.get(_RESULT_READ_SOURCE_KEY)),
-        cast(ResultReadSource, settings.cutover_result_read_source),
+        settings.cutover_result_read_source,
     )
     legacy_worker_endpoints_enabled = _parse_bool(
         cast(bytes | str | None, redis.get(_LEGACY_WORKER_ENDPOINTS_KEY)),

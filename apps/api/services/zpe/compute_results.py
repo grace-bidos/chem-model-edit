@@ -409,7 +409,7 @@ def submit_result(
                     },
                 )
                 pipe.expire(submit_key, ttl)
-            response = cast(list[Any], pipe.execute())
+            response = pipe.execute()
             sequence = int(response[4])
             if submit_key:
                 redis.hset(submit_key, mapping={"sequence": str(sequence)})
@@ -560,7 +560,7 @@ def submit_failure(
                     },
                 )
                 pipe.expire(submit_key, ttl)
-                response = cast(list[Any], pipe.execute())
+                response = pipe.execute()
                 sequence = int(response[3])
                 _dispatch_runtime_state_transition(
                     redis=redis,
@@ -598,7 +598,7 @@ def submit_failure(
                 },
             )
             pipe.expire(submit_key, ttl)
-            response = cast(list[Any], pipe.execute())
+            response = pipe.execute()
             sequence = int(response[3])
             _dispatch_runtime_state_transition(
                 redis=redis,
