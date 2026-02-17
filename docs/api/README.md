@@ -35,6 +35,19 @@
 - 再現性のため、既定で `--seed` と `--generation-deterministic` を有効化する（この場合 generation DB は無効）。`SCHEMATHESIS_DETERMINISTIC=0` のときは `.schemathesis/examples.db` を利用できる。
 - 実行ログには mode / include regex / checks / seed / 失敗上限 / deterministic / generation DB / reports などの再実行メタデータを出力する。
 - 必要に応じて `SCHEMATHESIS_REPORTS=ndjson,junit` と `SCHEMATHESIS_REPORT_DIR=...` を指定してレポートを保存する。
+- broad の対象パスには `/api/ready` を含める（readiness 契約も探索対象）。
+
+### Reproducible Run Examples
+
+- 実行ディレクトリ: `apps/api`
+- smoke（高速・再現可能）:
+  - `SCHEMATHESIS_MODE=smoke uv run bash scripts/schemathesis.sh`
+- broad（探索重視、例数を明示）:
+  - `SCHEMATHESIS_MODE=broad SCHEMATHESIS_MAX_EXAMPLES=8 uv run bash scripts/schemathesis.sh`
+- seed を固定した再実行:
+  - `SCHEMATHESIS_MODE=broad SCHEMATHESIS_MAX_EXAMPLES=8 SCHEMATHESIS_SEED=137 uv run bash scripts/schemathesis.sh`
+- レポート出力付き:
+  - `SCHEMATHESIS_MODE=smoke SCHEMATHESIS_REPORTS=ndjson,junit SCHEMATHESIS_REPORT_DIR=schemathesis-report/smoke uv run bash scripts/schemathesis.sh`
 
 ## Type & Quality Policy
 

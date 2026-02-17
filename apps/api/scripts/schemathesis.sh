@@ -78,7 +78,7 @@ if [ "$ready" -ne 1 ]; then
 fi
 
 SMOKE_REGEX='^/api/(health|structures/parse|structures|structures/export|transforms/delta-transplant|supercells/builds)$'
-BROAD_REGEX='^/api/(health|structures.*|transforms.*|supercells.*|zpe.*)$'
+BROAD_REGEX='^/api/(health|ready|structures.*|transforms.*|supercells.*|zpe.*)$'
 
 if [ "${MODE}" = "broad" ]; then
   INCLUDE_REGEX="${BROAD_REGEX}"
