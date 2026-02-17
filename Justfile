@@ -107,6 +107,12 @@ api-pyright:
   uv run pyright --project pyrightconfig.json
   popd >/dev/null
 
+api-pyright-diff:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  base_ref="${BASE_REF:-origin/main}"
+  uv run --project apps/api python scripts/api/pyright_touched_gate.py --base-ref "$base_ref"
+
 api-typecheck-strict:
   #!/usr/bin/env bash
   set -euo pipefail
