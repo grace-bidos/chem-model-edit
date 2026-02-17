@@ -19,6 +19,7 @@ For concrete operator commands, see:
 - Use one-command wrappers for fast operator actions:
   - token refresh automation: `scripts/runner/setup_github_app_token_refresh_one_command.sh`
   - base-runner recovery: `scripts/runner/recover_base_runner_one_command.sh`
+  - routing guard rollback helper: `scripts/runner/guard_trusted_routing.sh`
 
 ## Trusted Routing Policy
 
@@ -94,6 +95,8 @@ Recommended auth model for JIT issuance:
 - fast rollback/recover commands are documented and tested:
   - disable: `gh variable set CI_SELF_HOSTED_TRUSTED_ROUTING --repo <owner>/<repo> --body false`
   - restore default: `gh variable set CI_SELF_HOSTED_TRUSTED_ROUTING --repo <owner>/<repo> --body true`
+  - auto-guarded disable on degraded health:
+    - `scripts/runner/guard_trusted_routing.sh --owner <owner> --repo <repo>`
 - local health check command reports `0` when service/GitHub status align
   - `scripts/runner/check_local_runner_health.sh --owner <owner> --repo <repo>`
 - local recovery command supports dry-run and reconfigure/restart flow
@@ -109,6 +112,8 @@ Recommended auth model for JIT issuance:
 
 - Immediate rollback:
   - `gh variable set CI_SELF_HOSTED_TRUSTED_ROUTING --repo <owner>/<repo> --body false`
+- Guarded rollback (recommended operational trigger):
+  - `scripts/runner/guard_trusted_routing.sh --owner <owner> --repo <repo>`
 - Return to standard policy:
   - `gh variable set CI_SELF_HOSTED_TRUSTED_ROUTING --repo <owner>/<repo> --body true`
 - Hard rollback: disable runner group mapping for this repository.

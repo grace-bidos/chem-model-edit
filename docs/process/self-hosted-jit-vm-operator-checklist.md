@@ -13,6 +13,7 @@ This checklist is the concrete operator sequence for local rollout.
 - Fast helper wrappers:
   - token refresh setup: `scripts/runner/setup_github_app_token_refresh_one_command.sh`
   - base-runner recovery: `scripts/runner/recover_base_runner_one_command.sh`
+  - guarded routing rollback: `scripts/runner/guard_trusted_routing.sh`
 
 ## 0) One-time GitHub setup (operator action)
 
@@ -39,6 +40,20 @@ Recommended default:
 
 - Use GitHub App installation tokens for routine runner operations.
 - Keep PAT flow only for emergency break-glass recovery.
+
+Helper commands for GitHub App setup:
+
+```bash
+scripts/runner/check_github_app_jwt.sh \
+  --app-id <APP_ID> \
+  --private-key-file <PRIVATE_KEY_PATH>
+
+scripts/runner/get_github_app_installation_id.sh \
+  --app-id <APP_ID> \
+  --private-key-file <PRIVATE_KEY_PATH> \
+  --owner grace-bidos \
+  --repo chem-model-edit
+```
 
 ## 2) VM base image prerequisites (operator action, sudo likely required)
 
@@ -145,6 +160,8 @@ After one successful dry run, keep routing enabled and verify behavior:
 Immediate rollback:
 
 - `gh variable set CI_SELF_HOSTED_TRUSTED_ROUTING --repo <owner>/<repo> --body false`
+- or run guarded rollback helper:
+  - `scripts/runner/guard_trusted_routing.sh --owner <owner> --repo <repo>`
 
 Hard rollback:
 
@@ -271,6 +288,10 @@ scripts/runner/setup_pool_supervisor_one_command.sh --dry-run
 Verify:
 
 ```bash
+scripts/runner/verify_self_hosted_runner_setup.sh \
+  --owner grace-bidos \
+  --repo chem-model-edit
+
 sudo systemctl status chem-runner-pool-supervisor.service --no-pager
 sudo systemctl status chem-github-app-token-refresh.timer --no-pager
 sudo cat /var/lib/chem-model-edit/github-app-token-refresh-status.json
