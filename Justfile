@@ -237,7 +237,7 @@ api-cov:
   #!/usr/bin/env bash
   set -euo pipefail
   pushd apps/api >/dev/null
-  uv run pytest --cov=app --cov=services --cov-report=term-missing --cov-report=html:htmlcov --cov-report=xml:coverage.xml
+  uv run pytest --cov=app --cov=services --cov=main --cov-report=term-missing --cov-report=html:htmlcov --cov-report=xml:coverage.xml
   popd >/dev/null
   echo "generated: apps/api/htmlcov/index.html"
   echo "generated: apps/api/coverage.xml"
