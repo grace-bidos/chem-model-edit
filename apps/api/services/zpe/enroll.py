@@ -29,6 +29,10 @@ def _expires_iso(ttl_seconds: int) -> str:
     return (_now() + timedelta(seconds=ttl_seconds)).isoformat()
 
 
+def _empty_meta() -> dict[str, Any]:
+    return {}
+
+
 @dataclass
 class EnrollToken:
     token: str
@@ -43,7 +47,7 @@ class ComputeServerRegistration:
     server_id: str
     registered_at: str
     name: Optional[str] = None
-    meta: Mapping[str, Any] = field(default_factory=dict)
+    meta: dict[str, Any] = field(default_factory=_empty_meta)
     owner_id: Optional[str] = None
 
 
@@ -67,13 +71,14 @@ class ComputeEnrollStore:
         if ttl <= 0:
             raise ValueError("ttl_seconds must be >= 1")
         token = secrets.token_urlsafe(32)
-        payload = {
+        payload: dict[str, str] = {
             "created_at": _now_iso(),
             "label": label or "",
             "owner_id": owner_id or "",
         }
         key = f"{_ENROLL_PREFIX}{token}"
-        pipe = self.redis.pipeline(transaction=True)
+        redis_any = cast(Any, self.redis)
+        pipe = redis_any.pipeline(transaction=True)
         pipe.hset(key, mapping=payload)
         pipe.expire(key, ttl)
         _, expire_ok = pipe.execute()
@@ -99,18 +104,18 @@ class ComputeEnrollStore:
         server_id = f"compute-{uuid4().hex}"
         now = _now_iso()
         owner_id = None
-        payload = {
+        payload: dict[str, str] = {
             "registered_at": now,
             "name": name or "",
         }
         if meta:
             payload["meta"] = json.dumps(meta, ensure_ascii=False)
         server_key = f"{_SERVER_PREFIX}{server_id}"
-        pipe = self.redis.pipeline(transaction=True)
-        pipe_any = cast(Any, pipe)
+        redis_any = cast(Any, self.redis)
+        pipe = redis_any.pipeline(transaction=True)
         for _ in range(5):
             try:
-                pipe_any.watch(key)
+                pipe.watch(key)
                 if not pipe.exists(key):
                     pipe.reset()
                     raise KeyError("token not found")
@@ -132,7 +137,7 @@ class ComputeEnrollStore:
             server_id=server_id,
             registered_at=now,
             name=name,
-            meta=meta or {},
+            meta=dict(meta) if meta else {},
             owner_id=owner_id,
         )
 

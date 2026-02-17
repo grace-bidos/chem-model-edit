@@ -6,7 +6,7 @@ import socket
 import time
 import traceback
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, cast
 from urllib import request as urlrequest
 from urllib import error as urlerror
 
@@ -53,6 +53,19 @@ def _request_json(
         return status, json.loads(body)
     except json.JSONDecodeError:
         return status, None
+
+
+def _as_str_dict(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return cast(dict[str, Any], value)
+    return {}
+
+
+def _coerce_text(value: Any) -> str | None:
+    if isinstance(value, str):
+        stripped = value.strip()
+        return stripped or None
+    return None
 
 
 def _lease_job(base_url: str, token: str, timeout: int) -> Optional[Dict[str, Any]]:
@@ -188,10 +201,10 @@ def run_http_worker() -> None:
         job_id = lease.get("job_id")
         payload = lease.get("payload")
         lease_id = lease.get("lease_id")
-        meta = lease.get("meta") or {}
-        tenant_id = meta.get("tenant_id")
-        request_id = meta.get("request_id")
-        user_id = meta.get("user_id")
+        meta = _as_str_dict(lease.get("meta"))
+        tenant_id = _coerce_text(meta.get("tenant_id"))
+        request_id = _coerce_text(meta.get("request_id"))
+        user_id = _coerce_text(meta.get("user_id"))
         if not job_id or not payload or not lease_id or not isinstance(tenant_id, str):
             log_event(
                 logger,
@@ -208,11 +221,11 @@ def run_http_worker() -> None:
 
         start = time.monotonic()
         trace_id = str(request_id or f"trace-{job_id}-{lease_id}")
-        workspace_id = str(meta.get("workspace_id") or tenant_id)
-        submission_id = str(meta.get("submission_id") or request_id or lease_id)
-        management_node_id = str(meta.get("management_node_id") or hostname)
+        workspace_id = _coerce_text(meta.get("workspace_id")) or tenant_id
+        submission_id = _coerce_text(meta.get("submission_id")) or request_id or lease_id
+        management_node_id = _coerce_text(meta.get("management_node_id")) or hostname
         execution_id = str(
-            meta.get("execution_id") or f"{management_node_id}:{job_id}:{lease_id}"
+            _coerce_text(meta.get("execution_id")) or f"{management_node_id}:{job_id}:{lease_id}"
         )
         scheduler_ref: Dict[str, Any] = {}
         for key, source in (
@@ -220,9 +233,9 @@ def run_http_worker() -> None:
             ("partition", "slurm_partition"),
             ("qos", "slurm_qos"),
         ):
-            value = meta.get(source)
-            if isinstance(value, str) and value.strip():
-                scheduler_ref[key] = value.strip()
+            value = _coerce_text(meta.get(source))
+            if value is not None:
+                scheduler_ref[key] = value
         try:
             log_event(
                 logger,
