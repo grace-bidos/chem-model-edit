@@ -88,7 +88,13 @@
       "dependencies": [],
       "dependents": [],
       "orphan": true,
-      "valid": true
+      "valid": false,
+      "rules": [
+        {
+          "severity": "warn",
+          "name": "no-orphans"
+        }
+      ]
     },
     {
       "source": "apps/web/src/components/molstar/MolstarViewer.tsx",
@@ -407,7 +413,13 @@
       "dependencies": [],
       "dependents": [],
       "orphan": true,
-      "valid": true
+      "valid": false,
+      "rules": [
+        {
+          "severity": "warn",
+          "name": "no-orphans"
+        }
+      ]
     },
     {
       "source": "apps/web/src/features/editor-v2/EditorV2Page.tsx",
@@ -1083,21 +1095,39 @@
       "dependencies": [],
       "dependents": [],
       "orphan": true,
-      "valid": true
+      "valid": false,
+      "rules": [
+        {
+          "severity": "warn",
+          "name": "no-orphans"
+        }
+      ]
     },
     {
       "source": "apps/web/src/features/editor-v2/demoStructures.ts",
       "dependencies": [],
       "dependents": [],
       "orphan": true,
-      "valid": true
+      "valid": false,
+      "rules": [
+        {
+          "severity": "warn",
+          "name": "no-orphans"
+        }
+      ]
     },
     {
       "source": "apps/web/src/features/editor-v2/types.ts",
       "dependencies": [],
       "dependents": [],
       "orphan": true,
-      "valid": true
+      "valid": false,
+      "rules": [
+        {
+          "severity": "warn",
+          "name": "no-orphans"
+        }
+      ]
     },
     {
       "source": "apps/web/src/lib/clerk-token-bridge.tsx",
@@ -1131,7 +1161,13 @@
       "dependencies": [],
       "dependents": [],
       "orphan": true,
-      "valid": true
+      "valid": false,
+      "rules": [
+        {
+          "severity": "warn",
+          "name": "no-orphans"
+        }
+      ]
     },
     {
       "source": "apps/web/src/routeTree.gen.ts",
@@ -1433,9 +1469,64 @@
     }
   ],
   "summary": {
-    "violations": [],
+    "violations": [
+      {
+        "type": "module",
+        "from": "apps/web/src/components/compare/align.ts",
+        "to": "apps/web/src/components/compare/align.ts",
+        "rule": {
+          "severity": "warn",
+          "name": "no-orphans"
+        }
+      },
+      {
+        "type": "module",
+        "from": "apps/web/src/data/demo-table-data.ts",
+        "to": "apps/web/src/data/demo-table-data.ts",
+        "rule": {
+          "severity": "warn",
+          "name": "no-orphans"
+        }
+      },
+      {
+        "type": "module",
+        "from": "apps/web/src/features/editor-v2/components/storybook.mocks.ts",
+        "to": "apps/web/src/features/editor-v2/components/storybook.mocks.ts",
+        "rule": {
+          "severity": "warn",
+          "name": "no-orphans"
+        }
+      },
+      {
+        "type": "module",
+        "from": "apps/web/src/features/editor-v2/demoStructures.ts",
+        "to": "apps/web/src/features/editor-v2/demoStructures.ts",
+        "rule": {
+          "severity": "warn",
+          "name": "no-orphans"
+        }
+      },
+      {
+        "type": "module",
+        "from": "apps/web/src/features/editor-v2/types.ts",
+        "to": "apps/web/src/features/editor-v2/types.ts",
+        "rule": {
+          "severity": "warn",
+          "name": "no-orphans"
+        }
+      },
+      {
+        "type": "module",
+        "from": "apps/web/src/lib/types.ts",
+        "to": "apps/web/src/lib/types.ts",
+        "rule": {
+          "severity": "warn",
+          "name": "no-orphans"
+        }
+      }
+    ],
     "error": 0,
-    "warn": 0,
+    "warn": 6,
     "info": 0,
     "ignore": 0,
     "totalCruised": 46,
@@ -1480,6 +1571,16 @@
     "ruleSetUsed": {
       "forbidden": [
         {
+          "name": "no-circular",
+          "severity": "error",
+          "comment": "Avoid circular dependencies.",
+          "from": {},
+          "to": {
+            "circular": true
+          },
+          "scope": "module"
+        },
+        {
           "name": "no-ui-to-features",
           "comment": "Base UI components must not depend on feature layer modules.",
           "severity": "error",
@@ -1489,6 +1590,41 @@
           "to": {
             "path": "^apps/web/src/features"
           },
+          "scope": "module"
+        },
+        {
+          "name": "no-server-to-ui-or-features",
+          "comment": "Server layer should stay independent from UI/feature presentation modules.",
+          "severity": "error",
+          "from": {
+            "path": "^apps/web/src/server"
+          },
+          "to": {
+            "path": "^apps/web/src/(components|features)"
+          },
+          "scope": "module"
+        },
+        {
+          "name": "no-feature-to-routes",
+          "comment": "Feature layer should not import route definitions.",
+          "severity": "error",
+          "from": {
+            "path": "^apps/web/src/features"
+          },
+          "to": {
+            "path": "^apps/web/src/routes"
+          },
+          "scope": "module"
+        },
+        {
+          "name": "no-orphans",
+          "comment": "Highlight orphaned modules to keep dead code visible. Promoted to warn for now.",
+          "severity": "warn",
+          "from": {
+            "orphan": true,
+            "pathNot": "^apps/web/src/(start\\.tsx|router\\.tsx|routeTree\\.gen\\.ts|worker\\.ts|types/.*\\.d\\.ts)$"
+          },
+          "to": {},
           "scope": "module"
         }
       ]

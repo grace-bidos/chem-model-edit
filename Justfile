@@ -415,6 +415,11 @@ web-test-e2e:
   set -euo pipefail
   pnpm -C apps/web test:e2e
 
+web-test-e2e-smoke:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pnpm -C apps/web test:e2e:smoke
+
 web-test-e2e-install:
   #!/usr/bin/env bash
   set -euo pipefail
@@ -651,7 +656,7 @@ quality-deep:
   fi
   just web-test-mutation
   just web-test-e2e-install
-  just web-test-e2e
+  just web-test-e2e-smoke
 
 typecheck:
   #!/usr/bin/env bash

@@ -42,12 +42,12 @@
 <!-- apps/web/src/components -->
 <g id="node1" class="node">
 <title>apps/web/src/components</title>
-<g id="a_node1"><a xlink:href="apps/web/src/components" xlink:title="components">
-<polygon fill="#ffffcc" stroke="black" points="529,-113 458,-113 456,-111 456,-95 527,-95 529,-97 529,-113"/>
-<polyline fill="none" stroke="black" points="527,-111 456,-111 "/>
-<polyline fill="none" stroke="black" points="527,-111 527,-95 "/>
-<polyline fill="none" stroke="black" points="527,-111 529,-113 "/>
-<text text-anchor="start" x="464" y="-101.8" font-family="Helvetica,sans-Serif" font-size="9.00">components</text>
+<g id="a_node1"><a xlink:href="apps/web/src/components" xlink:title="no&#45;orphans">
+<polygon fill="#ffffcc" stroke="orange" points="529,-113 458,-113 456,-111 456,-95 527,-95 529,-97 529,-113"/>
+<polyline fill="none" stroke="orange" points="527,-111 456,-111 "/>
+<polyline fill="none" stroke="orange" points="527,-111 527,-95 "/>
+<polyline fill="none" stroke="orange" points="527,-111 529,-113 "/>
+<text text-anchor="start" x="464" y="-101.8" font-family="Helvetica,sans-Serif" font-size="9.00" fill="orange">components</text>
 </a>
 </g>
 </g>
@@ -72,12 +72,12 @@
 <!-- apps/web/src/lib -->
 <g id="node3" class="node">
 <title>apps/web/src/lib</title>
-<g id="a_node3"><a xlink:href="apps/web/src/lib" xlink:title="lib">
-<polygon fill="#ccffcc" stroke="black" points="727,-133 675,-133 673,-131 673,-115 725,-115 727,-117 727,-133"/>
-<polyline fill="none" stroke="black" points="725,-131 673,-131 "/>
-<polyline fill="none" stroke="black" points="725,-131 725,-115 "/>
-<polyline fill="none" stroke="black" points="725,-131 727,-133 "/>
-<text text-anchor="start" x="694.5" y="-121.8" font-family="Helvetica,sans-Serif" font-size="9.00">lib</text>
+<g id="a_node3"><a xlink:href="apps/web/src/lib" xlink:title="no&#45;orphans">
+<polygon fill="#ccffcc" stroke="orange" points="727,-133 675,-133 673,-131 673,-115 725,-115 727,-117 727,-133"/>
+<polyline fill="none" stroke="orange" points="725,-131 673,-131 "/>
+<polyline fill="none" stroke="orange" points="725,-131 725,-115 "/>
+<polyline fill="none" stroke="orange" points="725,-131 727,-133 "/>
+<text text-anchor="start" x="694.5" y="-121.8" font-family="Helvetica,sans-Serif" font-size="9.00" fill="orange">lib</text>
 </a>
 </g>
 </g>
@@ -114,24 +114,24 @@
 <!-- apps/web/src/data -->
 <g id="node4" class="node">
 <title>apps/web/src/data</title>
-<g id="a_node4"><a xlink:href="apps/web/src/data" xlink:title="data">
-<polygon fill="#ccffcc" stroke="black" points="89,-200 37,-200 35,-198 35,-182 87,-182 89,-184 89,-200"/>
-<polyline fill="none" stroke="black" points="87,-198 35,-198 "/>
-<polyline fill="none" stroke="black" points="87,-198 87,-182 "/>
-<polyline fill="none" stroke="black" points="87,-198 89,-200 "/>
-<text text-anchor="start" x="51.5" y="-188.8" font-family="Helvetica,sans-Serif" font-size="9.00">data</text>
+<g id="a_node4"><a xlink:href="apps/web/src/data" xlink:title="no&#45;orphans">
+<polygon fill="#ccffcc" stroke="orange" points="89,-200 37,-200 35,-198 35,-182 87,-182 89,-184 89,-200"/>
+<polyline fill="none" stroke="orange" points="87,-198 35,-198 "/>
+<polyline fill="none" stroke="orange" points="87,-198 87,-182 "/>
+<polyline fill="none" stroke="orange" points="87,-198 89,-200 "/>
+<text text-anchor="start" x="51.5" y="-188.8" font-family="Helvetica,sans-Serif" font-size="9.00" fill="orange">data</text>
 </a>
 </g>
 </g>
 <!-- apps/web/src/features -->
 <g id="node5" class="node">
 <title>apps/web/src/features</title>
-<g id="a_node5"><a xlink:href="apps/web/src/features" xlink:title="features">
-<polygon fill="#ccffcc" stroke="black" points="332.5,-138 280.5,-138 278.5,-136 278.5,-120 330.5,-120 332.5,-122 332.5,-138"/>
-<polyline fill="none" stroke="black" points="330.5,-136 278.5,-136 "/>
-<polyline fill="none" stroke="black" points="330.5,-136 330.5,-120 "/>
-<polyline fill="none" stroke="black" points="330.5,-136 332.5,-138 "/>
-<text text-anchor="start" x="287" y="-126.8" font-family="Helvetica,sans-Serif" font-size="9.00">features</text>
+<g id="a_node5"><a xlink:href="apps/web/src/features" xlink:title="no&#45;orphans">
+<polygon fill="#ccffcc" stroke="orange" points="332.5,-138 280.5,-138 278.5,-136 278.5,-120 330.5,-120 332.5,-122 332.5,-138"/>
+<polyline fill="none" stroke="orange" points="330.5,-136 278.5,-136 "/>
+<polyline fill="none" stroke="orange" points="330.5,-136 330.5,-120 "/>
+<polyline fill="none" stroke="orange" points="330.5,-136 332.5,-138 "/>
+<text text-anchor="start" x="287" y="-126.8" font-family="Helvetica,sans-Serif" font-size="9.00" fill="orange">features</text>
 </a>
 </g>
 </g>
@@ -144,12 +144,12 @@
 <!-- apps/web/src/features/editor&#45;v2/components -->
 <g id="node6" class="node">
 <title>apps/web/src/features/editor&#45;v2/components</title>
-<g id="a_node6"><a xlink:href="apps/web/src/features/editor-v2/components" xlink:title="components">
-<polygon fill="#ccffcc" stroke="black" points="432,-138 361,-138 359,-136 359,-120 430,-120 432,-122 432,-138"/>
-<polyline fill="none" stroke="black" points="430,-136 359,-136 "/>
-<polyline fill="none" stroke="black" points="430,-136 430,-120 "/>
-<polyline fill="none" stroke="black" points="430,-136 432,-138 "/>
-<text text-anchor="start" x="367" y="-126.8" font-family="Helvetica,sans-Serif" font-size="9.00">components</text>
+<g id="a_node6"><a xlink:href="apps/web/src/features/editor-v2/components" xlink:title="no&#45;orphans">
+<polygon fill="#ccffcc" stroke="orange" points="432,-138 361,-138 359,-136 359,-120 430,-120 432,-122 432,-138"/>
+<polyline fill="none" stroke="orange" points="430,-136 359,-136 "/>
+<polyline fill="none" stroke="orange" points="430,-136 430,-120 "/>
+<polyline fill="none" stroke="orange" points="430,-136 432,-138 "/>
+<text text-anchor="start" x="367" y="-126.8" font-family="Helvetica,sans-Serif" font-size="9.00" fill="orange">components</text>
 </a>
 </g>
 </g>

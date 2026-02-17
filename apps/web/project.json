@@ -108,6 +108,12 @@
         "command": "pnpm -C apps/web test:e2e"
       }
     },
+    "e2e-smoke": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm -C apps/web test:e2e:smoke"
+      }
+    },
     "e2e-install": {
       "executor": "nx:run-commands",
       "options": {
