@@ -480,6 +480,64 @@ jobs:
         run: bash scripts/mutmut_smoke.sh
         working-directory: apps/api
 
+  security-promotion-evidence:
+    needs:
+      - changes
+      - route
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.api == 'true' }}
+    runs-on: ${{ fromJSON(needs.route.outputs.runner) }}
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
+      - name: Security promotion evidence (phase-1 non-blocking)
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          uv run --project apps/api python scripts/gh/security_phase1_promotion_report.py \
+            --repo "${GITHUB_REPOSITORY}" \
+            --workflow ci.yml \
+            --branch main \
+            --event push \
+            --window-size 10 \
+            --streak-size 5 \
+            --run-limit 20 \
+            --format markdown \
+            --markdown-out .ci-security-promotion-report.md \
+            --json-out .ci-security-promotion-report.json
+
+          if [[ -f .ci-security-promotion-report.md ]]; then
+            {
+              echo "## Security promotion readiness evidence"
+              cat .ci-security-promotion-report.md
+            } >> "${GITHUB_STEP_SUMMARY}"
+          else
+            {
+              echo "## Security promotion readiness evidence"
+              echo "- report generation failed (see step logs)"
+            } >> "${GITHUB_STEP_SUMMARY}"
+          fi
+      - name: Upload security promotion evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-security-phase1-promotion-evidence-${{ github.run_id }}
+          path: |
+            .ci-security-promotion-report.md
+            .ci-security-promotion-report.json
+          if-no-files-found: warn
+
   contract:
     needs:
       - changes
