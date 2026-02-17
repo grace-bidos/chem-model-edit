@@ -279,7 +279,9 @@ jobs:
       - changes
       - route
     if: ${{ github.event_name == 'push' || needs.changes.outputs.api == 'true' }}
-    runs-on: ${{ fromJSON(needs.route.outputs.runner) }}
+    # gitleaks-action cache extraction is unstable on our self-hosted pool (/tmp permission/path issues).
+    # Keep this phase-1 non-blocking lane on GitHub-hosted runners for deterministic behavior.
+    runs-on: ubuntu-latest
     continue-on-error: true
     steps:
       - name: Checkout
