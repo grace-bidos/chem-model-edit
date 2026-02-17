@@ -152,7 +152,8 @@ fi
 
 if [[ "$token_source" == "gh" || "$token_source" == "env" || "$token_source" == "app" ]]; then
   sudo install -d -m 0700 "$(dirname "$gh_token_file")"
-  sudo sh -c "umask 077; printf '%s\n' '$token_value' > '$gh_token_file'"
+  printf '%s\n' "$token_value" | sudo tee "$gh_token_file" >/dev/null
+  sudo chmod 600 "$gh_token_file"
 fi
 
 install_args=(

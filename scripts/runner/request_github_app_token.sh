@@ -23,7 +23,7 @@ EOF
 }
 
 b64url() {
-  openssl base64 -A | tr '+/' '-_' | tr -d '='
+  openssl base64 -A | tr -d '\n' | tr '+/' '-_' | tr -d '='
 }
 
 app_id=""
@@ -73,11 +73,20 @@ unsigned_token="$(printf '%s' "$header" | b64url).$(printf '%s' "$payload" | b64
 signature="$(printf '%s' "$unsigned_token" | openssl dgst -sha256 -sign "$private_key_file" -binary | b64url)"
 jwt="${unsigned_token}.${signature}"
 
-response="$(curl -fsSL \
+response_and_code="$(curl -sSL \
+  -w '\n%{http_code}' \
   -X POST \
   -H "Accept: application/vnd.github+json" \
   -H "Authorization: Bearer ${jwt}" \
   "${api_base}/app/installations/${installation_id}/access_tokens")"
+http_code="${response_and_code##*$'\n'}"
+response="${response_and_code%$'\n'*}"
+
+if [[ ! "$http_code" =~ ^2[0-9][0-9]$ ]]; then
+  echo "GitHub API returned HTTP ${http_code}." >&2
+  jq -r '.' <<<"$response" >&2 || printf '%s\n' "$response" >&2
+  exit 1
+fi
 
 if [[ "$output_mode" == "json" ]]; then
   printf '%s\n' "$response"
