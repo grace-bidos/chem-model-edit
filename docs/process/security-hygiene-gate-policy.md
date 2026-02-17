@@ -54,7 +54,24 @@ If any criterion fails, remain in phase-1 and keep collecting data.
 - CI must publish enough context to make promotion measurable:
   - counts for Bandit and pip-audit in job summary
   - downloadable artifacts for raw reports
+  - promotion evidence snapshot in markdown + machine-readable JSON (`.ci-security-promotion-report.md` / `.ci-security-promotion-report.json`)
 - Promotion decisions should be recorded in the relevant Linear child issue with run evidence links.
+
+## Promotion Evidence Command
+
+- Local/CI report generation command:
+  - `just api-security-promotion-evidence`
+- Script:
+  - `scripts/gh/security_phase1_promotion_report.py`
+- Data contract:
+  - reads workflow run/job data via `gh` JSON APIs
+  - evaluates promotion criteria over a 10-run measured window
+  - checks latest 5 consecutive runs for baseline stability
+  - emits markdown summary and JSON payload for automation
+- Exit semantics:
+  - default mode is non-blocking for findings/policy misses (exit `0`)
+  - non-zero exits are reserved for script/runtime failures
+  - use `--strict` to make unmet promotion criteria exit non-zero
 
 ## Local Workflow
 
@@ -64,6 +81,7 @@ Recommended local sequence before PR update:
 just api-security-bandit
 just api-security-audit
 just api-quality-security-hygiene
+just api-security-promotion-evidence
 ```
 
 For broader phase-1 parity checks:

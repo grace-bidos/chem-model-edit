@@ -141,6 +141,20 @@ api-security-audit:
   uv run pip-audit --progress-spinner off
   popd >/dev/null
 
+api-security-promotion-evidence:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  uv run python scripts/gh/security_phase1_promotion_report.py \
+    --workflow ci.yml \
+    --branch main \
+    --event push \
+    --window-size 10 \
+    --streak-size 5 \
+    --run-limit 20 \
+    --format markdown \
+    --markdown-out .ci-security-promotion-report.md \
+    --json-out .ci-security-promotion-report.json
+
 api-deadcode:
   #!/usr/bin/env bash
   set -euo pipefail

@@ -9,6 +9,7 @@ on:
 permissions:
   contents: read
   pull-requests: read
+  actions: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -261,6 +262,46 @@ jobs:
             apps/api/.ci-reports/security/bandit.json
             apps/api/.ci-reports/security/pip-audit.json
             .ci-security-summary.md
+          if-no-files-found: warn
+      - name: Security promotion evidence (phase-1 non-blocking)
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          uv run python scripts/gh/security_phase1_promotion_report.py \
+            --repo "${GITHUB_REPOSITORY}" \
+            --workflow ci.yml \
+            --branch main \
+            --event push \
+            --window-size 10 \
+            --streak-size 5 \
+            --run-limit 20 \
+            --format markdown \
+            --markdown-out .ci-security-promotion-report.md \
+            --json-out .ci-security-promotion-report.json
+
+          if [[ -f .ci-security-promotion-report.md ]]; then
+            {
+              echo ""
+              echo "## Security promotion readiness evidence"
+              cat .ci-security-promotion-report.md
+            } >> "${GITHUB_STEP_SUMMARY}"
+          else
+            {
+              echo ""
+              echo "## Security promotion readiness evidence"
+              echo "- report generation failed (see step logs)"
+            } >> "${GITHUB_STEP_SUMMARY}"
+          fi
+      - name: Upload security promotion evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-security-phase1-promotion-evidence-${{ github.run_id }}
+          path: |
+            .ci-security-promotion-report.md
+            .ci-security-promotion-report.json
           if-no-files-found: warn
       - name: Pytest
         run: uv run pytest --cov=app --cov=services --cov=main --cov-report=term-missing --cov-report=xml:coverage.xml
