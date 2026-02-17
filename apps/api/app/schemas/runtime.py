@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any, Literal
+from typing import cast
 
 from pydantic import Field, model_validator
 
@@ -95,8 +96,10 @@ class ExecutionEvent(ApiModel):
     def _normalize_event(cls, value: Any) -> Any:
         payload = _normalize_execution_event_payload(value)
         if isinstance(payload, dict) and "state" in payload:
-            payload["state"] = _normalize_aiida_state(payload.get("state"))
-        return payload
+            normalized = cast(dict[str, Any], payload)
+            normalized["state"] = _normalize_aiida_state(normalized.get("state"))
+            return normalized
+        return cast(Any, payload)
 
 
 class RuntimeJobStatusResponse(ApiModel):

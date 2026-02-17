@@ -32,6 +32,287 @@
         "title": "Atom",
         "type": "object"
       },
+      "ComputeFailedRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "error_code": {
+            "title": "Error Code",
+            "type": "string"
+          },
+          "error_message": {
+            "title": "Error Message",
+            "type": "string"
+          },
+          "execution_event": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExecutionFailedEvent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lease_id": {
+            "title": "Lease Id",
+            "type": "string"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "traceback": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Traceback"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "lease_id",
+          "error_code",
+          "error_message"
+        ],
+        "title": "ComputeFailedRequest",
+        "type": "object"
+      },
+      "ComputeFailedResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "ok": {
+            "default": true,
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "requeued": {
+            "title": "Requeued",
+            "type": "boolean"
+          },
+          "retry_count": {
+            "title": "Retry Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "requeued",
+          "retry_count"
+        ],
+        "title": "ComputeFailedResponse",
+        "type": "object"
+      },
+      "ComputeLeaseResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "lease_id": {
+            "title": "Lease Id",
+            "type": "string"
+          },
+          "lease_ttl_seconds": {
+            "title": "Lease Ttl Seconds",
+            "type": "integer"
+          },
+          "meta": {
+            "additionalProperties": true,
+            "title": "Meta",
+            "type": "object"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "title": "Payload",
+            "type": "object"
+          }
+        },
+        "required": [
+          "job_id",
+          "payload",
+          "lease_id",
+          "lease_ttl_seconds"
+        ],
+        "title": "ComputeLeaseResponse",
+        "type": "object"
+      },
+      "ComputeRegisterRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "activate_target": {
+            "default": false,
+            "title": "Activate Target",
+            "type": "boolean"
+          },
+          "meta": {
+            "additionalProperties": true,
+            "title": "Meta",
+            "type": "object"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "queue_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queue Name"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "ComputeRegisterRequest",
+        "type": "object"
+      },
+      "ComputeRegisterResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "registered_at": {
+            "title": "Registered At",
+            "type": "string"
+          },
+          "token_expires_at": {
+            "title": "Token Expires At",
+            "type": "string"
+          },
+          "token_ttl_seconds": {
+            "title": "Token Ttl Seconds",
+            "type": "integer"
+          },
+          "worker_token": {
+            "title": "Worker Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "registered_at",
+          "worker_token",
+          "token_expires_at",
+          "token_ttl_seconds"
+        ],
+        "title": "ComputeRegisterResponse",
+        "type": "object"
+      },
+      "ComputeResultRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "execution_event": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExecutionCompletedEvent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "freqs_csv": {
+            "title": "Freqs Csv",
+            "type": "string"
+          },
+          "lease_id": {
+            "title": "Lease Id",
+            "type": "string"
+          },
+          "meta": {
+            "additionalProperties": true,
+            "title": "Meta",
+            "type": "object"
+          },
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          },
+          "summary_text": {
+            "title": "Summary Text",
+            "type": "string"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "lease_id",
+          "result",
+          "summary_text",
+          "freqs_csv"
+        ],
+        "title": "ComputeResultRequest",
+        "type": "object"
+      },
+      "ComputeResultResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "idempotent": {
+            "default": false,
+            "title": "Idempotent",
+            "type": "boolean"
+          },
+          "ok": {
+            "default": true,
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "title": "ComputeResultResponse",
+        "type": "object"
+      },
+      "ComputeRevokeResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "revoked_count": {
+            "title": "Revoked Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revoked_count"
+        ],
+        "title": "ComputeRevokeResponse",
+        "type": "object"
+      },
       "DeltaTransplantRequest": {
         "additionalProperties": false,
         "properties": {
@@ -68,6 +349,70 @@
           "content"
         ],
         "title": "DeltaTransplantResponse",
+        "type": "object"
+      },
+      "EnrollTokenRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "ttl_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ttl Seconds"
+          }
+        },
+        "title": "EnrollTokenRequest",
+        "type": "object"
+      },
+      "EnrollTokenResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "expires_at": {
+            "title": "Expires At",
+            "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          },
+          "ttl_seconds": {
+            "title": "Ttl Seconds",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "token",
+          "expires_at",
+          "ttl_seconds"
+        ],
+        "title": "EnrollTokenResponse",
         "type": "object"
       },
       "ErrorInfo": {
@@ -133,6 +478,86 @@
           "retryable"
         ],
         "title": "EventError",
+        "type": "object"
+      },
+      "ExecutionCompletedEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "event_id": {
+            "title": "Event Id",
+            "type": "string"
+          },
+          "execution_id": {
+            "title": "Execution Id",
+            "type": "string"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "occurred_at": {
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "result_ref": {
+            "$ref": "#/components/schemas/ExecutionEventResultRef"
+          },
+          "scheduler_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExecutionEventSchedulerRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "const": "completed",
+            "title": "State",
+            "type": "string"
+          },
+          "status_detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Detail"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "trace_id": {
+            "title": "Trace Id",
+            "type": "string"
+          },
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_id",
+          "tenant_id",
+          "workspace_id",
+          "job_id",
+          "submission_id",
+          "execution_id",
+          "occurred_at",
+          "trace_id",
+          "state",
+          "result_ref"
+        ],
+        "title": "ExecutionCompletedEvent",
         "type": "object"
       },
       "ExecutionEvent": {
@@ -234,6 +659,175 @@
           "trace_id"
         ],
         "title": "ExecutionEvent",
+        "type": "object"
+      },
+      "ExecutionEventError": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "retryable": {
+            "title": "Retryable",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "retryable"
+        ],
+        "title": "ExecutionEventError",
+        "type": "object"
+      },
+      "ExecutionEventResultRef": {
+        "additionalProperties": false,
+        "properties": {
+          "metadata_uri": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata Uri"
+          },
+          "output_uri": {
+            "title": "Output Uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "output_uri"
+        ],
+        "title": "ExecutionEventResultRef",
+        "type": "object"
+      },
+      "ExecutionEventSchedulerRef": {
+        "additionalProperties": false,
+        "properties": {
+          "partition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partition"
+          },
+          "qos": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Qos"
+          },
+          "slurm_job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slurm Job Id"
+          }
+        },
+        "title": "ExecutionEventSchedulerRef",
+        "type": "object"
+      },
+      "ExecutionFailedEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ExecutionEventError"
+          },
+          "event_id": {
+            "title": "Event Id",
+            "type": "string"
+          },
+          "execution_id": {
+            "title": "Execution Id",
+            "type": "string"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "occurred_at": {
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "scheduler_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExecutionEventSchedulerRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "const": "failed",
+            "title": "State",
+            "type": "string"
+          },
+          "status_detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Detail"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "trace_id": {
+            "title": "Trace Id",
+            "type": "string"
+          },
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_id",
+          "tenant_id",
+          "workspace_id",
+          "job_id",
+          "submission_id",
+          "execution_id",
+          "occurred_at",
+          "trace_id",
+          "state",
+          "error"
+        ],
+        "title": "ExecutionFailedEvent",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -480,6 +1074,142 @@
         "title": "OnboardingValidationIssue",
         "type": "object"
       },
+      "OpsFlagsRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "dequeue_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dequeue Enabled"
+          },
+          "legacy_worker_endpoints_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Legacy Worker Endpoints Enabled"
+          },
+          "result_read_source": {
+            "anyOf": [
+              {
+                "enum": [
+                  "redis",
+                  "projection"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result Read Source"
+          },
+          "submission_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submission Enabled"
+          },
+          "submission_route": {
+            "anyOf": [
+              {
+                "enum": [
+                  "redis-worker",
+                  "next-gen"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submission Route"
+          }
+        },
+        "title": "OpsFlagsRequest",
+        "type": "object"
+      },
+      "OpsFlagsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "dequeue_enabled": {
+            "title": "Dequeue Enabled",
+            "type": "boolean"
+          },
+          "legacy_worker_endpoints_enabled": {
+            "title": "Legacy Worker Endpoints Enabled",
+            "type": "boolean"
+          },
+          "result_read_source": {
+            "enum": [
+              "redis",
+              "projection"
+            ],
+            "title": "Result Read Source",
+            "type": "string"
+          },
+          "submission_enabled": {
+            "title": "Submission Enabled",
+            "type": "boolean"
+          },
+          "submission_route": {
+            "enum": [
+              "redis-worker",
+              "next-gen"
+            ],
+            "title": "Submission Route",
+            "type": "string"
+          }
+        },
+        "required": [
+          "submission_enabled",
+          "dequeue_enabled",
+          "submission_route",
+          "result_read_source",
+          "legacy_worker_endpoints_enabled"
+        ],
+        "title": "OpsFlagsResponse",
+        "type": "object"
+      },
+      "Pagination": {
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Pagination",
+        "type": "object"
+      },
       "QeParameters": {
         "additionalProperties": false,
         "properties": {
@@ -529,6 +1259,92 @@
           }
         },
         "title": "QeParameters",
+        "type": "object"
+      },
+      "QueueTarget": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "queue_name": {
+            "title": "Queue Name",
+            "type": "string"
+          },
+          "registered_at": {
+            "title": "Registered At",
+            "type": "string"
+          },
+          "server_id": {
+            "title": "Server Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "queue_name",
+          "server_id",
+          "registered_at"
+        ],
+        "title": "QueueTarget",
+        "type": "object"
+      },
+      "QueueTargetListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "active_target_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Target Id"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          },
+          "targets": {
+            "items": {
+              "$ref": "#/components/schemas/QueueTarget"
+            },
+            "title": "Targets",
+            "type": "array"
+          }
+        },
+        "required": [
+          "targets",
+          "pagination"
+        ],
+        "title": "QueueTargetListResponse",
+        "type": "object"
+      },
+      "QueueTargetSelectResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "active_target_id": {
+            "title": "Active Target Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "active_target_id"
+        ],
+        "title": "QueueTargetSelectResponse",
         "type": "object"
       },
       "ResultRef": {
@@ -1395,6 +2211,100 @@
         "title": "Vector3",
         "type": "object"
       },
+      "ZPEJobRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "calc_mode": {
+            "default": "continue",
+            "enum": [
+              "new",
+              "continue"
+            ],
+            "title": "Calc Mode",
+            "type": "string"
+          },
+          "calc_type": {
+            "default": "qe.zpe.v1",
+            "enum": [
+              "qe.zpe.v1",
+              "qe.relax.v1"
+            ],
+            "title": "Calc Type",
+            "type": "string"
+          },
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "input_dir": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Dir"
+          },
+          "mobile_indices": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Mobile Indices",
+            "type": "array"
+          },
+          "structure_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Structure Id"
+          },
+          "use_environ": {
+            "default": false,
+            "title": "Use Environ",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "content",
+          "mobile_indices"
+        ],
+        "title": "ZPEJobRequest",
+        "type": "object"
+      },
+      "ZPEJobResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "ZPEJobResponse",
+        "type": "object"
+      },
+      "ZPEJobResultResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {
+            "$ref": "#/components/schemas/ZPEResult"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "ZPEJobResultResponse",
+        "type": "object"
+      },
       "ZPEJobStatus": {
         "additionalProperties": false,
         "properties": {
@@ -1435,6 +2345,230 @@
           "status"
         ],
         "title": "ZPEJobStatus",
+        "type": "object"
+      },
+      "ZPEParseRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "structure_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Structure Id"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "title": "ZPEParseRequest",
+        "type": "object"
+      },
+      "ZPEParseResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "atomic_species": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Atomic Species",
+            "type": "object"
+          },
+          "fixed_indices": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Fixed Indices",
+            "type": "array"
+          },
+          "kpoints": {
+            "anyOf": [
+              {
+                "maxItems": 3,
+                "minItems": 3,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kpoints"
+          },
+          "structure": {
+            "$ref": "#/components/schemas/Structure-Output"
+          }
+        },
+        "required": [
+          "structure",
+          "fixed_indices"
+        ],
+        "title": "ZPEParseResponse",
+        "type": "object"
+      },
+      "ZPEResult": {
+        "additionalProperties": false,
+        "properties": {
+          "cache_checked": {
+            "title": "Cache Checked",
+            "type": "integer"
+          },
+          "cache_deleted": {
+            "title": "Cache Deleted",
+            "type": "integer"
+          },
+          "calc_end_time": {
+            "title": "Calc End Time",
+            "type": "string"
+          },
+          "calc_start_time": {
+            "title": "Calc Start Time",
+            "type": "string"
+          },
+          "calc_type": {
+            "default": "qe.zpe.v1",
+            "enum": [
+              "qe.zpe.v1",
+              "qe.relax.v1"
+            ],
+            "title": "Calc Type",
+            "type": "string"
+          },
+          "delta": {
+            "title": "Delta",
+            "type": "number"
+          },
+          "ecutrho": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ecutrho"
+          },
+          "ecutwfc": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ecutwfc"
+          },
+          "elapsed_seconds": {
+            "title": "Elapsed Seconds",
+            "type": "number"
+          },
+          "fixed_indices": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Fixed Indices",
+            "type": "array"
+          },
+          "freqs_cm": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Freqs Cm",
+            "type": "array"
+          },
+          "kpoints": {
+            "maxItems": 3,
+            "minItems": 3,
+            "prefixItems": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Kpoints",
+            "type": "array"
+          },
+          "low_cut_cm": {
+            "title": "Low Cut Cm",
+            "type": "number"
+          },
+          "mobile_indices": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Mobile Indices",
+            "type": "array"
+          },
+          "pseudo_dir": {
+            "title": "Pseudo Dir",
+            "type": "string"
+          },
+          "qe_input": {
+            "title": "Qe Input",
+            "type": "string"
+          },
+          "s_vib_jmol_k": {
+            "title": "S Vib Jmol K",
+            "type": "number"
+          },
+          "temperature": {
+            "title": "Temperature",
+            "type": "number"
+          },
+          "use_environ": {
+            "title": "Use Environ",
+            "type": "boolean"
+          },
+          "zpe_ev": {
+            "title": "Zpe Ev",
+            "type": "number"
+          }
+        },
+        "required": [
+          "freqs_cm",
+          "zpe_ev",
+          "s_vib_jmol_k",
+          "mobile_indices",
+          "fixed_indices",
+          "kpoints",
+          "delta",
+          "low_cut_cm",
+          "temperature",
+          "use_environ",
+          "qe_input",
+          "pseudo_dir",
+          "calc_start_time",
+          "calc_end_time",
+          "elapsed_seconds",
+          "cache_checked",
+          "cache_deleted"
+        ],
+        "title": "ZPEResult",
         "type": "object"
       }
     }
@@ -2094,6 +3228,631 @@
           }
         },
         "summary": "Onboarding Dry Run",
+        "tags": [
+          "zpe"
+        ]
+      }
+    },
+    "/api/zpe/admin/ops": {
+      "get": {
+        "operationId": "zpe_ops_flags_api_zpe_admin_ops_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsFlagsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Zpe Ops Flags",
+        "tags": [
+          "zpe"
+        ]
+      },
+      "patch": {
+        "operationId": "zpe_ops_flags_update_api_zpe_admin_ops_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpsFlagsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsFlagsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Zpe Ops Flags Update",
+        "tags": [
+          "zpe"
+        ]
+      }
+    },
+    "/api/zpe/compute/enroll-tokens": {
+      "post": {
+        "operationId": "zpe_compute_enroll_token_api_zpe_compute_enroll_tokens_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnrollTokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrollTokenResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Zpe Compute Enroll Token",
+        "tags": [
+          "zpe"
+        ]
+      }
+    },
+    "/api/zpe/compute/jobs/lease": {
+      "post": {
+        "operationId": "zpe_compute_lease_api_zpe_compute_jobs_lease_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComputeLeaseResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Zpe Compute Lease",
+        "tags": [
+          "zpe"
+        ]
+      }
+    },
+    "/api/zpe/compute/jobs/{job_id}/failed": {
+      "post": {
+        "operationId": "zpe_compute_failed_api_zpe_compute_jobs__job_id__failed_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComputeFailedRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComputeFailedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Zpe Compute Failed",
+        "tags": [
+          "zpe"
+        ]
+      }
+    },
+    "/api/zpe/compute/jobs/{job_id}/result": {
+      "post": {
+        "operationId": "zpe_compute_result_api_zpe_compute_jobs__job_id__result_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComputeResultRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComputeResultResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Zpe Compute Result",
+        "tags": [
+          "zpe"
+        ]
+      }
+    },
+    "/api/zpe/compute/servers": {
+      "post": {
+        "operationId": "zpe_compute_register_api_zpe_compute_servers_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComputeRegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComputeRegisterResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Zpe Compute Register",
+        "tags": [
+          "zpe"
+        ]
+      }
+    },
+    "/api/zpe/compute/servers/{server_id}": {
+      "delete": {
+        "operationId": "zpe_compute_revoke_api_zpe_compute_servers__server_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "server_id",
+            "required": true,
+            "schema": {
+              "title": "Server Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComputeRevokeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Zpe Compute Revoke",
+        "tags": [
+          "zpe"
+        ]
+      }
+    },
+    "/api/zpe/jobs": {
+      "post": {
+        "operationId": "zpe_jobs_api_zpe_jobs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ZPEJobRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZPEJobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Zpe Jobs",
+        "tags": [
+          "zpe"
+        ]
+      }
+    },
+    "/api/zpe/jobs/{job_id}": {
+      "get": {
+        "operationId": "zpe_job_status_api_zpe_jobs__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZPEJobStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Zpe Job Status",
+        "tags": [
+          "zpe"
+        ]
+      }
+    },
+    "/api/zpe/jobs/{job_id}/files": {
+      "get": {
+        "operationId": "zpe_job_files_api_zpe_jobs__job_id__files_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": [
+                "summary",
+                "freqs"
+              ],
+              "title": "Kind",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Zpe Job Files",
+        "tags": [
+          "zpe"
+        ]
+      }
+    },
+    "/api/zpe/jobs/{job_id}/result": {
+      "get": {
+        "operationId": "zpe_job_result_api_zpe_jobs__job_id__result_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZPEJobResultResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Zpe Job Result",
+        "tags": [
+          "zpe"
+        ]
+      }
+    },
+    "/api/zpe/parse": {
+      "post": {
+        "operationId": "zpe_parse_api_zpe_parse_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ZPEParseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZPEParseResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Zpe Parse",
+        "tags": [
+          "zpe"
+        ]
+      }
+    },
+    "/api/zpe/targets": {
+      "get": {
+        "operationId": "list_queue_targets_api_zpe_targets_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueTargetListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Queue Targets",
+        "tags": [
+          "zpe"
+        ]
+      }
+    },
+    "/api/zpe/targets/{target_id}/active": {
+      "put": {
+        "operationId": "select_queue_target_api_zpe_targets__target_id__active_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "target_id",
+            "required": true,
+            "schema": {
+              "title": "Target Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueTargetSelectResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Select Queue Target",
         "tags": [
           "zpe"
         ]

@@ -276,6 +276,245 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/zpe/admin/ops": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Zpe Ops Flags */
+        get: operations["zpe_ops_flags_api_zpe_admin_ops_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Zpe Ops Flags Update */
+        patch: operations["zpe_ops_flags_update_api_zpe_admin_ops_patch"];
+        trace?: never;
+    };
+    "/api/zpe/compute/enroll-tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Zpe Compute Enroll Token */
+        post: operations["zpe_compute_enroll_token_api_zpe_compute_enroll_tokens_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/zpe/compute/jobs/lease": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Zpe Compute Lease */
+        post: operations["zpe_compute_lease_api_zpe_compute_jobs_lease_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/zpe/compute/jobs/{job_id}/failed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Zpe Compute Failed */
+        post: operations["zpe_compute_failed_api_zpe_compute_jobs__job_id__failed_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/zpe/compute/jobs/{job_id}/result": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Zpe Compute Result */
+        post: operations["zpe_compute_result_api_zpe_compute_jobs__job_id__result_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/zpe/compute/servers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Zpe Compute Register */
+        post: operations["zpe_compute_register_api_zpe_compute_servers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/zpe/compute/servers/{server_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Zpe Compute Revoke */
+        delete: operations["zpe_compute_revoke_api_zpe_compute_servers__server_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/zpe/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Zpe Jobs */
+        post: operations["zpe_jobs_api_zpe_jobs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/zpe/jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Zpe Job Status */
+        get: operations["zpe_job_status_api_zpe_jobs__job_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/zpe/jobs/{job_id}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Zpe Job Files */
+        get: operations["zpe_job_files_api_zpe_jobs__job_id__files_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/zpe/jobs/{job_id}/result": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Zpe Job Result */
+        get: operations["zpe_job_result_api_zpe_jobs__job_id__result_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/zpe/parse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Zpe Parse */
+        post: operations["zpe_parse_api_zpe_parse_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/zpe/targets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Queue Targets */
+        get: operations["list_queue_targets_api_zpe_targets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/zpe/targets/{target_id}/active": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Select Queue Target */
+        put: operations["select_queue_target_api_zpe_targets__target_id__active_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -291,6 +530,120 @@ export interface components {
             /** Z */
             z: number;
         };
+        /** ComputeFailedRequest */
+        ComputeFailedRequest: {
+            /** Error Code */
+            error_code: string;
+            /** Error Message */
+            error_message: string;
+            execution_event?: components["schemas"]["ExecutionFailedEvent"] | null;
+            /** Lease Id */
+            lease_id: string;
+            /** Tenant Id */
+            tenant_id: string;
+            /** Traceback */
+            traceback?: string | null;
+        };
+        /** ComputeFailedResponse */
+        ComputeFailedResponse: {
+            /**
+             * Ok
+             * @default true
+             */
+            ok: boolean;
+            /** Requeued */
+            requeued: boolean;
+            /** Retry Count */
+            retry_count: number;
+        };
+        /** ComputeLeaseResponse */
+        ComputeLeaseResponse: {
+            /** Job Id */
+            job_id: string;
+            /** Lease Id */
+            lease_id: string;
+            /** Lease Ttl Seconds */
+            lease_ttl_seconds: number;
+            /** Meta */
+            meta?: {
+                [key: string]: unknown;
+            };
+            /** Payload */
+            payload: {
+                [key: string]: unknown;
+            };
+        };
+        /** ComputeRegisterRequest */
+        ComputeRegisterRequest: {
+            /**
+             * Activate Target
+             * @default false
+             */
+            activate_target: boolean;
+            /** Meta */
+            meta?: {
+                [key: string]: unknown;
+            };
+            /** Name */
+            name?: string | null;
+            /** Queue Name */
+            queue_name?: string | null;
+            /** Token */
+            token: string;
+        };
+        /** ComputeRegisterResponse */
+        ComputeRegisterResponse: {
+            /** Id */
+            id: string;
+            /** Name */
+            name?: string | null;
+            /** Registered At */
+            registered_at: string;
+            /** Token Expires At */
+            token_expires_at: string;
+            /** Token Ttl Seconds */
+            token_ttl_seconds: number;
+            /** Worker Token */
+            worker_token: string;
+        };
+        /** ComputeResultRequest */
+        ComputeResultRequest: {
+            execution_event?: components["schemas"]["ExecutionCompletedEvent"] | null;
+            /** Freqs Csv */
+            freqs_csv: string;
+            /** Lease Id */
+            lease_id: string;
+            /** Meta */
+            meta?: {
+                [key: string]: unknown;
+            };
+            /** Result */
+            result: {
+                [key: string]: unknown;
+            };
+            /** Summary Text */
+            summary_text: string;
+            /** Tenant Id */
+            tenant_id: string;
+        };
+        /** ComputeResultResponse */
+        ComputeResultResponse: {
+            /**
+             * Idempotent
+             * @default false
+             */
+            idempotent: boolean;
+            /**
+             * Ok
+             * @default true
+             */
+            ok: boolean;
+        };
+        /** ComputeRevokeResponse */
+        ComputeRevokeResponse: {
+            /** Revoked Count */
+            revoked_count: number;
+        };
         /** DeltaTransplantRequest */
         DeltaTransplantRequest: {
             /** Large In */
@@ -304,6 +657,24 @@ export interface components {
         DeltaTransplantResponse: {
             /** Content */
             content: string;
+        };
+        /** EnrollTokenRequest */
+        EnrollTokenRequest: {
+            /** Label */
+            label?: string | null;
+            /** Ttl Seconds */
+            ttl_seconds?: number | null;
+        };
+        /** EnrollTokenResponse */
+        EnrollTokenResponse: {
+            /** Expires At */
+            expires_at: string;
+            /** Label */
+            label?: string | null;
+            /** Token */
+            token: string;
+            /** Ttl Seconds */
+            ttl_seconds: number;
         };
         /** ErrorInfo */
         ErrorInfo: {
@@ -327,6 +698,34 @@ export interface components {
             /** Retryable */
             retryable: boolean;
         };
+        /** ExecutionCompletedEvent */
+        ExecutionCompletedEvent: {
+            /** Event Id */
+            event_id: string;
+            /** Execution Id */
+            execution_id: string;
+            /** Job Id */
+            job_id: string;
+            /** Occurred At */
+            occurred_at: string;
+            result_ref: components["schemas"]["ExecutionEventResultRef"];
+            scheduler_ref?: components["schemas"]["ExecutionEventSchedulerRef"] | null;
+            /**
+             * State
+             * @constant
+             */
+            state: "completed";
+            /** Status Detail */
+            status_detail?: string | null;
+            /** Submission Id */
+            submission_id: string;
+            /** Tenant Id */
+            tenant_id: string;
+            /** Trace Id */
+            trace_id: string;
+            /** Workspace Id */
+            workspace_id: string;
+        };
         /** ExecutionEvent */
         ExecutionEvent: {
             error?: components["schemas"]["EventError"] | null;
@@ -345,6 +744,59 @@ export interface components {
              * @enum {string}
              */
             state: "accepted" | "running" | "completed" | "failed";
+            /** Status Detail */
+            status_detail?: string | null;
+            /** Submission Id */
+            submission_id: string;
+            /** Tenant Id */
+            tenant_id: string;
+            /** Trace Id */
+            trace_id: string;
+            /** Workspace Id */
+            workspace_id: string;
+        };
+        /** ExecutionEventError */
+        ExecutionEventError: {
+            /** Code */
+            code: string;
+            /** Message */
+            message: string;
+            /** Retryable */
+            retryable: boolean;
+        };
+        /** ExecutionEventResultRef */
+        ExecutionEventResultRef: {
+            /** Metadata Uri */
+            metadata_uri?: string | null;
+            /** Output Uri */
+            output_uri: string;
+        };
+        /** ExecutionEventSchedulerRef */
+        ExecutionEventSchedulerRef: {
+            /** Partition */
+            partition?: string | null;
+            /** Qos */
+            qos?: string | null;
+            /** Slurm Job Id */
+            slurm_job_id?: string | null;
+        };
+        /** ExecutionFailedEvent */
+        ExecutionFailedEvent: {
+            error: components["schemas"]["ExecutionEventError"];
+            /** Event Id */
+            event_id: string;
+            /** Execution Id */
+            execution_id: string;
+            /** Job Id */
+            job_id: string;
+            /** Occurred At */
+            occurred_at: string;
+            scheduler_ref?: components["schemas"]["ExecutionEventSchedulerRef"] | null;
+            /**
+             * State
+             * @constant
+             */
+            state: "failed";
             /** Status Detail */
             status_detail?: string | null;
             /** Submission Id */
@@ -446,6 +898,47 @@ export interface components {
              */
             section: "manifest" | "policy" | "registration" | "queue_resolution";
         };
+        /** OpsFlagsRequest */
+        OpsFlagsRequest: {
+            /** Dequeue Enabled */
+            dequeue_enabled?: boolean | null;
+            /** Legacy Worker Endpoints Enabled */
+            legacy_worker_endpoints_enabled?: boolean | null;
+            /** Result Read Source */
+            result_read_source?: ("redis" | "projection") | null;
+            /** Submission Enabled */
+            submission_enabled?: boolean | null;
+            /** Submission Route */
+            submission_route?: ("redis-worker" | "next-gen") | null;
+        };
+        /** OpsFlagsResponse */
+        OpsFlagsResponse: {
+            /** Dequeue Enabled */
+            dequeue_enabled: boolean;
+            /** Legacy Worker Endpoints Enabled */
+            legacy_worker_endpoints_enabled: boolean;
+            /**
+             * Result Read Source
+             * @enum {string}
+             */
+            result_read_source: "redis" | "projection";
+            /** Submission Enabled */
+            submission_enabled: boolean;
+            /**
+             * Submission Route
+             * @enum {string}
+             */
+            submission_route: "redis-worker" | "next-gen";
+        };
+        /** Pagination */
+        Pagination: {
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** Total */
+            total: number;
+        };
         /** QeParameters */
         QeParameters: {
             /** Cell */
@@ -476,6 +969,32 @@ export interface components {
             system?: {
                 [key: string]: unknown;
             };
+        };
+        /** QueueTarget */
+        QueueTarget: {
+            /** Id */
+            id: string;
+            /** Name */
+            name?: string | null;
+            /** Queue Name */
+            queue_name: string;
+            /** Registered At */
+            registered_at: string;
+            /** Server Id */
+            server_id: string;
+        };
+        /** QueueTargetListResponse */
+        QueueTargetListResponse: {
+            /** Active Target Id */
+            active_target_id?: string | null;
+            pagination: components["schemas"]["Pagination"];
+            /** Targets */
+            targets: components["schemas"]["QueueTarget"][];
+        };
+        /** QueueTargetSelectResponse */
+        QueueTargetSelectResponse: {
+            /** Active Target Id */
+            active_target_id: string;
         };
         /** ResultRef */
         ResultRef: {
@@ -744,6 +1263,43 @@ export interface components {
             /** Z */
             z: number;
         };
+        /** ZPEJobRequest */
+        ZPEJobRequest: {
+            /**
+             * Calc Mode
+             * @default continue
+             * @enum {string}
+             */
+            calc_mode: "new" | "continue";
+            /**
+             * Calc Type
+             * @default qe.zpe.v1
+             * @enum {string}
+             */
+            calc_type: "qe.zpe.v1" | "qe.relax.v1";
+            /** Content */
+            content: string;
+            /** Input Dir */
+            input_dir?: string | null;
+            /** Mobile Indices */
+            mobile_indices: number[];
+            /** Structure Id */
+            structure_id?: string | null;
+            /**
+             * Use Environ
+             * @default false
+             */
+            use_environ: boolean;
+        };
+        /** ZPEJobResponse */
+        ZPEJobResponse: {
+            /** Id */
+            id: string;
+        };
+        /** ZPEJobResultResponse */
+        ZPEJobResultResponse: {
+            result: components["schemas"]["ZPEResult"];
+        };
         /** ZPEJobStatus */
         ZPEJobStatus: {
             /** Detail */
@@ -755,6 +1311,80 @@ export interface components {
             status: "queued" | "started" | "finished" | "failed";
             /** Updated At */
             updated_at?: string | null;
+        };
+        /** ZPEParseRequest */
+        ZPEParseRequest: {
+            /** Content */
+            content: string;
+            /** Structure Id */
+            structure_id?: string | null;
+        };
+        /** ZPEParseResponse */
+        ZPEParseResponse: {
+            /** Atomic Species */
+            atomic_species?: {
+                [key: string]: string;
+            };
+            /** Fixed Indices */
+            fixed_indices: number[];
+            /** Kpoints */
+            kpoints?: [
+                number,
+                number,
+                number
+            ] | null;
+            structure: components["schemas"]["Structure-Output"];
+        };
+        /** ZPEResult */
+        ZPEResult: {
+            /** Cache Checked */
+            cache_checked: number;
+            /** Cache Deleted */
+            cache_deleted: number;
+            /** Calc End Time */
+            calc_end_time: string;
+            /** Calc Start Time */
+            calc_start_time: string;
+            /**
+             * Calc Type
+             * @default qe.zpe.v1
+             * @enum {string}
+             */
+            calc_type: "qe.zpe.v1" | "qe.relax.v1";
+            /** Delta */
+            delta: number;
+            /** Ecutrho */
+            ecutrho?: number | null;
+            /** Ecutwfc */
+            ecutwfc?: number | null;
+            /** Elapsed Seconds */
+            elapsed_seconds: number;
+            /** Fixed Indices */
+            fixed_indices: number[];
+            /** Freqs Cm */
+            freqs_cm: number[];
+            /** Kpoints */
+            kpoints: [
+                number,
+                number,
+                number
+            ];
+            /** Low Cut Cm */
+            low_cut_cm: number;
+            /** Mobile Indices */
+            mobile_indices: number[];
+            /** Pseudo Dir */
+            pseudo_dir: string;
+            /** Qe Input */
+            qe_input: string;
+            /** S Vib Jmol K */
+            s_vib_jmol_k: number;
+            /** Temperature */
+            temperature: number;
+            /** Use Environ */
+            use_environ: boolean;
+            /** Zpe Ev */
+            zpe_ev: number;
         };
     };
     responses: never;
@@ -1263,6 +1893,470 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    zpe_ops_flags_api_zpe_admin_ops_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpsFlagsResponse"];
+                };
+            };
+        };
+    };
+    zpe_ops_flags_update_api_zpe_admin_ops_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpsFlagsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpsFlagsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    zpe_compute_enroll_token_api_zpe_compute_enroll_tokens_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnrollTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollTokenResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    zpe_compute_lease_api_zpe_compute_jobs_lease_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeLeaseResponse"];
+                };
+            };
+        };
+    };
+    zpe_compute_failed_api_zpe_compute_jobs__job_id__failed_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComputeFailedRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeFailedResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    zpe_compute_result_api_zpe_compute_jobs__job_id__result_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComputeResultRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeResultResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    zpe_compute_register_api_zpe_compute_servers_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComputeRegisterRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeRegisterResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    zpe_compute_revoke_api_zpe_compute_servers__server_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeRevokeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    zpe_jobs_api_zpe_jobs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ZPEJobRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZPEJobResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    zpe_job_status_api_zpe_jobs__job_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZPEJobStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    zpe_job_files_api_zpe_jobs__job_id__files_get: {
+        parameters: {
+            query: {
+                kind: "summary" | "freqs";
+            };
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    zpe_job_result_api_zpe_jobs__job_id__result_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZPEJobResultResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    zpe_parse_api_zpe_parse_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ZPEParseRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZPEParseResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_queue_targets_api_zpe_targets_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueueTargetListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    select_queue_target_api_zpe_targets__target_id__active_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                target_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueueTargetSelectResponse"];
                 };
             };
             /** @description Validation Error */

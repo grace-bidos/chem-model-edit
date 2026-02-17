@@ -366,11 +366,11 @@ class RuntimeStore:
         }
 
 
-_STORE: RuntimeStore | None = None
+_store_instance: RuntimeStore | None = None
 
 
 def get_runtime_store() -> RuntimeStore:
-    global _STORE
-    if _STORE is None:
-        _STORE = RuntimeStore()
-    return _STORE
+    global _store_instance
+    if _store_instance is None:
+        _store_instance = RuntimeStore()
+    return _store_instance
