@@ -39,9 +39,12 @@ Fallback target is always `ubuntu-latest`.
 - `1 VM = 1 Job` is the safest default and is recommended.
 - Warm standby (`1 idle VM`) typically saves most of boot overhead.
 - For local persistent pool operation, use:
-  - baseline concurrency: `--baseline` (floor)
+  - minimum warm concurrency: `--min` (floor)
   - max concurrency: `--max` (ceiling)
   - current desired concurrency: `--target` (optional, clamped to floor/ceiling)
+  - machine-readable outputs:
+    - `--inventory-out <path>` for runner inventory snapshot JSON
+    - `--status-out <path>` for scaler run status JSON
   - recommended control mode: always-on supervisor
     - `scripts/runner/setup_pool_supervisor_one_command.sh`
 - Practical impact target:

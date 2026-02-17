@@ -175,7 +175,7 @@ Required env args are always:
 - `RUNNER_LABELS`
 - `RUNNER_GROUP`
 
-## 9.1) Scale local runner pool (baseline/max/target)
+## 9.1) Scale local runner pool (min/max/target)
 
 Use this when you want to run multiple trusted PR jobs in parallel on local self-hosted runners.
 
@@ -184,16 +184,27 @@ Example: keep floor `1`, allow up to `4`, and scale now to `4`.
 ```bash
 scripts/runner/scale_local_runner_pool.sh \
   --repo grace-bidos/chem-model-edit \
-  --baseline 1 \
+  --min 1 \
   --max 4 \
   --target 4
 ```
 
 Notes:
 
-- `--target` is optional. If omitted, baseline is applied.
-- Effective target is clamped to `[baseline, max]`.
+- `--target` is optional. If omitted, min is applied.
+- Effective target is clamped to `[min, max]`.
 - Runner naming remains `home-self-host`, `home-self-host-2`, ...
+- For automation/integration, emit machine-readable JSON:
+
+```bash
+scripts/runner/scale_local_runner_pool.sh \
+  --repo grace-bidos/chem-model-edit \
+  --min 1 \
+  --max 4 \
+  --target 4 \
+  --inventory-out /tmp/runner-pool-inventory.json \
+  --status-out /tmp/runner-pool-status.json
+```
 
 ## 9.2) Keep 4 warm slots with always-on supervisor (recommended)
 
@@ -205,7 +216,7 @@ One-command setup:
 sudo -v
 scripts/runner/setup_pool_supervisor_one_command.sh \
   --repo grace-bidos/chem-model-edit \
-  --baseline 1 \
+  --min 1 \
   --max 4 \
   --target 4 \
   --interval 15
