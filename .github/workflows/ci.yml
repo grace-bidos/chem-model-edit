@@ -29,6 +29,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+          fetch-depth: 0
       - name: Detect code changes
         id: filter
         uses: dorny/paths-filter@v3
