@@ -21,6 +21,8 @@ Options:
   --app-id <id>                     Required for app mode.
   --app-installation-id <id>        Required for app mode.
   --app-private-key-file <path>     Required for app mode.
+  --app-token-refresh-interval <d>  Default: 30min (app mode only).
+  --disable-app-token-refresh-setup Disable automated refresh setup in app mode.
   --allow-expiring-app-token        Explicitly allow one-shot app token bootstrap
                                     without automated refresh.
   --disable-timer                   Disable old reconcile timer (default: on)
@@ -31,8 +33,8 @@ Token source behavior:
   gh   : use `gh auth token`
   env  : use existing GH_TOKEN env var
   file : do not write token file; only use existing --gh-token-file
-  app  : request short-lived installation token via GitHub App credentials.
-         Requires explicit `--allow-expiring-app-token` acknowledgement.
+  app  : install automated refresh timer/service and rotate short-lived
+         installation token file continuously.
 EOF
 }
 
@@ -47,6 +49,8 @@ token_source="gh"
 app_id=""
 app_installation_id=""
 app_private_key_file=""
+app_token_refresh_interval="30min"
+disable_app_token_refresh_setup=0
 allow_expiring_app_token=0
 disable_timer=1
 dry_run=0
@@ -65,6 +69,8 @@ while [[ $# -gt 0 ]]; do
     --app-id) app_id="${2:-}"; shift 2 ;;
     --app-installation-id) app_installation_id="${2:-}"; shift 2 ;;
     --app-private-key-file) app_private_key_file="${2:-}"; shift 2 ;;
+    --app-token-refresh-interval) app_token_refresh_interval="${2:-}"; shift 2 ;;
+    --disable-app-token-refresh-setup) disable_app_token_refresh_setup=1; shift ;;
     --allow-expiring-app-token) allow_expiring_app_token=1; shift ;;
     --disable-timer) disable_timer=1; shift ;;
     --dry-run) dry_run=1; shift ;;
@@ -112,34 +118,47 @@ elif [[ "$token_source" == "app" ]]; then
     echo "app mode requires --app-id, --app-installation-id, and --app-private-key-file" >&2
     exit 1
   fi
-  if [[ "$allow_expiring_app_token" -ne 1 ]]; then
-    echo "app mode requires --allow-expiring-app-token acknowledgement." >&2
-    echo "Reason: supervisor is long-running but app installation token is short-lived." >&2
-    echo "Use token-source gh|env|file or implement automated refresh before app mode." >&2
-    exit 1
-  fi
-  app_token_script="${script_dir}/request_github_app_token.sh"
-  if [[ ! -x "$app_token_script" ]]; then
-    echo "missing executable: $app_token_script" >&2
-    exit 1
-  fi
-  token_value="$("$app_token_script" \
-    --app-id "$app_id" \
-    --installation-id "$app_installation_id" \
-    --private-key-file "$app_private_key_file")"
-  if [[ -z "$token_value" ]]; then
-    echo "Failed to obtain GitHub App installation token." >&2
-    exit 1
+  if [[ "$disable_app_token_refresh_setup" -eq 1 ]]; then
+    if [[ "$allow_expiring_app_token" -ne 1 ]]; then
+      echo "app mode without refresh setup requires --allow-expiring-app-token." >&2
+      exit 1
+    fi
+    app_token_script="${script_dir}/request_github_app_token.sh"
+    if [[ ! -x "$app_token_script" ]]; then
+      echo "missing executable: $app_token_script" >&2
+      exit 1
+    fi
+    token_value="$("$app_token_script" \
+      --app-id "$app_id" \
+      --installation-id "$app_installation_id" \
+      --private-key-file "$app_private_key_file")"
+    if [[ -z "$token_value" ]]; then
+      echo "Failed to obtain GitHub App installation token." >&2
+      exit 1
+    fi
   fi
 fi
 
 if [[ "$dry_run" -eq 1 ]]; then
   echo "[dry-run] repo=${repo} min=${min_pool} max=${max_parallel} target=${target} interval=${interval_seconds}"
   echo "[dry-run] lock_file=${lock_file} token_source=${token_source} gh_token_file=${gh_token_file}"
-  if [[ "$token_source" == "gh" || "$token_source" == "env" || "$token_source" == "app" ]]; then
+  if [[ "$token_source" == "gh" || "$token_source" == "env" || ( "$token_source" == "app" && "$disable_app_token_refresh_setup" -eq 1 ) ]]; then
     echo "[dry-run] token_length=$(printf '%s' "$token_value" | wc -c | tr -d ' ')"
     echo "[dry-run] sudo install -d -m 0700 $(dirname "$gh_token_file")"
     echo "[dry-run] sudo sh -c \"umask 077; printf '%s\\n' '***' > '$gh_token_file'\""
+  elif [[ "$token_source" == "app" ]]; then
+    app_refresh_setup_script="${script_dir}/setup_github_app_token_refresh_one_command.sh"
+    if [[ ! -x "$app_refresh_setup_script" ]]; then
+      echo "missing executable: $app_refresh_setup_script" >&2
+      exit 1
+    fi
+    "$app_refresh_setup_script" \
+      --app-id "$app_id" \
+      --installation-id "$app_installation_id" \
+      --private-key-file "$app_private_key_file" \
+      --token-file "$gh_token_file" \
+      --interval "$app_token_refresh_interval" \
+      --dry-run
   else
     echo "[dry-run] token file must already exist: $gh_token_file"
   fi
@@ -161,10 +180,22 @@ if ! sudo -n true >/dev/null 2>&1; then
   exit 1
 fi
 
-if [[ "$token_source" == "gh" || "$token_source" == "env" || "$token_source" == "app" ]]; then
+if [[ "$token_source" == "gh" || "$token_source" == "env" || ( "$token_source" == "app" && "$disable_app_token_refresh_setup" -eq 1 ) ]]; then
   sudo install -d -m 0700 "$(dirname "$gh_token_file")"
   printf '%s\n' "$token_value" | sudo tee "$gh_token_file" >/dev/null
   sudo chmod 600 "$gh_token_file"
+elif [[ "$token_source" == "app" ]]; then
+  app_refresh_setup_script="${script_dir}/setup_github_app_token_refresh_one_command.sh"
+  if [[ ! -x "$app_refresh_setup_script" ]]; then
+    echo "missing executable: $app_refresh_setup_script" >&2
+    exit 1
+  fi
+  "$app_refresh_setup_script" \
+    --app-id "$app_id" \
+    --installation-id "$app_installation_id" \
+    --private-key-file "$app_private_key_file" \
+    --token-file "$gh_token_file" \
+    --interval "$app_token_refresh_interval"
 fi
 
 install_args=(

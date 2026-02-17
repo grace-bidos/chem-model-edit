@@ -243,8 +243,7 @@ scripts/runner/setup_pool_supervisor_one_command.sh \
   --token-source app \
   --app-id <APP_ID> \
   --app-installation-id <INSTALLATION_ID> \
-  --app-private-key-file <PRIVATE_KEY_PATH> \
-  --allow-expiring-app-token
+  --app-private-key-file <PRIVATE_KEY_PATH>
 ```
 
 Dry-run:
@@ -257,6 +256,8 @@ Verify:
 
 ```bash
 sudo systemctl status chem-runner-pool-supervisor.service --no-pager
+sudo systemctl status chem-github-app-token-refresh.timer --no-pager
+sudo cat /var/lib/chem-model-edit/github-app-token-refresh-status.json
 gh api repos/grace-bidos/chem-model-edit/actions/runners --jq '.runners[] | {name,status,busy}'
 ```
 
@@ -267,7 +268,8 @@ Token lifecycle rules:
 - Refresh installation tokens at least every 50 minutes for long-lived supervisors.
 - Never persist app private keys in repository paths.
 - Remove stale token files during incident cleanup.
-- The one-command `--token-source app` path is a bootstrap-only mode unless automated refresh is in place.
+- The one-command `--token-source app` path installs automated refresh by default.
+- If timer setup is intentionally disabled, treat it as break-glass and set follow-up to restore automation immediately.
 
 ## 10) Emergency fallback to hosted routing
 

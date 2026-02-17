@@ -75,7 +75,7 @@ The following requires your action:
 Recommended auth model for JIT issuance:
 
 - Prefer GitHub App installation tokens (short-lived) over long-lived PATs.
-- Treat token files as transient secrets (`0600`, root-owned, periodic refresh).
+- Treat token files as transient secrets (`0600`, root-owned, periodic refresh via systemd timer).
 - Keep PAT only as emergency fallback during incident recovery.
 
 ## Verification Checklist
@@ -91,6 +91,9 @@ Recommended auth model for JIT issuance:
   - `RUNNER_OWNER=<owner> RUNNER_REPO=<repo> RUNNER_LABELS=<labels> RUNNER_GROUP=<group> scripts/runner/recover_base_runner.sh --dry-run`
 - local supervisor command supports dry-run before enabling
   - `scripts/runner/setup_pool_supervisor_one_command.sh --dry-run`
+- app token refresh timer is active and recent status is recorded
+  - `sudo systemctl status chem-github-app-token-refresh.timer --no-pager`
+  - `sudo cat /var/lib/chem-model-edit/github-app-token-refresh-status.json`
 
 ## Rollback
 

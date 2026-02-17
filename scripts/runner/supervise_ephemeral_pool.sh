@@ -20,6 +20,8 @@ Options:
   --max <n>                 Optional. Default: 4
   --target <n>              Optional. Default: max
   --interval <seconds>      Optional. Default: 15
+  --gh-token-file <path>    Optional. If set, GH_TOKEN is reloaded from file
+                            on each reconcile loop.
   --lock-file <path>        Optional. Default: /run/lock/chem-model-edit-runner-pool.lock
   --once                    Run one reconcile iteration and exit.
   --dry-run                 Print actions only.
@@ -32,6 +34,7 @@ min_pool="1"
 max_parallel="4"
 target=""
 interval_seconds="15"
+gh_token_file=""
 lock_file="/run/lock/chem-model-edit-runner-pool.lock"
 once=0
 dry_run=0
@@ -44,6 +47,7 @@ while [[ $# -gt 0 ]]; do
     --max) max_parallel="${2:-}"; shift 2 ;;
     --target) target="${2:-}"; shift 2 ;;
     --interval) interval_seconds="${2:-}"; shift 2 ;;
+    --gh-token-file) gh_token_file="${2:-}"; shift 2 ;;
     --lock-file) lock_file="${2:-}"; shift 2 ;;
     --once) once=1; shift ;;
     --dry-run) dry_run=1; shift ;;
@@ -73,6 +77,21 @@ if [[ ! -x "$reconcile_script" ]]; then
 fi
 
 run_reconcile() {
+  if [[ -n "$gh_token_file" ]]; then
+    if [[ ! -r "$gh_token_file" ]]; then
+      echo "token file is not readable: $gh_token_file" >&2
+      return 1
+    fi
+    export GH_TOKEN
+    GH_TOKEN="$(<"$gh_token_file")"
+    GH_TOKEN="${GH_TOKEN//$'\r'/}"
+    GH_TOKEN="${GH_TOKEN//$'\n'/}"
+    if [[ -z "$GH_TOKEN" ]]; then
+      echo "token file is empty: $gh_token_file" >&2
+      return 1
+    fi
+  fi
+
   local args=(
     "$reconcile_script"
     --repo "$repo"
