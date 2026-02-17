@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from importlib import import_module
 from io import StringIO
 import math
 import re
-from typing import Any, Callable, List, Tuple
+from typing import Any, Callable, List, SupportsFloat, Tuple, cast
+
+from ase import Atoms as ASEAtoms
 
 _ase_read: Callable[..., Any] | None
 try:
-    from ase.io import read as _ase_read
+    _ase_read = cast(Callable[..., Any], getattr(import_module("ase.io"), "read"))
 except Exception:
     _ase_read = None
 
@@ -106,14 +109,18 @@ def _last_positions_from_output(
 ) -> List[Tuple[float, float, float]]:
     if ase_read is not None:
         try:
-            ase_atoms = ase_read(StringIO(content), format="espresso-out", index=-1)
-            if isinstance(ase_atoms, list):
-                if not ase_atoms:
+            ase_atoms_value: object = cast(
+                object, ase_read(StringIO(content), format="espresso-out", index=-1)
+            )
+            if isinstance(ase_atoms_value, list):
+                if not ase_atoms_value:
                     raise ValueError("ASEが構造を返しませんでした。")
-                ase_atoms = ase_atoms[-1]
-            positions = ase_atoms.get_positions()
+                ase_atoms = cast(ASEAtoms, ase_atoms_value[-1])
+            else:
+                ase_atoms = cast(ASEAtoms, ase_atoms_value)
+            positions = _positions_to_float_tuples(ase_atoms)
             if len(positions) == nat_expected:
-                return [(float(x), float(y), float(z)) for x, y, z in positions]
+                return positions
         except Exception:
             pass
 
@@ -161,14 +168,18 @@ def _first_positions_from_output(
 ) -> List[Tuple[float, float, float]]:
     if ase_read is not None:
         try:
-            ase_atoms = ase_read(StringIO(content), format="espresso-out", index=0)
-            if isinstance(ase_atoms, list):
-                if not ase_atoms:
+            ase_atoms_value: object = cast(
+                object, ase_read(StringIO(content), format="espresso-out", index=0)
+            )
+            if isinstance(ase_atoms_value, list):
+                if not ase_atoms_value:
                     raise ValueError("ASEが構造を返しませんでした。")
-                ase_atoms = ase_atoms[0]
-            positions = ase_atoms.get_positions()
+                ase_atoms = cast(ASEAtoms, ase_atoms_value[0])
+            else:
+                ase_atoms = cast(ASEAtoms, ase_atoms_value)
+            positions = _positions_to_float_tuples(ase_atoms)
             if len(positions) == nat_expected:
-                return [(float(x), float(y), float(z)) for x, y, z in positions]
+                return positions
         except Exception:
             pass
 
@@ -226,7 +237,7 @@ def _replace_atomic_positions(base: str, new_atoms: List[Atom]) -> str:
             break
         end += 1
 
-    new_block = []
+    new_block: list[str] = []
     for atom in new_atoms:
         fx, fy, fz = atom.flags
         new_block.append(
@@ -235,6 +246,21 @@ def _replace_atomic_positions(base: str, new_atoms: List[Atom]) -> str:
 
     lines = lines[: start + 1] + new_block + lines[end:]
     return "\n".join(lines) + "\n"
+
+
+def _positions_to_float_tuples(atoms: ASEAtoms) -> List[Tuple[float, float, float]]:
+    positions = cast(
+        list[tuple[object, object, object]],
+        cast(Any, atoms).get_positions().tolist(),
+    )
+    return [
+        (
+            float(cast(SupportsFloat, x)),
+            float(cast(SupportsFloat, y)),
+            float(cast(SupportsFloat, z)),
+        )
+        for x, y, z in positions
+    ]
 
 
 def transplant_delta(small_in: str, small_out: str, large_in: str) -> str:
