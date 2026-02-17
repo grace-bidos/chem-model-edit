@@ -77,7 +77,7 @@ if [ "$ready" -ne 1 ]; then
   exit 1
 fi
 
-SMOKE_REGEX='^/api/(health|structures/parse|structures|structures/[^/]+|structures/[^/]+/view|structures/export|transforms/delta-transplant|supercells/builds)$'
+SMOKE_REGEX='^/api/(health|structures/parse|structures|structures/export|transforms/delta-transplant|supercells/builds)$'
 BROAD_REGEX='^/api/(health|structures.*|transforms.*|supercells.*|zpe.*)$'
 
 if [ "${MODE}" = "broad" ]; then
