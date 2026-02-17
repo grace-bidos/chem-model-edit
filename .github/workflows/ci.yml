@@ -261,8 +261,19 @@ jobs:
             .ci-security-summary.md
           if-no-files-found: warn
       - name: Pytest
-        run: uv run pytest
+        run: uv run pytest --cov=app --cov=services --cov-report=term-missing --cov-report=xml:coverage.xml
         working-directory: apps/api
+      - name: Fetch PR base ref for diff coverage
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --prune --depth=1 origin "${{ github.base_ref }}"
+      - name: Changed-lines coverage gate
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          BASE_REF: origin/${{ github.base_ref }}
+          COVERAGE_DIFF_THRESHOLD: "90"
+        run: just api-cov-diff
       - name: Schemathesis
         env:
           SCHEMATHESIS_MODE: smoke
