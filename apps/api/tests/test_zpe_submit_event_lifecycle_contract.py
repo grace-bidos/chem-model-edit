@@ -18,40 +18,49 @@ def test_openapi_contract_covers_submit_running_terminal_payloads() -> None:
     components = schema["components"]["schemas"]  # type: ignore[index]
     paths = schema["paths"]  # type: ignore[index]
 
-    lease_response = components["ComputeLeaseResponse"]  # type: ignore[index]
-    assert set(lease_response["required"]) >= {  # type: ignore[index]
+    submit_command = components["SubmitJobCommand"]  # type: ignore[index]
+    assert set(submit_command["required"]) >= {  # type: ignore[index]
+        "tenant_id",
+        "workspace_id",
         "job_id",
-        "payload",
-        "lease_id",
-        "lease_ttl_seconds",
+        "idempotency_key",
+        "management_node_id",
+        "execution_profile",
+        "resource_shape",
+        "payload_ref",
+        "requested_by",
     }
-    assert "meta" in lease_response["properties"]  # type: ignore[index]
-
-    result_request = components["ComputeResultRequest"]  # type: ignore[index]
-    assert set(result_request["required"]) >= {  # type: ignore[index]
+    event_payload = components["ExecutionEvent"]  # type: ignore[index]
+    assert set(event_payload["required"]) >= {  # type: ignore[index]
+        "event_id",
         "tenant_id",
-        "lease_id",
-        "result",
-        "summary_text",
-        "freqs_csv",
+        "workspace_id",
+        "job_id",
+        "submission_id",
+        "execution_id",
+        "state",
+        "occurred_at",
+        "trace_id",
     }
 
-    failed_request = components["ComputeFailedRequest"]  # type: ignore[index]
-    assert set(failed_request["required"]) >= {  # type: ignore[index]
-        "tenant_id",
-        "lease_id",
-        "error_code",
-        "error_message",
+    runtime_status = components["RuntimeJobStatusResponse"]  # type: ignore[index]
+    assert set(runtime_status["required"]) >= {  # type: ignore[index]
+        "job_id",
+        "submission_id",
+        "execution_owner",
+        "state",
+        "updated_at",
+        "trace_id",
     }
 
-    status_schema = components["ZPEJobStatus"]  # type: ignore[index]
-    state_enum = status_schema["properties"]["status"]["enum"]  # type: ignore[index]
-    assert {"queued", "started", "finished", "failed"} <= set(state_enum)
+    ack = components["RuntimeEventAck"]  # type: ignore[index]
+    assert "ok" in ack["properties"]  # type: ignore[index]
+    assert "idempotent" in ack["properties"]  # type: ignore[index]
 
-    assert "/api/zpe/jobs" in paths
-    assert "/api/zpe/compute/jobs/lease" in paths
-    assert "/api/zpe/compute/jobs/{job_id}/result" in paths
-    assert "/api/zpe/compute/jobs/{job_id}/failed" in paths
+    assert "/api/runtime/jobs:submit" in paths
+    assert "/api/runtime/jobs/{job_id}/events" in paths
+    assert "/api/runtime/jobs/{job_id}" in paths
+    assert "/api/runtime/jobs/{job_id}/projection" in paths
 
 
 def test_management_node_payload_examples_validate_against_contract_models() -> None:
