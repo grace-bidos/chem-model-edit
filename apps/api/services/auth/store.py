@@ -81,20 +81,21 @@ class AuthStore:
         user_key = f"{_USER_PREFIX}{user_id}"
         payload = json.dumps(user.__dict__)
 
-        pipe_any = cast(Any, self.redis).pipeline(transaction=True)
+        redis_any = cast(Any, self.redis)
+        pipe = redis_any.pipeline(transaction=True)
         for _ in range(5):
             try:
-                pipe_any.watch(email_key)
-                if pipe_any.exists(email_key):
-                    pipe_any.reset()
+                pipe.watch(email_key)
+                if pipe.exists(email_key):
+                    pipe.reset()
                     raise ValueError("email already registered")
-                pipe_any.multi()
-                pipe_any.set(email_key, user_id)
-                pipe_any.set(user_key, payload)
-                pipe_any.execute()
+                pipe.multi()
+                pipe.set(email_key, user_id)
+                pipe.set(user_key, payload)
+                pipe.execute()
                 break
             except WatchError:
-                pipe_any.reset()
+                pipe.reset()
                 continue
         else:
             raise RuntimeError("failed to create user")

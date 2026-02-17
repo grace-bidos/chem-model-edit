@@ -55,10 +55,20 @@ def main() -> int:
         )
         return 0
 
-    raw_json = _run(
-        ["uv", "run", "pyright", "--project", "pyrightconfig.json", "--outputjson"],
-        cwd=api_root,
-    )
+    try:
+        raw_json = _run(
+            ["uv", "run", "pyright", "--project", "pyrightconfig.json", "--outputjson"],
+            cwd=api_root,
+        )
+    except subprocess.CalledProcessError as exc:
+        output = exc.stdout if isinstance(exc.stdout, str) else ""
+        if not output:
+            print(
+                "Pyright touched-files gate: failed to capture pyright JSON output.",
+                file=sys.stderr,
+            )
+            return 2
+        raw_json = output
     payload: dict[str, Any] = json.loads(raw_json)
     diagnostics: list[dict[str, Any]] = payload.get("generalDiagnostics", [])
 
