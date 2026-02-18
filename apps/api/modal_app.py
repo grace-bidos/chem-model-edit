@@ -4,8 +4,6 @@ import os
 
 import modal
 
-from app.api import app as fastapi_app
-
 image = (
     modal.Image.debian_slim(python_version="3.13")
     .pip_install_from_pyproject("apps/api/pyproject.toml")
@@ -27,4 +25,6 @@ runtime_secret_name = os.environ.get(
 )
 @modal.asgi_app(requires_proxy_auth=True)
 def api():
+    from app.api import app as fastapi_app
+
     return fastapi_app
