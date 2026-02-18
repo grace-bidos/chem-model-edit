@@ -58,7 +58,25 @@ upsert() {
   local key="$1"
   local value="$2"
   if rg -q "^${key}=" "$API_ENV_FILE"; then
-    sed -i "s#^${key}=.*#${key}=${value}#" "$API_ENV_FILE"
+    local tmp
+    tmp="$(mktemp)"
+    awk -v key="$key" -v value="$value" '
+      BEGIN { replaced = 0 }
+      $0 ~ ("^" key "=") {
+        if (!replaced) {
+          print key "=" value
+          replaced = 1
+        }
+        next
+      }
+      { print }
+      END {
+        if (!replaced) {
+          print key "=" value
+        }
+      }
+    ' "$API_ENV_FILE" > "$tmp"
+    mv "$tmp" "$API_ENV_FILE"
   else
     printf '%s=%s\n' "$key" "$value" >> "$API_ENV_FILE"
   fi

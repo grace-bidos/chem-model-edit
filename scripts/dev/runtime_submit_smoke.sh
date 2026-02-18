@@ -55,6 +55,8 @@ set +a
 : "${MODAL_PROXY_SECRET:?MODAL_PROXY_SECRET is required in $SECRETS_FILE}"
 : "${CLERK_TEST_JWT:?CLERK_TEST_JWT is required in $SECRETS_FILE}"
 
+export TENANT_ID
+
 cd "$ROOT_DIR/apps/api"
 uv run python - <<'PY'
 import base64
