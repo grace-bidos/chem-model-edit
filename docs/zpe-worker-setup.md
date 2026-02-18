@@ -11,7 +11,7 @@ The control-plane (FastAPI) only enqueues jobs and never runs QE locally.
 
 ## Architecture
 
-- **Control-plane**: FastAPI API on Cloud Run (or any host)
+- **Control-plane**: FastAPI API on Modal (or any ASGI host)
 - **Compute-plane**: HTTP worker on a separate machine
 - **Shared store**: Redis (control-plane only)
 

@@ -1,10 +1,14 @@
 # ZPE リモートワーカー（HTTP仲介）Spec（ドラフト）
 
+> [!WARNING]
+> この文書は historical/superseded（2026-02-18 の Modal hard cutover以前の設計検討メモ）です。
+> 現行運用の基準は `docs/process/modal-aiida-slurm-runtime-gate.md` です。
+
 ## 背景
 
 - 現状は Redis(RQ) 直結で worker がジョブを取得・結果保存する構成。
 - Upstash のURLは認証情報を含むため、ユーザーPCへ配布できない。
-- ユーザーPCはNAT越しで動作し、Cloud Run から直接到達できない前提。
+- ユーザーPCはNAT越しで動作し、control-plane から直接到達できない前提。
 
 ## 目的
 
@@ -20,7 +24,7 @@
 
 ## 想定構成（最小）
 
-- **control-plane**: FastAPI（Cloud Run）
+- **control-plane**: FastAPI（Modal など）
   - Upstash接続情報を保持
   - ジョブ登録APIを提供
   - ワーカー向けHTTPポーリングAPIを提供

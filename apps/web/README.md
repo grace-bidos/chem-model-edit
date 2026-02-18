@@ -17,7 +17,7 @@ pnpm -C apps/web dev
   - `API_BASE`: server-side fallback (Node/SSR environments).
   - `VITE_API_BASE`: build-time fallback for local/dev.
 - All of the above should point to the API origin with `/api` included.
-  - Example: `https://chem-model-api-668647845784.asia-northeast1.run.app/api`
+  - Example: `https://<workspace>--chem-model-edit-api-api.modal.run/api`
 - `apps/web/src/server/api.ts` is the only HTTP boundary from web to backend.
 - API request/response fields are `snake_case` on the wire.
 
@@ -26,7 +26,7 @@ pnpm -C apps/web dev
 - Keep `TSS_SHELL=true` in worker vars (required for SPA shell rendering).
 - Set `API_BASE_PUBLIC` in the worker environment to the backend `/api` base.
   - Production example:
-    - `API_BASE_PUBLIC=https://chem-model-api-668647845784.asia-northeast1.run.app/api`
+    - `API_BASE_PUBLIC=https://<workspace>--chem-model-edit-api-api.modal.run/api`
 
 ## Contract update workflow
 
