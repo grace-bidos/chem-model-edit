@@ -658,11 +658,14 @@ contract-drift-check:
 ci-pr-quick:
   #!/usr/bin/env bash
   set -euo pipefail
+  echo "[ci-pr-quick] running local equivalent of required PR checks (web/api/contract)"
+  echo "[ci-pr-quick] heavy suites stay out of this lane; use Full CI with label ci:full when needed"
   just quality-quick
   just api-ruff
   just api-mypy
   just api-test
   just contract-drift-check
+  echo "[ci-pr-quick] done"
 
 pr-open linear title type='Ship' size='S' queue='Optional' stack='Standalone' coderabbit='Optional' base='main' head='' draft='false':
   #!/usr/bin/env bash
@@ -703,12 +706,21 @@ pr-open linear title type='Ship' size='S' queue='Optional' stack='Standalone' co
 pre-push-strict:
   #!/usr/bin/env bash
   set -euo pipefail
+  echo "[pre-push-strict] starting strict local gate"
   just ci-pr-quick
+  echo "[pre-push-strict] passed"
 
 git-hooks-install:
   #!/usr/bin/env bash
   set -euo pipefail
   ./scripts/git/install_hooks.sh
+  echo "installed hooks in .git/hooks"
+  echo "next push will enforce: just pre-push-strict"
+
+lane-handoff-template:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  cat docs/process/subagent-lane-handoff-template.md
 
 quality-standard:
   #!/usr/bin/env bash

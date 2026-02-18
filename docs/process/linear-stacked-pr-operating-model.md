@@ -152,6 +152,7 @@ Optional post-merge checks (expand later):
 - Lane close rule: when merged/reassigned/canceled, post final lane status and clean worktree/branch to free slot capacity.
 - Merge-readiness handoff from sub-agent to main requires required checks green, unresolved review threads = 0, and head not `BEHIND` base.
 - Handoff report must also list addressed review feedback and remaining risks/conflicts.
+- Use `docs/process/subagent-lane-handoff-template.md` as the standard handoff format.
 - Sub-agents do not merge PRs directly.
 - If lane conflicts appear, sub-agents hand off conflict context/options to main agent for resolution direction.
 
@@ -220,3 +221,14 @@ Use it as an example only; current planning source-of-truth is Linear.
 - Linear is source-of-truth for status and priority.
 - GitHub Issues are optional mirrors or external-facing discussion threads.
 - If mismatch occurs, Linear state wins and GitHub metadata is reconciled.
+
+## 12. Weekly KPI calibration (local-first flow)
+
+Track these during active cycles to keep required CI lean and fast:
+
+- median time-to-green for required checks (`web`, `api`, `contract`)
+- PR lead time (`opened` to `merged`)
+- CI rerun count per PR
+- percentage of PRs merged without ad-hoc manual polling outside lane scripts
+
+Keep this as an operations signal, not a hard merge gate.

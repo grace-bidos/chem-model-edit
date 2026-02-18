@@ -65,7 +65,8 @@ Manual deploy remains available via `workflow_dispatch`.
 ## Docs-only PR behavior
 
 On pull requests, quick lanes are routed by changed paths.
-Docs-only changes should skip `web/api/contract` lanes unless CI workflow files affecting quick lanes changed.
+Docs-only changes should short-circuit `web/api/contract` lanes with no-op success unless CI workflow files affecting quick lanes changed.
+This keeps required checks satisfiable without running full lane workloads.
 On `push` to `main` and `merge_group`, quick lanes still run by design.
 
 ## Local strict gate
@@ -87,3 +88,30 @@ Quick bypass for emergency cases only:
 ```bash
 SKIP_PREPUSH_STRICT=1 git push
 ```
+
+## Stacked lane quick flow
+
+For each child-issue lane:
+
+```bash
+just pre-push-strict
+just pr-open GRA-XXX "ship: concise PR title"
+scripts/gh/stack_lane_loop.py <PR_NUMBER> --gt-sync --watch --merge-when-ready --merge-method merge
+```
+
+Before handoff to the main agent, fill:
+
+```bash
+just lane-handoff-template
+```
+
+## Weekly operation KPIs (2-sprint calibration)
+
+Capture weekly values in Linear comments or a cycle note:
+
+- median time-to-green for required checks (`web`, `api`, `contract`)
+- PR lead time from open to merge
+- CI rerun count per PR
+- percentage of PRs merged without manual polling outside lane scripts
+
+Use these KPIs to tune lane concurrency and identify slow checks without expanding required CI scope.

@@ -100,28 +100,43 @@ jobs:
     needs:
       - changes
       - route
-    if: ${{ github.event_name == 'push' || github.event_name == 'merge_group' || needs.changes.outputs.web == 'true' }}
     runs-on: ${{ fromJSON(needs.route.outputs.runner) }}
     steps:
+      - name: Decide whether to run web lane
+        id: decide
+        run: echo "run=${{ github.event_name != 'pull_request' || needs.changes.outputs.web == 'true' }}" >> "$GITHUB_OUTPUT"
+      - name: Web lane no-op (docs-only pull request)
+        if: ${{ steps.decide.outputs.run != 'true' }}
+        run: echo "web lane skipped by path filter; reporting success for required check."
       - name: Checkout
+        if: ${{ steps.decide.outputs.run == 'true' }}
         uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: Setup pnpm
+        if: ${{ steps.decide.outputs.run == 'true' }}
         uses: pnpm/action-setup@v4
         with:
           version: 10.27.0
           run_install: false
       - name: Export pnpm to PATH
+        if: ${{ steps.decide.outputs.run == 'true' }}
         run: echo "$PNPM_HOME" >> "$GITHUB_PATH"
       - name: Setup Node
+        if: ${{ steps.decide.outputs.run == 'true' }}
         uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Activate pnpm via Corepack
+        if: ${{ steps.decide.outputs.run == 'true' }}
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.27.0 --activate
       - name: Configure pnpm store path
+        if: ${{ steps.decide.outputs.run == 'true' }}
         run: pnpm config set store-dir "$HOME/.pnpm-store"
       - name: Restore pnpm store cache
-        if: ${{ needs.route.outputs.use_gha_cache == 'true' }}
+        if: ${{ steps.decide.outputs.run == 'true' && needs.route.outputs.use_gha_cache == 'true' }}
         id: pnpm-cache-restore
         uses: actions/cache/restore@v4
         with:
@@ -131,37 +146,49 @@ jobs:
             ${{ runner.os }}-node22-pnpm-
             ${{ runner.os }}-pnpm-
       - name: Install dependencies
+        if: ${{ steps.decide.outputs.run == 'true' }}
         run: pnpm install --frozen-lockfile --prefer-offline
       - name: Save pnpm store cache (main only)
-        if: ${{ needs.route.outputs.use_gha_cache == 'true' && github.ref == 'refs/heads/main' && steps.pnpm-cache-restore.outputs.cache-hit != 'true' }}
+        if: ${{ steps.decide.outputs.run == 'true' && needs.route.outputs.use_gha_cache == 'true' && github.ref == 'refs/heads/main' && steps.pnpm-cache-restore.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v4
         with:
           path: ~/.pnpm-store
           key: ${{ steps.pnpm-cache-restore.outputs.cache-primary-key }}
       - name: Lint
+        if: ${{ steps.decide.outputs.run == 'true' }}
         run: pnpm exec nx run web:lint
       - name: Typecheck
+        if: ${{ steps.decide.outputs.run == 'true' }}
         run: pnpm exec nx run web:typecheck
       - name: Unit tests
+        if: ${{ steps.decide.outputs.run == 'true' }}
         run: pnpm exec nx run web:test
 
   api:
     needs:
       - changes
       - route
-    if: ${{ github.event_name == 'push' || github.event_name == 'merge_group' || needs.changes.outputs.api == 'true' }}
     runs-on: ${{ fromJSON(needs.route.outputs.runner) }}
     steps:
+      - name: Decide whether to run api lane
+        id: decide
+        run: echo "run=${{ github.event_name != 'pull_request' || needs.changes.outputs.api == 'true' }}" >> "$GITHUB_OUTPUT"
+      - name: API lane no-op (docs-only pull request)
+        if: ${{ steps.decide.outputs.run != 'true' }}
+        run: echo "api lane skipped by path filter; reporting success for required check."
       - name: Checkout
+        if: ${{ steps.decide.outputs.run == 'true' }}
         uses: actions/checkout@v4
         with:
           persist-credentials: false
           fetch-depth: 0
       - name: Setup Python
+        if: ${{ steps.decide.outputs.run == 'true' }}
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
       - name: Setup uv
+        if: ${{ steps.decide.outputs.run == 'true' }}
         uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
@@ -172,29 +199,33 @@ jobs:
             apps/api/uv.lock
             apps/api/pyproject.toml
       - name: Install dependencies
+        if: ${{ steps.decide.outputs.run == 'true' }}
         run: uv sync --dev
         working-directory: apps/api
       - name: Ruff
+        if: ${{ steps.decide.outputs.run == 'true' }}
         run: uv run ruff check .
         working-directory: apps/api
       - name: Mypy
+        if: ${{ steps.decide.outputs.run == 'true' }}
         run: uv run mypy --config-file pyproject.toml app services main.py
         working-directory: apps/api
       - name: Pytest
+        if: ${{ steps.decide.outputs.run == 'true' }}
         run: uv run pytest --cov=app --cov=services --cov=main --cov-report=term-missing --cov-report=xml:coverage.xml
         working-directory: apps/api
       - name: Fetch PR base ref for diff coverage
-        if: ${{ github.event_name == 'pull_request' }}
+        if: ${{ steps.decide.outputs.run == 'true' && github.event_name == 'pull_request' }}
         run: |
           set -euo pipefail
           git fetch --no-tags --prune origin "${{ github.base_ref }}"
       - name: Pyright touched-files gate
-        if: ${{ github.event_name == 'pull_request' }}
+        if: ${{ steps.decide.outputs.run == 'true' && github.event_name == 'pull_request' }}
         env:
           BASE_REF: origin/${{ github.base_ref }}
         run: uv run --project apps/api python scripts/api/pyright_touched_gate.py --base-ref "$BASE_REF"
       - name: Changed-lines coverage gate
-        if: ${{ github.event_name == 'pull_request' }}
+        if: ${{ steps.decide.outputs.run == 'true' && github.event_name == 'pull_request' }}
         env:
           BASE_REF: origin/${{ github.base_ref }}
           COVERAGE_DIFF_THRESHOLD: '90'
@@ -317,18 +348,26 @@ jobs:
     needs:
       - changes
       - route
-    if: ${{ github.event_name == 'push' || github.event_name == 'merge_group' || needs.changes.outputs.contract == 'true' }}
     runs-on: ${{ fromJSON(needs.route.outputs.runner) }}
     steps:
+      - name: Decide whether to run contract lane
+        id: decide
+        run: echo "run=${{ github.event_name != 'pull_request' || needs.changes.outputs.contract == 'true' }}" >> "$GITHUB_OUTPUT"
+      - name: Contract lane no-op (docs-only pull request)
+        if: ${{ steps.decide.outputs.run != 'true' }}
+        run: echo "contract lane skipped by path filter; reporting success for required check."
       - name: Checkout
+        if: ${{ steps.decide.outputs.run == 'true' }}
         uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: Setup Python
+        if: ${{ steps.decide.outputs.run == 'true' }}
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
       - name: Setup uv
+        if: ${{ steps.decide.outputs.run == 'true' }}
         uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
@@ -339,20 +378,29 @@ jobs:
             apps/api/uv.lock
             apps/api/pyproject.toml
       - name: Setup pnpm
+        if: ${{ steps.decide.outputs.run == 'true' }}
         uses: pnpm/action-setup@v4
         with:
           version: 10.27.0
           run_install: false
       - name: Export pnpm to PATH
+        if: ${{ steps.decide.outputs.run == 'true' }}
         run: echo "$PNPM_HOME" >> "$GITHUB_PATH"
       - name: Setup Node
+        if: ${{ steps.decide.outputs.run == 'true' }}
         uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Activate pnpm via Corepack
+        if: ${{ steps.decide.outputs.run == 'true' }}
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.27.0 --activate
       - name: Configure pnpm store path
+        if: ${{ steps.decide.outputs.run == 'true' }}
         run: pnpm config set store-dir "$HOME/.pnpm-store"
       - name: Restore pnpm store cache
-        if: ${{ needs.route.outputs.use_gha_cache == 'true' }}
+        if: ${{ steps.decide.outputs.run == 'true' && needs.route.outputs.use_gha_cache == 'true' }}
         id: pnpm-cache-restore
         uses: actions/cache/restore@v4
         with:
@@ -362,19 +410,24 @@ jobs:
             ${{ runner.os }}-node22-pnpm-
             ${{ runner.os }}-pnpm-
       - name: Install Python dependencies
+        if: ${{ steps.decide.outputs.run == 'true' }}
         run: uv sync --dev
         working-directory: apps/api
       - name: Install Node dependencies
+        if: ${{ steps.decide.outputs.run == 'true' }}
         run: pnpm install --frozen-lockfile --prefer-offline
       - name: Save pnpm store cache (main only)
-        if: ${{ needs.route.outputs.use_gha_cache == 'true' && github.ref == 'refs/heads/main' && steps.pnpm-cache-restore.outputs.cache-hit != 'true' }}
+        if: ${{ steps.decide.outputs.run == 'true' && needs.route.outputs.use_gha_cache == 'true' && github.ref == 'refs/heads/main' && steps.pnpm-cache-restore.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v4
         with:
           path: ~/.pnpm-store
           key: ${{ steps.pnpm-cache-restore.outputs.cache-primary-key }}
       - name: Check OpenAPI artifact drift
+        if: ${{ steps.decide.outputs.run == 'true' }}
         run: PYTHONPATH=apps/api uv run --project apps/api python apps/api/scripts/export_openapi.py --check
       - name: Regenerate API client
+        if: ${{ steps.decide.outputs.run == 'true' }}
         run: pnpm -C packages/api-client run generate
       - name: Check generated API client schema is committed
+        if: ${{ steps.decide.outputs.run == 'true' }}
         run: git diff --exit-code -- packages/api-client/src/generated/schema.ts

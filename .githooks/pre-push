@@ -2,9 +2,20 @@
 set -euo pipefail
 
 if [[ "${SKIP_PREPUSH_STRICT:-0}" == "1" ]]; then
-  echo "Skipping pre-push strict gate because SKIP_PREPUSH_STRICT=1"
+  echo "Skipping pre-push strict gate because SKIP_PREPUSH_STRICT=1 (emergency mode)"
   exit 0
 fi
 
 echo "Running pre-push strict quick gate (web/api/contract)..."
-just pre-push-strict
+start_ts="$(date +%s)"
+
+if just pre-push-strict; then
+  end_ts="$(date +%s)"
+  echo "pre-push strict gate passed in $((end_ts - start_ts))s"
+  exit 0
+fi
+
+echo "pre-push strict gate failed."
+echo "hint: reproduce locally with 'just ci-pr-quick'"
+echo "hint: bypass only for urgent hotfix with 'SKIP_PREPUSH_STRICT=1 git push'"
+exit 1
