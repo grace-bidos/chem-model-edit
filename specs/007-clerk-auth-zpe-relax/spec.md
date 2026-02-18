@@ -98,6 +98,7 @@ As a maintainer, I can run a minimal relax job using the existing queue/worker a
 - **FR-006**: Web app must use Clerk provider/hooks; legacy local session storage flow is removed from primary path.
 - **FR-007**: Job ownership and queue-target authorization must map to Clerk subject identity.
 - **FR-008**: Existing worker token flow (`/api/zpe/compute/*`) must remain compatible.
+  - Superseded by runtime hard cutover scope (`Capability: Complete FastAPI on Modal and user-managed AiiDA/Slurm hard cutover (GRA-187)`, February 18, 2026). Runtime contract is `/api/runtime/*` only.
 - **FR-009**: Minimal `qe.relax.v1` must be supported on the existing queue/worker path.
 
 ### Non-Functional Requirements

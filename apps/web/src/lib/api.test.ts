@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  createZpeJob,
   fetchZpeStatus,
   parseQeInput,
   setApiTokenProvider,
@@ -20,11 +21,11 @@ vi.mock('@/server/zpe-aggregation', () => ({
 
 vi.mock('@chem-model/api-client', () => ({
   createApiClient: ({ request }: { request: (params: unknown) => Promise<unknown> }) => ({
-    parseQeInput: (body: unknown) =>
+    parseQeInput: (content: string) =>
       request({
-        path: '/qe/parse',
+        path: '/structures/parse',
         method: 'POST',
-        body,
+        body: { content },
       }),
     createStructureFromQe: vi.fn(),
     getStructure: vi.fn(),
@@ -33,12 +34,17 @@ vi.mock('@chem-model/api-client', () => ({
     deltaTransplant: vi.fn(),
     buildSupercell: vi.fn(),
     parseZpeInput: vi.fn(),
-    createEnrollToken: vi.fn(),
     fetchQueueTargets: vi.fn(),
     selectQueueTarget: vi.fn(),
-    createZpeJob: vi.fn(),
-    fetchZpeResult: vi.fn(),
-    downloadZpeFile: vi.fn(),
+    submitRuntimeJob: (body: unknown) =>
+      request({
+        path: '/runtime/jobs:submit',
+        method: 'POST',
+        body,
+      }),
+    postRuntimeEvent: vi.fn(),
+    fetchRuntimeStatus: vi.fn(),
+    fetchRuntimeDetail: vi.fn(),
     structureViewPath: (structureId: string, params?: { format?: 'cif' }) => {
       const query = params?.format ? `?format=${params.format}` : ''
       return `/structures/${structureId}${query}`
@@ -48,6 +54,13 @@ vi.mock('@chem-model/api-client', () => ({
 
 const mockedRequestApi = vi.mocked(requestApi)
 const mockedFetchAggregated = vi.mocked(fetchAggregatedZpeJobStatus)
+const makeJwt = (payload: Record<string, unknown>) => {
+  const encoded = btoa(JSON.stringify(payload))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '')
+  return `header.${encoded}.sig`
+}
 
 describe('api client integration helpers', () => {
   beforeEach(() => {
@@ -65,12 +78,58 @@ describe('api client integration helpers', () => {
 
     expect(mockedRequestApi).toHaveBeenCalledWith({
       data: {
-        path: '/qe/parse',
+        path: '/structures/parse',
         method: 'POST',
-        body: '&CONTROL\n/',
+        body: { content: '&CONTROL\n/' },
         token: 'from-provider',
       },
     })
+  })
+
+  it('builds runtime submit command from JWT claims', async () => {
+    mockedRequestApi.mockResolvedValueOnce({
+      job_id: 'job-accepted',
+      submission_id: 'sub-1',
+      execution_owner: 'aiida-slurm',
+      accepted_at: '2026-02-18T00:00:00Z',
+      trace_id: 'trace-1',
+    })
+    setApiTokenProvider(() =>
+      Promise.resolve(
+        makeJwt({
+          tenant_id: 'tenant-a',
+          sub: 'user-a',
+        }),
+      ),
+    )
+
+    const result = await createZpeJob({
+      queueName: 'default',
+      managementNodeId: 'mgmt-node-1',
+    })
+
+    expect(result.id).toBe('job-accepted')
+    const submitCall = mockedRequestApi.mock.calls.at(-1)?.[0] as {
+      data: { path: string; method: string; body: Record<string, unknown>; token: string }
+    }
+    expect(submitCall.data.path).toBe('/runtime/jobs:submit')
+    expect(submitCall.data.method).toBe('POST')
+    expect(submitCall.data.body.tenant_id).toBe('tenant-a')
+    expect(submitCall.data.body.workspace_id).toBe('tenant-a')
+    expect(submitCall.data.body.management_node_id).toBe('mgmt-node-1')
+    expect(submitCall.data.body.requested_by).toMatchObject({ user_id: 'user-a' })
+    expect((submitCall.data.body.execution_profile as Record<string, unknown>).queue_name).toBe('default')
+  })
+
+  it('throws when required claims are missing for runtime submit', async () => {
+    setApiTokenProvider(() => Promise.resolve(makeJwt({ sub: 'user-only' })))
+
+    await expect(
+      createZpeJob({
+        queueName: 'default',
+        managementNodeId: 'mgmt-node-1',
+      }),
+    ).rejects.toThrow('Missing required tenant/user claims for runtime submit')
   })
 
   it('passes null token when fetching zpe status without provider token', async () => {
