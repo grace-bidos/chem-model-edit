@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from fastapi.testclient import TestClient
+import pytest
 
 from app.api import app
-from app.schemas.runtime import RuntimeJobStatusResponse, SubmitJobAccepted
+from app.schemas.runtime import ExecutionEvent, RuntimeJobStatusResponse, SubmitJobAccepted
 from app.schemas.zpe import ZPEJobStatus
 from services.runtime import (
+    RuntimeGateway,
     RuntimeConfigurationError,
     RuntimeConflictError,
     RuntimeDownstreamError,
@@ -196,3 +200,69 @@ def test_runtime_event_maps_configuration_error(monkeypatch):
     }
     response = client.post("/api/runtime/jobs/job-1/events", json=payload, headers=_headers())
     assert response.status_code == 503
+
+
+def test_runtime_gateway_apply_event_posts_to_command_endpoint(monkeypatch):
+    settings = SimpleNamespace(
+        request_timeout_seconds=5,
+        service_auth_bearer_token=None,
+        command_submit_url="https://gateway.example/api/runtime/jobs:submit",
+        command_event_url_template="https://gateway.example/api/runtime/jobs/{job_id}/events",
+        read_status_url_template="https://gateway.example/api/runtime/jobs/{job_id}",
+        read_detail_url_template="https://gateway.example/api/runtime/jobs/{job_id}/detail",
+        read_projection_url_template="https://gateway.example/api/runtime/jobs/{job_id}/projection",
+    )
+    monkeypatch.setattr("services.runtime.get_runtime_settings", lambda: settings)
+    gateway = RuntimeGateway()
+    captured: dict[str, object] = {}
+
+    def _request_json(**kwargs):  # type: ignore[no-untyped-def]
+        captured.update(kwargs)
+        return {"idempotent": True}
+
+    monkeypatch.setattr(gateway, "_request_json", _request_json)
+    event = ExecutionEvent(
+        event_id="evt-1",
+        tenant_id="tenant-1",
+        workspace_id="ws-1",
+        job_id="job/1",
+        submission_id="sub-1",
+        execution_id="exec-1",
+        state="running",
+        occurred_at="2026-02-17T00:00:00+00:00",
+        trace_id="trace-1",
+    )
+    ack = gateway.apply_event(event)
+
+    assert ack.idempotent is True
+    assert captured["method"] == "POST"
+    assert captured["url"] == "https://gateway.example/api/runtime/jobs/job%2F1/events"
+    assert captured["tenant_id"] == "tenant-1"
+
+
+def test_runtime_gateway_apply_event_requires_event_template(monkeypatch):
+    settings = SimpleNamespace(
+        request_timeout_seconds=5,
+        service_auth_bearer_token=None,
+        command_submit_url="https://gateway.example/api/runtime/jobs:submit",
+        command_event_url_template=None,
+        read_status_url_template="https://gateway.example/api/runtime/jobs/{job_id}",
+        read_detail_url_template="https://gateway.example/api/runtime/jobs/{job_id}/detail",
+        read_projection_url_template="https://gateway.example/api/runtime/jobs/{job_id}/projection",
+    )
+    monkeypatch.setattr("services.runtime.get_runtime_settings", lambda: settings)
+    gateway = RuntimeGateway()
+    event = ExecutionEvent(
+        event_id="evt-1",
+        tenant_id="tenant-1",
+        workspace_id="ws-1",
+        job_id="job-1",
+        submission_id="sub-1",
+        execution_id="exec-1",
+        state="running",
+        occurred_at="2026-02-17T00:00:00+00:00",
+        trace_id="trace-1",
+    )
+
+    with pytest.raises(RuntimeConfigurationError, match="RUNTIME_COMMAND_EVENT_URL_TEMPLATE"):
+        gateway.apply_event(event)
