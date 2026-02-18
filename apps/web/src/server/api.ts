@@ -31,6 +31,15 @@ const API_BASE = normalizeApiBase(
     'http://localhost:8000',
 )
 
+const resolveModalProxyHeaders = (): { key: string; secret: string } | null => {
+  const key = process.env.MODAL_PROXY_KEY?.trim() ?? ''
+  const secret = process.env.MODAL_PROXY_SECRET?.trim() ?? ''
+  if (!key || !secret) {
+    return null
+  }
+  return { key, secret }
+}
+
 const TENANT_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{1,127}$/
 
 const normalizeTenantId = (value: unknown): string | null => {
@@ -141,6 +150,11 @@ export async function requestApiInternal<T = unknown>(
   const tenantId = resolveTenantId(data)
   if (tenantId) {
     headers['x-tenant-id'] = tenantId
+  }
+  const modalProxyHeaders = resolveModalProxyHeaders()
+  if (modalProxyHeaders) {
+    headers['Modal-Key'] = modalProxyHeaders.key
+    headers['Modal-Secret'] = modalProxyHeaders.secret
   }
 
   const response = await fetch(`${API_BASE}${path}`, {

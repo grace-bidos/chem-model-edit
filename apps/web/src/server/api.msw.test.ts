@@ -1,5 +1,5 @@
 import { HttpResponse, http } from 'msw'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { requestApiInternal } from './api'
 import { server } from '@/test/msw/server'
@@ -195,5 +195,32 @@ describe('requestApiInternal with MSW', () => {
         responseType: 'text',
       }),
     ).rejects.toThrow('forbidden')
+  })
+
+  it('forwards modal proxy auth headers when configured', async () => {
+    vi.stubEnv('MODAL_PROXY_KEY', 'proxy-key-test')
+    vi.stubEnv('MODAL_PROXY_SECRET', 'proxy-secret-test')
+
+    server.use(
+      http.get('http://localhost:8000/api/proxy-auth', ({ request }) => {
+        return HttpResponse.json({
+          modalKey: request.headers.get('modal-key'),
+          modalSecret: request.headers.get('modal-secret'),
+        })
+      }),
+    )
+
+    const response = await requestApiInternal<{
+      modalKey: string | null
+      modalSecret: string | null
+    }>({
+      path: '/proxy-auth',
+    })
+
+    expect(response).toEqual({
+      modalKey: 'proxy-key-test',
+      modalSecret: 'proxy-secret-test',
+    })
+    vi.unstubAllEnvs()
   })
 })
