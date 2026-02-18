@@ -49,6 +49,8 @@ pnpm-debug.log*
 # Local-only VM credential artifacts
 .tmp/vm-validation-secrets/
 .tmp/vm-jit-config/
+.tmp/dev-secrets.env
+.tmp/modal-proxy.env
 .secrets/vm-validation/
 
 # User uploads (temporary)
