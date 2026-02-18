@@ -1,63 +1,54 @@
-# Structure Store Persistence Guide (`GRA-24`)
+# Structure Store Persistence (Convex-First)
 
-This document describes the local durable storage model for structure records
-and the reset/backup procedure for development.
+This document defines the current persistence contract for parsed/imported structures.
 
-## Overview
+## Goal
 
-`services.structures` now supports a SQLite-backed store so imported structure
-records survive API process restarts.
+- Keep `FastAPI on Modal` stateless.
+- Persist application-facing structure data in Convex.
+- Keep execution system-of-truth in user-managed AiiDA + Slurm.
 
-- backend selector: `STRUCTURE_STORE_BACKEND`
-- supported backends: `sqlite` (default), `memory`
-- SQLite path: `STRUCTURE_STORE_DB_PATH`
-- reset switch: `STRUCTURE_STORE_RESET_ON_START`
+## Current Ownership
 
-Default SQLite path is `<repo>/.just-runtime/structures.sqlite3`.
+- Structure import/parse artifacts (`structure`, `cif`, optional raw input) are stored in Convex.
+- Runtime execution state remains in Convex projection state + execution backend records.
+- Scientific workflow/execution source-of-truth remains AiiDA (PostgreSQL on user-managed environment).
+- FastAPI keeps no durable local DB for structure storage.
 
-## Development Defaults
+## Convex Tables
 
-Recommended `.env` values for local restart-survival behavior:
+- `structures`
+  - Key: `tenant_id + workspace_id + structure_id`
+  - Payload: `source`, `cif`, `structure`, `params`, timestamps, chunk count.
+- `structure_raw_chunks`
+  - Key: `tenant_id + workspace_id + structure_id + chunk_index`
+  - Payload: chunk text for large raw input.
 
-```env
-STRUCTURE_STORE_BACKEND=sqlite
-STRUCTURE_STORE_DB_PATH=.just-runtime/structures.sqlite3
-STRUCTURE_STORE_RESET_ON_START=0
-```
+## API Service Behavior
 
-## Intentional Reset Procedure (Dev)
+`apps/api/services/structures.py`
 
-Use one of the following options.
+- `STRUCTURE_STORE_BACKEND=convex|memory`.
+- Default is `convex`.
+- Convex backend requires:
+  - `CONVEX_URL`
+  - `CONVEX_DEPLOY_KEY`
+- `memory` backend is intended for tests/local isolated runs.
+- No SQLite persistence is used for structures.
 
-Option A (one-time reset on next start):
+## Why chunk raw input
 
-```bash
-STRUCTURE_STORE_RESET_ON_START=1 uv run uvicorn apps.api.main:app --reload --port 8000
-```
+Quantum ESPRESSO input can be large. Raw input is chunked and persisted in `structure_raw_chunks` to avoid oversized single-record payloads and to keep retrieval deterministic.
 
-Option B (manual file delete):
+## Viewer Data Loading
 
-```bash
-rm -f .just-runtime/structures.sqlite3
-```
+Web viewer should not rely on browser direct fetch for protected API routes.
 
-## Backup Procedure (Dev/Staging)
+- For `/api/structures/{id}/view?format=cif`, web uses authenticated API helper (`requestApi`) and loads CIF text through the backend contract.
+- This avoids cross-origin/auth mismatch from direct unauthenticated fetch paths.
 
-SQLite copy backup:
+## Migration Notes
 
-```bash
-cp .just-runtime/structures.sqlite3 .just-runtime/structures.sqlite3.bak
-```
-
-Restore:
-
-```bash
-cp .just-runtime/structures.sqlite3.bak .just-runtime/structures.sqlite3
-```
-
-## Notes
-
-- ZPE queue/lease/result paths remain separate concerns and are not changed by
-  this structure-store persistence layer.
-- Tests for restart survival live in
-  `apps/api/tests/test_structures_persistence.py`.
+- Legacy SQLite-based structure persistence is removed from active path.
+- Existing tests run with `STRUCTURE_STORE_BACKEND=memory` fixture by default.
+- Production/dev with Convex must explicitly set Convex credentials.

@@ -87,6 +87,17 @@ export type RuntimeSubmitInput = {
 export const parseQeInput = api.parseQeInput
 export const createStructureFromQe = api.createStructureFromQe
 export const getStructure = api.getStructure
+export const getStructureCif = async (structureId: string): Promise<string> => {
+  const token = (await tokenProvider?.()) ?? undefined
+  const safeId = encodeURIComponent(structureId)
+  return (await requestApi({
+    data: {
+      path: `/structures/${safeId}/view?format=cif`,
+      responseType: 'text',
+      token,
+    },
+  })) as string
+}
 export const exportQeInput = api.exportQeInput
 export const exportStructureCif = api.exportStructureCif
 export const deltaTransplant = api.deltaTransplant

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   createZpeJob,
   fetchZpeStatus,
+  getStructureCif,
   parseQeInput,
   setApiTokenProvider,
   structureViewUrl,
@@ -185,5 +186,21 @@ describe('api client integration helpers', () => {
     vi.stubEnv('VITE_API_BASE', 'https://api.example.test/base/')
 
     expect(structureViewUrl('ghi')).toBe('https://api.example.test/base/api/structures/ghi')
+  })
+
+  it('fetches structure cif through authenticated requestApi helper', async () => {
+    mockedRequestApi.mockResolvedValueOnce('data_test')
+    setApiTokenProvider(() => Promise.resolve('cif-token'))
+
+    const cif = await getStructureCif('abc/def')
+
+    expect(cif).toBe('data_test')
+    expect(mockedRequestApi).toHaveBeenCalledWith({
+      data: {
+        path: '/structures/abc%2Fdef/view?format=cif',
+        responseType: 'text',
+        token: 'cif-token',
+      },
+    })
   })
 })

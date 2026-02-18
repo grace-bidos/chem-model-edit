@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Viewer } from 'molstar/lib/apps/viewer/app'
 
+import { getStructureCif } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
 type MolstarViewerStructure = {
@@ -28,6 +29,21 @@ type MolstarHelpers = {
 }
 
 const MOLSTAR_SELECTION_ERROR = 'Mol* の選択状態更新に失敗した。'
+
+const parseStructureIdFromCifUrl = (cifUrl: string): string | null => {
+  try {
+    const normalized = cifUrl.startsWith('http')
+      ? new URL(cifUrl)
+      : new URL(cifUrl, window.location.origin)
+    const match = normalized.pathname.match(/\/api\/structures\/([^/]+)\/view$/)
+    if (!match || !match[1]) {
+      return null
+    }
+    return decodeURIComponent(match[1])
+  } catch (_error) {
+    return null
+  }
+}
 
 const normalizeSelectionIndices = (
   selectedAtomIndices?: Array<number>,
@@ -193,18 +209,24 @@ export default function MolstarViewer({
         try {
           let data = null
           if (item.cifUrl) {
-            const response = await fetch(item.cifUrl, {
-              signal: controller.signal,
-            })
-            if (!response.ok) {
-              lastError = `CIF fetch failed (HTTP ${response.status})`
-              console.error('Mol* cif 取得に失敗しました。', response.status)
-              continue
+            const structureId = parseStructureIdFromCifUrl(item.cifUrl)
+            let text = ''
+            if (structureId) {
+              text = await getStructureCif(structureId)
+            } else {
+              const response = await fetch(item.cifUrl, {
+                signal: controller.signal,
+              })
+              if (!response.ok) {
+                lastError = `CIF fetch failed (HTTP ${response.status})`
+                console.error('Mol* cif 取得に失敗しました。', response.status)
+                continue
+              }
+              if (isCancelled()) {
+                break
+              }
+              text = await response.text()
             }
-            if (isCancelled()) {
-              break
-            }
-            const text = await response.text()
             if (isCancelled()) {
               break
             }

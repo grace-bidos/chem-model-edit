@@ -48,7 +48,9 @@ async def parse_structure(request: StructureParseRequest) -> StructureParseRespo
 
 
 @router.post("", response_model=StructureCreateResponse)
-async def create_structure(request: StructureCreateRequest) -> StructureCreateResponse:
+async def create_structure(
+    request: StructureCreateRequest,
+) -> StructureCreateResponse:
     structure_id, structure, source, params = create_structure_from_qe(
         request.content
     )
@@ -62,7 +64,9 @@ async def create_structure(request: StructureCreateRequest) -> StructureCreateRe
 
 
 @router.get("/{structure_id}", response_model=StructureGetResponse)
-async def get_structure(structure_id: str) -> StructureGetResponse:
+async def get_structure(
+    structure_id: str,
+) -> StructureGetResponse:
     try:
         entry = get_structure_entry(structure_id)
     except KeyError as exc:

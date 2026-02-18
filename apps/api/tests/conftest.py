@@ -12,6 +12,7 @@ if str(ROOT) not in sys.path:
 import app.deps as deps  # noqa: E402
 from services.authn.settings import AuthnSettings  # noqa: E402
 from services.authn.types import UserIdentity  # noqa: E402
+from services import structures as structure_service  # noqa: E402
 from services.zpe.settings import ZPESettings  # noqa: E402
 
 
@@ -30,6 +31,12 @@ def _default_auth_mode_clerk(monkeypatch: pytest.MonkeyPatch) -> None:
         "verify_clerk_token",
         lambda token: UserIdentity(user_id=token, email=f"{token}@example.com"),
     )
+
+
+@pytest.fixture(autouse=True)
+def _default_structure_store_memory(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("STRUCTURE_STORE_BACKEND", "memory")
+    structure_service.reload_structure_store()
 
 
 @pytest.fixture
