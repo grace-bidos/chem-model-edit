@@ -27,6 +27,12 @@ Preferred shortcut (bootstrap + create in one command):
 just pr-open GRA-60 "ship: update runtime docs" type=Ship size=XS queue=Optional stack=Standalone coderabbit=Optional
 ```
 
+For local-first flow, run this before opening the PR:
+
+```bash
+just pre-push-strict
+```
+
 Manual (body-file) flow:
 
 ```bash
@@ -68,3 +74,4 @@ and prints a focused `git diff` hint for review.
 - Keep public issue/PR text in English.
 - Prefer markdown files committed in `specs/` or `/tmp/*.md` when drafting bodies.
 - Ensure PR body includes required metadata fields checked by PR policy (Linear issue, type, size, queue policy, stack, and CodeRabbit policy).
+- For stacked delivery, lane owners should use `scripts/gh/stack_lane_loop.py` and provide handoff status with `docs/process/subagent-lane-handoff-template.md`.

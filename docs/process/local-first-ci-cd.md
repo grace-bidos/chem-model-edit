@@ -87,3 +87,30 @@ Quick bypass for emergency cases only:
 ```bash
 SKIP_PREPUSH_STRICT=1 git push
 ```
+
+## Stacked lane quick flow
+
+For each child-issue lane:
+
+```bash
+just pre-push-strict
+just pr-open GRA-XXX "ship: concise PR title"
+scripts/gh/stack_lane_loop.py <PR_NUMBER> --gt-sync --watch --merge-when-ready --merge-method merge
+```
+
+Before handoff to the main agent, fill:
+
+```bash
+just lane-handoff-template
+```
+
+## Weekly operation KPIs (2-sprint calibration)
+
+Capture weekly values in Linear comments or a cycle note:
+
+- median time-to-green for required checks (`web`, `api`, `contract`)
+- PR lead time from open to merge
+- CI rerun count per PR
+- percentage of PRs merged without manual polling outside lane scripts
+
+Use these KPIs to tune lane concurrency and identify slow checks without expanding required CI scope.

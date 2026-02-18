@@ -153,6 +153,7 @@ Primary capabilities include parallel structure views, partial structure transpl
 - Stale-session handling: if a lane has no heartbeat for 30+ minutes during active CI/review, mark it stale, pause new assignments into that slot, and either recover or reassign ownership explicitly.
 - Lane close rule: on merge/reassignment/cancel, close the lane by posting final status, cleaning up worktree/branch, and freeing the slot in inventory.
 - Merge-readiness contract for sub-agent handoff: required checks are green, unresolved review threads are zero, head is not `BEHIND` base, and remaining risks/conflicts are listed.
+- Use `docs/process/subagent-lane-handoff-template.md` for merge-ready handoff formatting to main agent.
 - Conflict handoff rule: if cross-lane conflicts are detected, stop local conflict resolution and hand off to main agent with impacted files, conflict summary, and proposed resolution options.
 - Sub-agents must not merge PRs directly. Main agent performs final merge and post-merge Linear updates.
 
@@ -221,6 +222,7 @@ Use these docs for full operational details instead of duplicating long instruct
 - `docs/process/linear-stacked-pr-operating-model.md`
 - `docs/process/coderabbit-parallel-playbook.md`
 - `docs/process/local-first-ci-cd.md`
+- `docs/process/subagent-lane-handoff-template.md`
 - `docs/process/local-dev-runtime-ops.md`
 - `docs/process/modal-aiida-slurm-runtime-gate.md`
 - `docs/process/merge-and-cleanup.md`

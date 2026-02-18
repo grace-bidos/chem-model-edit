@@ -1,5 +1,19 @@
 # GitHub Helper Scripts
 
+## Recommended fast path (stacked lane)
+
+```bash
+just pre-push-strict
+just pr-open GRA-60 "ship: concise title" type=Ship size=XS queue=Optional stack=Standalone coderabbit=Optional
+scripts/gh/stack_lane_loop.py <PR_NUMBER> --gt-sync --watch --merge-when-ready --merge-method merge
+```
+
+For main-agent handoff details:
+
+```bash
+just lane-handoff-template
+```
+
 ## `bootstrap_pr_body.sh`
 
 Generate a PR body stub with required metadata fields and CodeRabbit policy selection.
