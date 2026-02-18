@@ -97,6 +97,8 @@ Merge queue integration requirements:
 Optional post-merge checks (expand later):
 
 - heavy integration or E2E suites
+- on-demand full suites via PR label `ci:full` or `workflow_dispatch`
+- production web deploy via PR label `release:workers` on merge to `main`
 
 ## 7. End-to-end execution flow
 

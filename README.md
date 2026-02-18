@@ -89,11 +89,14 @@ just typecheck  # web: tsc, api: mypy
 just test       # web: vitest, api: pytest
 just ci         # nx run-many -t lint,typecheck,test,knip
 just quality-quick     # local quick gate: lint + typecheck + unit
+just ci-pr-quick       # PR相当の quick gate: web/api/contract drift
+just git-hooks-install # pre-push strict hook を有効化
 just quality-standard  # local standard gate: + a11y + knip + fastcheck + coverage
 just quality-deep      # local deep gate: + depcruise + storybook/chromatic + stryker + playwright smoke
 ```
 
 Detailed policy: `docs/process/web-quality-playbook-v2.md`
+CI/CD運用: `docs/process/local-first-ci-cd.md`
 
 ## Repository layout
 

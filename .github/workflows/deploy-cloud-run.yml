@@ -1,12 +1,6 @@
-name: Deploy API to Cloud Run
+name: Deploy API to Cloud Run (Manual)
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "apps/api/**"
-      - ".github/workflows/deploy-cloud-run.yml"
   workflow_dispatch:
 
 env:

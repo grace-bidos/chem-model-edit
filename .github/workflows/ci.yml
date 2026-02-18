@@ -22,8 +22,6 @@ jobs:
       web: ${{ steps.filter.outputs.web == 'true' || steps.filter.outputs.ci == 'true' }}
       api: ${{ steps.filter.outputs.api == 'true' || steps.filter.outputs.ci == 'true' }}
       contract: ${{ steps.filter.outputs.contract == 'true' || steps.filter.outputs.ci == 'true' }}
-      # Intentionally independent from `ci` global toggle: keep this lane opt-in and scoped.
-      projection_smoke: ${{ steps.filter.outputs.projection_smoke == 'true' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,6 +35,8 @@ jobs:
           filters: |
             ci:
               - '.github/workflows/ci.yml'
+              - '.github/workflows/full-ci.yml'
+              - '.github/workflows/deploy-workers.yml'
             web:
               - 'apps/web/**'
               - 'packages/shared/**'
@@ -47,28 +47,26 @@ jobs:
               - 'pnpm-workspace.yaml'
             api:
               - 'apps/api/**'
-              - 'pyproject.toml'
-              - 'uv.lock'
+              - 'scripts/api/**'
+              - 'apps/api/pyproject.toml'
+              - 'apps/api/uv.lock'
             contract:
-              - 'apps/api/**'
-              - 'packages/api-client/**'
+              - 'apps/api/app/**'
+              - 'apps/api/services/**'
+              - 'apps/api/main.py'
               - 'apps/api/scripts/export_openapi.py'
+              - 'packages/api-client/**'
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
-              - 'pyproject.toml'
-              - 'uv.lock'
-            projection_smoke:
-              - 'apps/api/**'
-              - 'packages/api-client/**'
-              - 'pyproject.toml'
-              - 'uv.lock'
-              - 'scripts/submit-event-projection-smoke.sh'
+              - 'apps/api/pyproject.toml'
+              - 'apps/api/uv.lock'
 
   route:
     runs-on: ubuntu-latest
     outputs:
       trusted: ${{ steps.pick.outputs.trusted }}
       runner: ${{ steps.pick.outputs.runner }}
+      use_gha_cache: ${{ steps.pick.outputs.use_gha_cache }}
     steps:
       - name: Select runner target
         id: pick
@@ -92,13 +90,13 @@ jobs:
 
           if [[ "${trusted}" == "true" ]]; then
             echo 'runner=["self-hosted","linux","x64","chem-trusted-pr"]' >> "${GITHUB_OUTPUT}"
+            echo 'use_gha_cache=false' >> "${GITHUB_OUTPUT}"
           else
             echo 'runner="ubuntu-latest"' >> "${GITHUB_OUTPUT}"
+            echo 'use_gha_cache=true' >> "${GITHUB_OUTPUT}"
           fi
           echo "trusted=${trusted}" >> "${GITHUB_OUTPUT}"
 
-  # Cache topology is intentionally per lane. Keep cache restore/save close to each
-  # consumer job and do not reintroduce a shared `warm-caches` pre-job.
   web:
     needs:
       - changes
@@ -124,6 +122,7 @@ jobs:
       - name: Configure pnpm store path
         run: pnpm config set store-dir "$HOME/.pnpm-store"
       - name: Restore pnpm store cache
+        if: ${{ needs.route.outputs.use_gha_cache == 'true' }}
         id: pnpm-cache-restore
         uses: actions/cache/restore@v4
         with:
@@ -135,7 +134,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --prefer-offline
       - name: Save pnpm store cache (main only)
-        if: ${{ github.ref == 'refs/heads/main' && steps.pnpm-cache-restore.outputs.cache-hit != 'true' }}
+        if: ${{ needs.route.outputs.use_gha_cache == 'true' && github.ref == 'refs/heads/main' && steps.pnpm-cache-restore.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v4
         with:
           path: ~/.pnpm-store
@@ -146,8 +145,6 @@ jobs:
         run: pnpm exec nx run web:typecheck
       - name: Unit tests
         run: pnpm exec nx run web:test
-      - name: A11y tests
-        run: pnpm exec nx run web:a11y
 
   api:
     needs:
@@ -173,7 +170,7 @@ jobs:
           save-cache: ${{ github.ref == 'refs/heads/main' }}
           cache-suffix: api-py3.13
           cache-dependency-glob: |
-            uv.lock
+            apps/api/uv.lock
             apps/api/pyproject.toml
       - name: Install dependencies
         run: uv sync --dev
@@ -184,87 +181,6 @@ jobs:
       - name: Mypy
         run: uv run mypy --config-file pyproject.toml app services main.py
         working-directory: apps/api
-      - name: Pyright (phase-1 non-blocking)
-        continue-on-error: true
-        run: uv run pyright --project pyrightconfig.json
-        working-directory: apps/api
-      - name: Bandit (phase-1 non-blocking)
-        continue-on-error: true
-        run: |
-          mkdir -p .ci-reports/security
-          uv run bandit -q -r app services main.py -f json -o .ci-reports/security/bandit.json
-        working-directory: apps/api
-      - name: Pip-audit (phase-1 non-blocking)
-        continue-on-error: true
-        run: |
-          mkdir -p .ci-reports/security
-          uv run pip-audit --progress-spinner off --format=json --output .ci-reports/security/pip-audit.json
-        working-directory: apps/api
-      - name: Security gate summary (phase-1 tracking)
-        if: always()
-        run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-
-          bandit_path = Path("apps/api/.ci-reports/security/bandit.json")
-          pip_audit_path = Path("apps/api/.ci-reports/security/pip-audit.json")
-          summary_path = Path(".ci-security-summary.md")
-
-          lines = [
-              "## Security gate signal (phase-1 non-blocking)",
-              "",
-              "- Promotion baseline: 0 high-severity Bandit findings, 0 pip-audit vulnerabilities",
-              "- Promotion stability: baseline sustained for 5 consecutive runs on `main`",
-              "",
-          ]
-
-          if bandit_path.exists():
-              try:
-                  bandit = json.loads(bandit_path.read_text())
-                  totals = bandit.get("metrics", {}).get("_totals", {})
-                  high = int(totals.get("SEVERITY.HIGH", 0))
-                  medium = int(totals.get("SEVERITY.MEDIUM", 0))
-                  low = int(totals.get("SEVERITY.LOW", 0))
-                  issues = bandit.get("results", [])
-                  lines.append(f"- Bandit: high={high}, medium={medium}, low={low}, total={len(issues)}")
-              except Exception as exc:
-                  lines.append(f"- Bandit: summary parse failed ({exc})")
-          else:
-              lines.append("- Bandit: report missing")
-
-          if pip_audit_path.exists():
-              try:
-                  pip_audit = json.loads(pip_audit_path.read_text())
-                  if isinstance(pip_audit, list):
-                      vuln_count = sum(len(dep.get("vulns", [])) for dep in pip_audit if isinstance(dep, dict))
-                      pkg_count = sum(1 for dep in pip_audit if isinstance(dep, dict) and dep.get("vulns"))
-                  elif isinstance(pip_audit, dict):
-                      deps = pip_audit.get("dependencies", [])
-                      vuln_count = sum(len(dep.get("vulns", [])) for dep in deps if isinstance(dep, dict))
-                      pkg_count = sum(1 for dep in deps if isinstance(dep, dict) and dep.get("vulns"))
-                  else:
-                      vuln_count = 0
-                      pkg_count = 0
-                  lines.append(f"- Pip-audit: vulnerable_packages={pkg_count}, vulnerabilities={vuln_count}")
-              except Exception as exc:
-                  lines.append(f"- Pip-audit: summary parse failed ({exc})")
-          else:
-              lines.append("- Pip-audit: report missing")
-
-          summary_path.write_text("\n".join(lines) + "\n")
-          PY
-          cat .ci-security-summary.md >> "$GITHUB_STEP_SUMMARY"
-      - name: Upload security reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: api-security-phase1-reports-${{ github.run_id }}
-          path: |
-            apps/api/.ci-reports/security/bandit.json
-            apps/api/.ci-reports/security/pip-audit.json
-            .ci-security-summary.md
-          if-no-files-found: warn
       - name: Pytest
         run: uv run pytest --cov=app --cov=services --cov=main --cov-report=term-missing --cov-report=xml:coverage.xml
         working-directory: apps/api
@@ -282,7 +198,7 @@ jobs:
         if: ${{ github.event_name == 'pull_request' }}
         env:
           BASE_REF: origin/${{ github.base_ref }}
-          COVERAGE_DIFF_THRESHOLD: "90"
+          COVERAGE_DIFF_THRESHOLD: '90'
         run: |
           uv run --project apps/api python - "$BASE_REF" "$COVERAGE_DIFF_THRESHOLD" <<'PY'
           import re
@@ -397,149 +313,6 @@ jobs:
           if percent + 1e-9 < threshold:
               sys.exit(1)
           PY
-      - name: Schemathesis
-        env:
-          SCHEMATHESIS_MODE: smoke
-          SCHEMATHESIS_SEED: "137"
-          SCHEMATHESIS_MAX_EXAMPLES: "20"
-          SCHEMATHESIS_MAX_FAILURES: "3"
-          SCHEMATHESIS_TENANT_ID: tenant-ci
-          SCHEMATHESIS_EXTRA_ARGS: --suppress-health-check=filter_too_much
-        run: uv run bash scripts/schemathesis.sh
-        working-directory: apps/api
-
-  secret-scan:
-    needs:
-      - changes
-      - route
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-    # gitleaks-action cache extraction is unstable on our self-hosted pool (/tmp permission/path issues).
-    # Keep this phase-1 non-blocking lane on GitHub-hosted runners for deterministic behavior.
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-      - name: Cleanup gitleaks temp file (runner quirk)
-        run: rm -f /tmp/gitleaks.tmp || true
-      - name: Gitleaks (phase-1 non-blocking)
-        continue-on-error: true
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
-
-  deadcode-hygiene:
-    needs:
-      - changes
-      - route
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.api == 'true' }}
-    runs-on: ${{ fromJSON(needs.route.outputs.runner) }}
-    continue-on-error: true
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v7
-      - name: Install dependencies
-        run: uv sync --dev
-        working-directory: apps/api
-      - name: Deptry + Vulture (phase-1 non-blocking)
-        run: uv run deptry . --extend-exclude ".*/mutants/" && uv run vulture app services --min-confidence 90 --ignore-names cls
-        working-directory: apps/api
-
-  mutation-smoke:
-    needs:
-      - changes
-      - route
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.api == 'true' }}
-    runs-on: ${{ fromJSON(needs.route.outputs.runner) }}
-    continue-on-error: true
-    timeout-minutes: 20
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v7
-      - name: Install dependencies
-        run: uv sync --dev
-        working-directory: apps/api
-      - name: Mutmut smoke (phase-1 non-blocking)
-        run: bash scripts/mutmut_smoke.sh
-        working-directory: apps/api
-
-  security-promotion-evidence:
-    needs:
-      - changes
-      - route
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.api == 'true' }}
-    runs-on: ${{ fromJSON(needs.route.outputs.runner) }}
-    permissions:
-      contents: read
-      actions: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v7
-      - name: Security promotion evidence (phase-1 non-blocking)
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          uv run --project apps/api python scripts/gh/security_phase1_promotion_report.py \
-            --repo "${GITHUB_REPOSITORY}" \
-            --workflow ci.yml \
-            --branch main \
-            --event push \
-            --window-size 10 \
-            --streak-size 5 \
-            --run-limit 20 \
-            --format markdown \
-            --markdown-out .ci-security-promotion-report.md \
-            --json-out .ci-security-promotion-report.json
-
-          if [[ -f .ci-security-promotion-report.md ]]; then
-            {
-              echo "## Security promotion readiness evidence"
-              cat .ci-security-promotion-report.md
-            } >> "${GITHUB_STEP_SUMMARY}"
-          else
-            {
-              echo "## Security promotion readiness evidence"
-              echo "- report generation failed (see step logs)"
-            } >> "${GITHUB_STEP_SUMMARY}"
-          fi
-      - name: Upload security promotion evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: api-security-phase1-promotion-evidence-${{ github.run_id }}
-          path: |
-            .ci-security-promotion-report.md
-            .ci-security-promotion-report.json
-          if-no-files-found: warn
 
   contract:
     needs:
@@ -555,16 +328,16 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.13'
       - name: Setup uv
         uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
           restore-cache: true
           save-cache: ${{ github.ref == 'refs/heads/main' }}
-          cache-suffix: contract-py3.12
+          cache-suffix: contract-py3.13
           cache-dependency-glob: |
-            uv.lock
+            apps/api/uv.lock
             apps/api/pyproject.toml
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -580,6 +353,7 @@ jobs:
       - name: Configure pnpm store path
         run: pnpm config set store-dir "$HOME/.pnpm-store"
       - name: Restore pnpm store cache
+        if: ${{ needs.route.outputs.use_gha_cache == 'true' }}
         id: pnpm-cache-restore
         uses: actions/cache/restore@v4
         with:
@@ -594,38 +368,14 @@ jobs:
       - name: Install Node dependencies
         run: pnpm install --frozen-lockfile --prefer-offline
       - name: Save pnpm store cache (main only)
-        if: ${{ github.ref == 'refs/heads/main' && steps.pnpm-cache-restore.outputs.cache-hit != 'true' }}
+        if: ${{ needs.route.outputs.use_gha_cache == 'true' && github.ref == 'refs/heads/main' && steps.pnpm-cache-restore.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v4
         with:
           path: ~/.pnpm-store
           key: ${{ steps.pnpm-cache-restore.outputs.cache-primary-key }}
-      - name: Contract lifecycle smoke
-        run: uv run pytest tests/test_zpe_submit_event_lifecycle_contract.py tests/test_zpe_http_worker_integration.py
-        working-directory: apps/api
       - name: Check OpenAPI artifact drift
         run: PYTHONPATH=apps/api uv run --project apps/api python apps/api/scripts/export_openapi.py --check
       - name: Regenerate API client
         run: pnpm -C packages/api-client run generate
       - name: Check generated API client schema is committed
         run: git diff --exit-code -- packages/api-client/src/generated/schema.ts
-
-  projection-smoke:
-    # Optional signal only; this job must not change required gate semantics.
-    needs:
-      - changes
-      - route
-    if: ${{ needs.changes.outputs.projection_smoke == 'true' }}
-    continue-on-error: true
-    timeout-minutes: 10
-    runs-on: ${{ fromJSON(needs.route.outputs.runner) }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v4
-      - name: Submit event projection smoke (optional)
-        run: bash scripts/submit-event-projection-smoke.sh
