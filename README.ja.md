@@ -5,7 +5,8 @@
 Quantum ESPRESSO `.in` の構造を可視化・編集するWebアプリ。
 
 ゴール: QE `.in` 構造の view / edit / compare / share をブラウザで完結させる。  
-詳細なスコープと受け入れ条件: `specs/001-chem-model-webapp/spec.md`
+詳細なスコープと受け入れ条件（アーカイブ参照）: `specs/archive/001-chem-model-webapp/spec.md`
+現行の計画管理の正本: Linear。specs の構成は `specs/README.md` を参照。
 
 ## クイックスタート
 
