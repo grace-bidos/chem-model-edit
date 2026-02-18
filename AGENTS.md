@@ -14,6 +14,16 @@ Primary capabilities include parallel structure views, partial structure transpl
 - Tooling: Nx, Storybook, Chromatic
 - Deploy: Cloudflare Workers (web), Modal (api)
 
+## Current Runtime Baseline
+
+- API runtime/deploy baseline: FastAPI on Modal (Cloud Run is not an active runtime path).
+- Runtime contract baseline: `/api/runtime/*` is the active compute-facing surface.
+- Execution baseline: user-managed AiiDA + Slurm handles execution internals.
+- System-of-record baseline:
+  - Product/application projection data: Convex
+  - Execution internals/provenance: AiiDA/Postgres
+  - FastAPI on Modal: stateless runtime gateway
+
 ## Language and Communication
 
 - Report to the user in Japanese.
@@ -29,6 +39,12 @@ Primary capabilities include parallel structure views, partial structure transpl
 - Keep `main` worktree for review/inspection only; do implementation in `.worktrees/<name>`.
 - Do not develop directly on `main`.
 - `uploads/` user-uploaded files may be moved/cleaned up if needed for the task.
+- Local secrets source-of-truth must be `/home/grace/projects/chem-model-edit/.tmp/dev-secrets.env`.
+- Do not create or rely on per-worktree secret files (for example `.worktrees/*/.env*`) as active config.
+- If a worktree-local secret file is found, migrate its values into `.tmp/dev-secrets.env` and remove or archive the worktree file.
+- For runtime secret setup, prefer existing helper scripts:
+  - `scripts/dev/bootstrap_dev_secrets_file.sh`
+  - `scripts/dev/apply_dev_runtime_env.sh`
 
 ## Planning and Delivery Model (Current)
 
@@ -88,6 +104,7 @@ Primary capabilities include parallel structure views, partial structure transpl
 - Queue optional for docs-only Ask/Ship items.
 - Pre-merge required checks should stay fast: lint, typecheck, unit/smoke, policy checks.
 - Merge-readiness gate (mandatory): required checks are green, unresolved review threads are zero, and head branch status is not `BEHIND` base.
+- Non-required pending checks (for example, optional CodeRabbit status) are not merge blockers.
 - Contract-sensitive rule: when API contract changes, commit OpenAPI spec updates and regenerated client artifacts in the same PR.
 - Heavy suites (if added later) should run post-merge.
 
@@ -96,6 +113,7 @@ Primary capabilities include parallel structure views, partial structure transpl
 - Linear: project/cycle/issue planning and status.
 - Graphite (`gt`): stack operations only (`create`, `submit`, `restack`, `sync`).
 - GitHub CLI (`gh`): PR readiness/merge loop (`pr_readiness.py`, `pr-autoloop.py`) and review/check inspection.
+- `just pr-open`: template-first PR creation path (bootstraps required PR metadata and opens PR).
 - Git (`git`): low-level repository operations.
 - Jujutsu (`jj`): optional local-history helper only; do not use as primary PR/push path.
 - `scripts/gh/stack_lane_loop.py`: lane-owner glue entrypoint (`gt sync` + gh readiness loop orchestration).
@@ -104,6 +122,7 @@ Primary capabilities include parallel structure views, partial structure transpl
 ### PR Loop Operation (Recommended)
 
 - Default split of responsibilities: use `gt` for stack shape changes, then `gh` scripts for readiness and merge loop.
+- Preferred PR creation path: `just pr-open <LINEAR_ISSUE> \"<PR title>\" ...` to avoid `pr-metadata` drift.
 - Recommended lane-owner entrypoint:
   - `scripts/gh/stack_lane_loop.py <PR_NUMBER> --gt-sync --watch --merge-when-ready --merge-method merge`
 - Use `scripts/gh/pr-autoloop.py <PR_NUMBER> --watch --merge-when-ready --merge-method merge` to run the review/check/merge loop.
@@ -112,7 +131,7 @@ Primary capabilities include parallel structure views, partial structure transpl
 - Main agent should not be a constant PR/CI poller; use milestone-based checks (handoff received, merge-ready ping, merge execution) instead of continuous watch loops.
 - Sub-agent owning a lane runs the PR loop and CI/watch for that lane until handoff.
 - CodeRabbit trigger policy: request review once when PR is review-ready, then re-request only after substantive new commits and at least 15 minutes since the last request.
-- If `--delete-branch` fails because the branch is attached to an active worktree, clean it up manually after removing the worktree.
+- If `--delete-branch` fails because the branch is attached to an active worktree, use two-step cleanup: merge first, then remove worktree/branch manually.
 - After a PR is merged, always sync local `main` immediately as part of the same operation set.
 - Worktree-safe sync from any worktree:
   - `git fetch origin --prune`
@@ -201,5 +220,8 @@ Use these docs for full operational details instead of duplicating long instruct
 
 - `docs/process/linear-stacked-pr-operating-model.md`
 - `docs/process/coderabbit-parallel-playbook.md`
+- `docs/process/local-first-ci-cd.md`
+- `docs/process/local-dev-runtime-ops.md`
+- `docs/process/modal-aiida-slurm-runtime-gate.md`
 - `docs/process/merge-and-cleanup.md`
 - `docs/process/gh-template-workflow.md`
