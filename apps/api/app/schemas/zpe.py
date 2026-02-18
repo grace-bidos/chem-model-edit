@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Literal, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional, Tuple, cast
 
 from pydantic import Field, model_validator
 
@@ -27,7 +27,12 @@ _AIIA_STATE_MAP: dict[str, str] = {
 def _to_string_key_dict(value: Any) -> dict[str, Any] | None:
     if not isinstance(value, dict):
         return None
-    return {key: item for key, item in value.items() if isinstance(key, str)}
+    source = cast(dict[object, Any], value)
+    normalized: dict[str, Any] = {}
+    for raw_key, raw_item in source.items():
+        if isinstance(raw_key, str):
+            normalized[raw_key] = raw_item
+    return normalized
 
 
 def _first_present(payload: dict[str, Any], *keys: str) -> Any:
@@ -368,7 +373,11 @@ class ComputeFailedRequest(ApiModel):
         if execution_event is None:
             return payload
         normalized_event = _normalize_execution_event_payload(execution_event)
-        if isinstance(normalized_event, dict) and normalized_event.get("error") is None:
+        normalized_event_payload = _to_string_key_dict(normalized_event)
+        if (
+            normalized_event_payload is not None
+            and normalized_event_payload.get("error") is None
+        ):
             error_code = _first_present(payload, "error_code", "errorCode")
             error_message = _first_present(payload, "error_message", "errorMessage")
             if error_code is not None and error_message is not None:
@@ -378,8 +387,8 @@ class ComputeFailedRequest(ApiModel):
                 }
                 if retryable_alias is not None:
                     error_payload["retryable"] = retryable_alias
-                normalized_event["error"] = error_payload
-        payload["execution_event"] = normalized_event
+                normalized_event_payload["error"] = error_payload
+        payload["execution_event"] = normalized_event_payload or normalized_event
         return payload
 
 
