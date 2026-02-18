@@ -11,19 +11,24 @@ if str(ROOT) not in sys.path:
 
 import app.deps as deps  # noqa: E402
 from services.authn.settings import AuthnSettings  # noqa: E402
+from services.authn.types import UserIdentity  # noqa: E402
 from services.zpe.settings import ZPESettings  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
-def _default_auth_mode_dev_bypass(monkeypatch: pytest.MonkeyPatch) -> None:
+def _default_auth_mode_clerk(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         deps,
         "get_authn_settings",
         lambda: AuthnSettings(
-            mode="dev-bypass",
-            dev_bypass_user_id_header="X-Dev-User-Id",
-            dev_bypass_email_header="X-Dev-User-Email",
+            mode="clerk",
+            clerk_issuer="https://issuer.example",
         ),
+    )
+    monkeypatch.setattr(
+        deps,
+        "verify_clerk_token",
+        lambda token: UserIdentity(user_id=token, email=f"{token}@example.com"),
     )
 
 

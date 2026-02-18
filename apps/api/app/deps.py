@@ -22,18 +22,6 @@ def _extract_bearer_token(request: Request) -> str | None:
     return None
 
 
-def _require_dev_bypass_identity(request: Request) -> UserIdentity:
-    settings = get_authn_settings()
-    user_id = request.headers.get(settings.dev_bypass_user_id_header)
-    if not user_id:
-        raise HTTPException(status_code=401, detail="unauthorized")
-    email = request.headers.get(settings.dev_bypass_email_header)
-    allowed = settings.allowed_email_set()
-    if allowed and (not email or email.lower() not in allowed):
-        raise HTTPException(status_code=403, detail="forbidden")
-    return UserIdentity(user_id=user_id, email=email)
-
-
 def _extract_tenant_id(request: Request) -> str | None:
     state_value = getattr(request.state, "tenant_id", None)
     if isinstance(state_value, str):
@@ -58,9 +46,7 @@ def require_tenant_id(request: Request) -> str:
 
 def require_user_identity(request: Request) -> UserIdentity:
     require_tenant_id(request)
-    mode = get_authn_settings().mode
-    if mode == "dev-bypass":
-        return _require_dev_bypass_identity(request)
+    _ = get_authn_settings()
     token = _extract_bearer_token(request)
     if not token:
         raise HTTPException(status_code=401, detail="unauthorized")

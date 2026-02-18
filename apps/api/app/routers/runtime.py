@@ -13,7 +13,9 @@ from app.schemas.runtime import (
 )
 from app.schemas.zpe import ZPEJobStatus
 from services.runtime import (
+    RuntimeConfigurationError,
     RuntimeConflictError,
+    RuntimeDownstreamError,
     RuntimeNotFoundError,
     get_runtime_store,
 )
@@ -36,6 +38,10 @@ async def submit_runtime_job(command: SubmitJobCommand, request: Request) -> Sub
         detail = str(exc)
         status = 409 if detail == "idempotency_conflict" else 422
         raise HTTPException(status_code=status, detail=detail) from exc
+    except RuntimeConfigurationError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except RuntimeDownstreamError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     return result.response
 
 
@@ -53,6 +59,10 @@ async def post_runtime_event(job_id: str, event: ExecutionEvent, request: Reques
         raise HTTPException(status_code=404, detail="job not found") from exc
     except RuntimeConflictError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except RuntimeConfigurationError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except RuntimeDownstreamError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     return RuntimeEventAck(ok=True, idempotent=ack.idempotent)
 
 
@@ -64,6 +74,10 @@ async def get_runtime_job(job_id: str, request: Request) -> RuntimeJobStatusResp
         return get_runtime_store().get_status(job_id, tenant_id=tenant_id)
     except RuntimeNotFoundError as exc:
         raise HTTPException(status_code=404, detail="job not found") from exc
+    except RuntimeConfigurationError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except RuntimeDownstreamError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 @router.get("/jobs/{job_id}/detail")
@@ -74,6 +88,10 @@ async def get_runtime_job_detail(job_id: str, request: Request) -> dict[str, obj
         return get_runtime_store().get_detail(job_id, tenant_id=tenant_id)
     except RuntimeNotFoundError as exc:
         raise HTTPException(status_code=404, detail="job not found") from exc
+    except RuntimeConfigurationError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except RuntimeDownstreamError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 @router.get("/jobs/{job_id}/projection", response_model=ZPEJobStatus)
@@ -84,3 +102,7 @@ async def get_runtime_job_projection(job_id: str, request: Request) -> ZPEJobSta
         return get_runtime_store().get_projection_status(job_id, tenant_id=tenant_id)
     except RuntimeNotFoundError as exc:
         raise HTTPException(status_code=404, detail="job not found") from exc
+    except RuntimeConfigurationError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except RuntimeDownstreamError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc

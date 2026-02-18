@@ -9,8 +9,7 @@ from services.zpe import queue_targets as zpe_queue_targets
 
 def _headers(user_id: str) -> dict[str, str]:
     return {
-        "X-Dev-User-Id": user_id,
-        "X-Dev-User-Email": f"{user_id}@example.com",
+        "Authorization": f"Bearer {user_id}",
         "X-Tenant-Id": f"tenant-{user_id}",
     }
 

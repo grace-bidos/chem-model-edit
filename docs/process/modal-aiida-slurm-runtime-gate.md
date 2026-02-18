@@ -6,7 +6,7 @@ This runbook defines executable checks for the runtime-only compute contract (`/
 
 - Runtime submit/status/detail/projection endpoints on Modal
 - Tenant-scoped auth and proxy-auth behavior
-- User-managed AiiDA/Slurm execution event flow into runtime store
+- User-managed AiiDA/Slurm execution event flow through stateless runtime gateway
 - Convex projection consistency checks
 
 ## Preconditions

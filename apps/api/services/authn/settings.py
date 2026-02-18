@@ -13,12 +13,10 @@ class AuthnSettings(BaseSettings):
         extra="ignore",
     )
 
-    mode: Literal["clerk", "dev-bypass"] = "clerk"
+    mode: Literal["clerk"] = "clerk"
     clerk_issuer: str | None = None
     clerk_audience: str | None = None
     allowed_emails: str | None = None
-    dev_bypass_user_id_header: str = "X-Dev-User-Id"
-    dev_bypass_email_header: str = "X-Dev-User-Email"
 
     def allowed_email_set(self) -> set[str]:
         if not self.allowed_emails:
