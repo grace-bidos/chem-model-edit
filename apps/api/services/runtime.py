@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
-from typing import Any, Literal
+from typing import Any, Literal, cast
 from urllib import error as urlerror
 from urllib import parse as urlparse
 from urllib import request as urlrequest
@@ -92,8 +92,14 @@ def _parse_json_body(payload: bytes | None) -> dict[str, Any]:
     text = payload.decode("utf-8", errors="replace").strip()
     if not text:
         return {}
-    parsed = json.loads(text)
-    return parsed if isinstance(parsed, dict) else {}
+    parsed_obj: object = json.loads(text)
+    if not isinstance(parsed_obj, dict):
+        return {}
+    parsed_dict: dict[str, Any] = {}
+    for key, value in cast(dict[Any, Any], parsed_obj).items():
+        if isinstance(key, str):
+            parsed_dict[key] = value
+    return parsed_dict
 
 
 def _error_detail(payload: dict[str, Any]) -> str:
@@ -101,7 +107,8 @@ def _error_detail(payload: dict[str, Any]) -> str:
         return "downstream_error"
     error = payload.get("error")
     if isinstance(error, dict):
-        message = error.get("message")
+        error_map = cast(dict[str, Any], error)
+        message = error_map.get("message", None)
         if isinstance(message, str) and message.strip():
             return message.strip()
     detail = payload.get("detail")
