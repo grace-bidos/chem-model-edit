@@ -87,6 +87,7 @@ Required pre-merge checks (fast):
 - unit/smoke
 - policy check (type/size labels or equivalent metadata)
 - merge-readiness gate: required checks green, unresolved review threads = 0, and PR head status is not `BEHIND` base
+- non-required pending checks (for example CodeRabbit when optional) do not block merge
 
 Merge queue integration requirements:
 

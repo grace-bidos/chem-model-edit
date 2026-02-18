@@ -11,6 +11,12 @@ scripts/gh/bootstrap_pr_body.sh GRA-60 /tmp/pr_body.md --type Ship --size XS --q
 scripts/gh/create_pr_from_template.sh main feature/gra-60-pr-ci-helper-scripts "feat: add PR/CI helper scripts" /tmp/pr_body.md
 ```
 
+Preferred single command from repo root:
+
+```bash
+just pr-open GRA-60 "feat: add PR/CI helper scripts" type=Ship size=XS queue=Optional stack=Standalone coderabbit=Optional
+```
+
 ## `pr_readiness.py`
 
 One-shot PR readiness summary for merge checks, unresolved review threads, and branch-behind state.
