@@ -7,6 +7,8 @@ Run CI for trusted pull requests on self-hosted ephemeral runners backed by a lo
 For concrete operator commands, see:
 
 - `docs/process/self-hosted-jit-vm-operator-checklist.md`
+- `docs/process/ephemeral-runner-option-evaluation.md`
+- `docs/process/ephemeral-runner-cache-baseline.md`
 
 ## Standard Ops Policy (Default)
 
@@ -107,6 +109,30 @@ Recommended auth model for JIT issuance:
 - app token refresh timer is active and recent status is recorded
   - `sudo systemctl status chem-github-app-token-refresh.timer --no-pager`
   - `sudo cat /var/lib/chem-model-edit/github-app-token-refresh-status.json`
+
+## Rollout Success Metrics (for canary and steady-state)
+
+Track these metrics during canary and normal operations:
+
+- routing correctness:
+  - trusted PRs should route to self-hosted labels
+  - untrusted contexts must remain on hosted runners
+- queue wait:
+  - p95 queue wait for trusted PR checks under 120 seconds
+- setup latency:
+  - p95 from job start to first task execution under 180 seconds
+- reliability:
+  - runner setup/teardown failure rate under 2% over latest 50 trusted runs
+
+If any metric breaches threshold for 2 consecutive trusted runs, execute rollback.
+
+## Ownership and Escalation
+
+- Primary owner: repository maintainers operating the self-hosted runner lane.
+- Escalation path:
+  1. Disable trusted routing immediately.
+  2. Run runner health check and base-runner recovery commands.
+  3. If not restored within 30 minutes, keep hosted-only routing and open incident follow-up issue.
 
 ## Rollback
 
