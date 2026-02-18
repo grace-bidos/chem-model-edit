@@ -13,17 +13,6 @@ from typing import Any, Dict, Iterator, cast
 from ase.calculators.espresso import Espresso
 from ase.vibrations import Vibrations
 
-
-def get_current_job() -> Any:
-    try:
-        rq_module = importlib.import_module("rq")
-    except ImportError:  # pragma: no cover
-        return None
-    getter = getattr(rq_module, "get_current_job", None)
-    if getter is None:
-        return None
-    return getter()
-
 from app.schemas.zpe import ZPEJobRequest
 from .cache import clean_vib_cache, sanitize_vib_cache
 from .environ import prepare_environ_files, resolve_environ_path
@@ -41,6 +30,17 @@ from .qe import build_espresso_profile
 from .result_store import get_result_store
 from .settings import ZPESettings, get_zpe_settings
 from .thermo import calc_zpe_and_s_vib, normalize_frequencies
+
+
+def get_current_job() -> Any:
+    try:
+        rq_module = importlib.import_module("rq")
+    except ImportError:  # pragma: no cover
+        return None
+    getter = getattr(rq_module, "get_current_job", None)
+    if getter is None:
+        return None
+    return getter()
 
 
 @contextmanager
