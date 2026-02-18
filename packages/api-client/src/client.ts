@@ -136,7 +136,7 @@ export const createApiClient = (options: ApiClientOptions): ApiClient => {
         payload.structure_id = structure_id
       }
       return requestJson<ZPEParseResponse>({
-        path: '/zpe/parse',
+        path: '/runtime/parse',
         method: 'POST',
         body: payload,
       })
@@ -152,7 +152,7 @@ export const createApiClient = (options: ApiClientOptions): ApiClient => {
       }
       const query = search.toString()
       return requestJson<ZPEQueueTargetList>({
-        path: `/zpe/targets${query ? `?${query}` : ''}`,
+        path: `/runtime/targets${query ? `?${query}` : ''}`,
         token: withToken(),
       })
     },
@@ -160,7 +160,7 @@ export const createApiClient = (options: ApiClientOptions): ApiClient => {
     async selectQueueTarget(target_id) {
       const safeId = encodeURIComponent(target_id)
       return requestJson<ZPEQueueTargetSelectResponse>({
-        path: `/zpe/targets/${safeId}/active`,
+        path: `/runtime/targets/${safeId}/active`,
         method: 'PUT',
         token: withToken(),
       })

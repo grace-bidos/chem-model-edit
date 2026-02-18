@@ -129,4 +129,4 @@ Expected:
 
 ## Retirement note
 
-Legacy `/api/zpe/compute/*` and `/api/zpe/jobs*` are intentionally removed. Any operational script relying on RQ workers is out of scope for runtime operation as of this cutover.
+Legacy `/api/zpe/*` endpoints are intentionally removed. Runtime-facing entrypoints live under `/api/runtime/*`, and onboarding dry-run lives under `/api/onboarding/dry-run`. Any operational script relying on RQ workers is out of scope for runtime operation as of this cutover.

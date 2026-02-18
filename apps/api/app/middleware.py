@@ -49,7 +49,7 @@ async def add_request_context(
     response = await call_next(request)
     response.headers["x-request-id"] = request_id
     path = request.url.path
-    if path.startswith("/api/zpe/") or path.startswith("/api/runtime/"):
+    if path.startswith("/api/runtime/") or path.startswith("/api/onboarding/"):
         duration_ms = int((time.monotonic() - start) * 1000)
         log_event(
             logger,

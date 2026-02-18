@@ -9,6 +9,7 @@ from urllib import error as urlerror
 from fastapi.testclient import TestClient
 
 import main
+from services.runtime_settings import get_runtime_settings
 
 
 _AIIA_ENV_KEYS = [
@@ -26,10 +27,38 @@ _AIIA_ENV_KEYS = [
     "ZPE_SLURM_POLICY_PATH",
 ]
 
+_RUNTIME_ENV_KEYS = [
+    "RUNTIME_COMMAND_SUBMIT_URL",
+    "RUNTIME_COMMAND_EVENT_URL_TEMPLATE",
+    "RUNTIME_READ_STATUS_URL_TEMPLATE",
+    "RUNTIME_READ_DETAIL_URL_TEMPLATE",
+    "RUNTIME_READ_PROJECTION_URL_TEMPLATE",
+]
+
 
 def _clear_aiida_env(monkeypatch: Any) -> None:
+    get_runtime_settings.cache_clear()
     for key in _AIIA_ENV_KEYS:
         monkeypatch.delenv(key, raising=False)
+    for key in _RUNTIME_ENV_KEYS:
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv("RUNTIME_COMMAND_SUBMIT_URL", "https://gateway.example/api/runtime/jobs:submit")
+    monkeypatch.setenv(
+        "RUNTIME_COMMAND_EVENT_URL_TEMPLATE",
+        "https://gateway.example/api/runtime/jobs/{job_id}/events",
+    )
+    monkeypatch.setenv(
+        "RUNTIME_READ_STATUS_URL_TEMPLATE",
+        "https://gateway.example/api/runtime/jobs/{job_id}",
+    )
+    monkeypatch.setenv(
+        "RUNTIME_READ_DETAIL_URL_TEMPLATE",
+        "https://gateway.example/api/runtime/jobs/{job_id}/detail",
+    )
+    monkeypatch.setenv(
+        "RUNTIME_READ_PROJECTION_URL_TEMPLATE",
+        "https://gateway.example/api/runtime/jobs/{job_id}/projection",
+    )
 
 
 class _DummyResponse:
@@ -78,6 +107,42 @@ def test_ready_returns_503_when_managed_aiida_is_misconfigured(monkeypatch: Any)
     assert check["error"] == "misconfigured"
     assert payload["checks"]["user_managed_deep_readiness"]["status"] == "skipped"
     assert payload["checks"]["slurm_real_adapter_preconditions"]["status"] == "skipped"
+
+
+def test_health_reports_degraded_when_runtime_gateway_contract_is_incomplete(
+    monkeypatch: Any,
+) -> None:
+    _clear_aiida_env(monkeypatch)
+    monkeypatch.delenv("RUNTIME_READ_DETAIL_URL_TEMPLATE", raising=False)
+    get_runtime_settings.cache_clear()
+    client = TestClient(main.app)
+
+    response = client.get("/api/health")
+
+    assert response.status_code == 200
+    payload = response.json()
+    check = payload["checks"]["runtime_gateway_contract"]
+    assert payload["status"] == "degraded"
+    assert check["status"] == "failed"
+    assert "RUNTIME_READ_DETAIL_URL_TEMPLATE" in check["missing"]
+
+
+def test_ready_returns_503_when_runtime_gateway_contract_is_incomplete(
+    monkeypatch: Any,
+) -> None:
+    _clear_aiida_env(monkeypatch)
+    monkeypatch.delenv("RUNTIME_COMMAND_EVENT_URL_TEMPLATE", raising=False)
+    get_runtime_settings.cache_clear()
+    client = TestClient(main.app)
+
+    response = client.get("/api/ready")
+
+    assert response.status_code == 503
+    payload = response.json()
+    check = payload["checks"]["runtime_gateway_contract"]
+    assert payload["status"] == "not_ready"
+    assert check["status"] == "failed"
+    assert "RUNTIME_COMMAND_EVENT_URL_TEMPLATE" in check["missing"]
 
 
 def test_ready_returns_503_when_managed_aiida_base_url_is_malformed(

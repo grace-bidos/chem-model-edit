@@ -37,7 +37,7 @@ def test_clerk_mode_accepts_verified_token(monkeypatch):
 
     client = TestClient(main.app)
     response = client.get(
-        "/api/zpe/targets",
+        "/api/runtime/targets",
         headers={**TENANT_HEADERS, "Authorization": "Bearer valid-token"},
     )
 
@@ -64,7 +64,7 @@ def test_clerk_mode_rejects_allowlist_denied(monkeypatch):
 
     client = TestClient(main.app)
     response = client.get(
-        "/api/zpe/targets",
+        "/api/runtime/targets",
         headers={**TENANT_HEADERS, "Authorization": "Bearer denied-token"},
     )
 

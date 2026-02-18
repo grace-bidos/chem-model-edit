@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
 import json
-from typing import Any, Literal, cast
+from typing import Any, cast
 from urllib import error as urlerror
 from urllib import parse as urlparse
 from urllib import request as urlrequest
@@ -15,18 +14,8 @@ from app.schemas.runtime import (
     SubmitJobCommand,
 )
 from app.schemas.zpe import ZPEJobStatus
-from services.convex_event_relay import (
-    AiidaJobEvent,
-    build_convex_projection,
-    compute_event_idempotency_key,
-    get_convex_event_dispatcher,
-)
-from services.zpe.settings import get_zpe_settings
 
 from .runtime_settings import get_runtime_settings
-
-RuntimeState = Literal["accepted", "running", "completed", "failed"]
-
 
 class RuntimeConflictError(ValueError):
     pass
@@ -53,26 +42,6 @@ class SubmitResult:
 @dataclass(frozen=True)
 class EventAck:
     idempotent: bool
-
-
-def _event_time_iso(value: str) -> str:
-    try:
-        parsed = datetime.fromisoformat(value)
-    except ValueError:
-        parsed = datetime.now(timezone.utc)
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.isoformat()
-
-
-def _to_job_state(value: RuntimeState) -> Literal["queued", "started", "finished", "failed"]:
-    if value == "accepted":
-        return "queued"
-    if value == "running":
-        return "started"
-    if value == "completed":
-        return "finished"
-    return "failed"
 
 
 def _require_url(value: str | None, *, key: str) -> str:
@@ -186,43 +155,18 @@ class RuntimeGateway:
         )
 
     def apply_event(self, event: ExecutionEvent) -> EventAck:
-        template = self._settings.command_event_url_template
-        if template:
-            url = _build_url(template, job_id=event.job_id)
-            response = self._request_json(
-                method="POST",
-                url=url,
-                tenant_id=event.tenant_id,
-                body=event.model_dump(),
-            )
-            return EventAck(idempotent=bool(response.get("idempotent", False)))
-
-        # Direct relay fallback for event->projection path when no command endpoint is configured.
-        self._dispatch_projection(event)
-        return EventAck(idempotent=False)
-
-    def _dispatch_projection(self, event: ExecutionEvent) -> None:
-        settings = get_zpe_settings()
-        dispatcher = get_convex_event_dispatcher(
-            relay_url=settings.convex_relay_url,
-            relay_token=settings.convex_relay_token,
-            timeout_seconds=settings.convex_relay_timeout_seconds,
+        template = _require_url(
+            self._settings.command_event_url_template,
+            key="RUNTIME_COMMAND_EVENT_URL_TEMPLATE",
         )
-        projected_event = AiidaJobEvent(
-            job_id=event.job_id,
-            node_id=event.execution_id,
-            project_id=event.workspace_id,
-            owner_id=None,
-            state=_to_job_state(event.state),
-            event_id=event.event_id,
-            timestamp=datetime.fromisoformat(_event_time_iso(event.occurred_at)),
-            sequence=1,
+        url = _build_url(template, job_id=event.job_id)
+        response = self._request_json(
+            method="POST",
+            url=url,
+            tenant_id=event.tenant_id,
+            body=event.model_dump(),
         )
-        projection = build_convex_projection(projected_event)
-        dispatcher.dispatch_job_projection(
-            payload=projection,
-            idempotency_key=compute_event_idempotency_key(projected_event),
-        )
+        return EventAck(idempotent=bool(response.get("idempotent", False)))
 
     def get_status(self, job_id: str, *, tenant_id: str) -> RuntimeJobStatusResponse:
         template = _require_url(
