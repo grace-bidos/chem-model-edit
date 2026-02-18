@@ -3,6 +3,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import importlib
 import os
 import shutil
 import uuid
@@ -11,11 +12,17 @@ from typing import Any, Dict, Iterator, cast
 
 from ase.calculators.espresso import Espresso
 from ase.vibrations import Vibrations
-try:
-    from rq import get_current_job
-except ImportError:  # pragma: no cover
-    def get_current_job() -> Any:  # type: ignore[misc]
+
+
+def get_current_job() -> Any:
+    try:
+        rq_module = importlib.import_module("rq")
+    except ImportError:  # pragma: no cover
         return None
+    getter = getattr(rq_module, "get_current_job", None)
+    if getter is None:
+        return None
+    return getter()
 
 from app.schemas.zpe import ZPEJobRequest
 from .cache import clean_vib_cache, sanitize_vib_cache
