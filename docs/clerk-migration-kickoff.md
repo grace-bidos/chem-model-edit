@@ -5,9 +5,9 @@ This document links the planning artifacts for the one-shot Clerk migration epic
 - Parent epic: #151
 - Child issues: #152, #153, #154, #155, #156, #157
 - Optional research: #158
-- Planning spec: `specs/007-clerk-auth-zpe-relax/spec.md`
-- Planning plan: `specs/007-clerk-auth-zpe-relax/plan.md`
-- Planning tasks: `specs/007-clerk-auth-zpe-relax/tasks.md`
+- Planning spec (archived): `specs/archive/007-clerk-auth-zpe-relax/spec.md`
+- Planning plan (archived): `specs/archive/007-clerk-auth-zpe-relax/plan.md`
+- Planning tasks (archived): `specs/archive/007-clerk-auth-zpe-relax/tasks.md`
 
 Policy:
 

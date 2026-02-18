@@ -72,6 +72,6 @@ and prints a focused `git diff` hint for review.
 ## Notes
 
 - Keep public issue/PR text in English.
-- Prefer markdown files committed in `specs/` or `/tmp/*.md` when drafting bodies.
+- Prefer markdown files committed in `specs/current/` (or `specs/archive/` for historical context) or `/tmp/*.md` when drafting bodies.
 - Ensure PR body includes required metadata fields checked by PR policy (Linear issue, type, size, queue policy, stack, and CodeRabbit policy).
 - For stacked delivery, lane owners should use `scripts/gh/stack_lane_loop.py` and provide handoff status with `docs/process/subagent-lane-handoff-template.md`.

@@ -7,7 +7,8 @@ English | [Japanese](./README.ja.md)
 Web app for editing and visualizing chemical structures (Quantum ESPRESSO `.in`).
 
 Goal: build a browser workflow to view, edit, compare, and share QE `.in` structures.
-Detailed scope and acceptance criteria: `specs/001-chem-model-webapp/spec.md`.
+Detailed scope and acceptance criteria (archived reference): `specs/archive/001-chem-model-webapp/spec.md`.
+Current planning source-of-truth: Linear. Specs directory guide: `specs/README.md`.
 
 ## Quickstart
 
