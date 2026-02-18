@@ -664,6 +664,41 @@ ci-pr-quick:
   just api-test
   just contract-drift-check
 
+pr-open linear title type='Ship' size='S' queue='Optional' stack='Standalone' coderabbit='Optional' base='main' head='' draft='false':
+  #!/usr/bin/env bash
+  set -euo pipefail
+  linear="{{linear}}"
+  title="{{title}}"
+  type="{{type}}"
+  size="{{size}}"
+  queue="{{queue}}"
+  stack="{{stack}}"
+  coderabbit="{{coderabbit}}"
+  base="{{base}}"
+  head="{{head}}"
+  draft="{{draft}}"
+
+  if [[ -z "$head" ]]; then
+    head="$(git rev-parse --abbrev-ref HEAD)"
+  fi
+
+  body_file="$(mktemp /tmp/pr_body.XXXXXX.md)"
+  trap 'rm -f "$body_file"' EXIT
+
+  scripts/gh/bootstrap_pr_body.sh \
+    "$linear" "$body_file" \
+    --type "$type" \
+    --size "$size" \
+    --queue "$queue" \
+    --stack "$stack" \
+    --coderabbit "$coderabbit"
+
+  if [[ "$draft" == "true" ]]; then
+    scripts/gh/create_pr_from_template.sh "$base" "$head" "$title" "$body_file" --draft
+  else
+    scripts/gh/create_pr_from_template.sh "$base" "$head" "$title" "$body_file"
+  fi
+
 pre-push-strict:
   #!/usr/bin/env bash
   set -euo pipefail

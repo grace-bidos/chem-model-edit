@@ -12,6 +12,30 @@ Keep feedback loops fast by running quick checks locally, while keeping required
 
 Heavy checks are not required in normal PR flow.
 
+Merge-ready is defined by required checks only:
+
+- required checks are green
+- unresolved review threads are zero
+- PR head is not `BEHIND` base
+
+`CodeRabbit` pending status is not a merge blocker unless it is explicitly configured as a required check.
+
+## PR creation (metadata-safe)
+
+Use the template-driven helper to avoid `pr-metadata` failures:
+
+```bash
+just pr-open GRA-208 "docs: retire cloud run legacy references"
+```
+
+Optional flags:
+
+```bash
+just pr-open GRA-208 "docs: retire cloud run legacy references" type=Ship size=S queue=Optional stack=Standalone coderabbit=Optional draft=true
+```
+
+Avoid direct `gh pr create` unless you pass a validated body file.
+
 ## Full checks (on demand)
 
 Use the `Full CI (On Demand)` workflow for heavy suites.
@@ -37,6 +61,12 @@ Production deploy is label-gated.
 - Workflow `Deploy Web to Cloudflare Workers` runs automatically
 
 Manual deploy remains available via `workflow_dispatch`.
+
+## Docs-only PR behavior
+
+On pull requests, quick lanes are routed by changed paths.
+Docs-only changes should skip `web/api/contract` lanes unless CI workflow files affecting quick lanes changed.
+On `push` to `main` and `merge_group`, quick lanes still run by design.
 
 ## Local strict gate
 

@@ -21,6 +21,14 @@ Linear remains planning source-of-truth.
 
 ## Create PR
 
+Preferred shortcut (bootstrap + create in one command):
+
+```bash
+just pr-open GRA-60 "ship: update runtime docs" type=Ship size=XS queue=Optional stack=Standalone coderabbit=Optional
+```
+
+Manual (body-file) flow:
+
 ```bash
 scripts/gh/create_pr_from_template.sh <base-branch-or-main> <head-branch> "PR title" /tmp/pr_body.md --draft
 ```
