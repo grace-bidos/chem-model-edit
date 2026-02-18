@@ -263,8 +263,8 @@ def compute_zpe_artifacts(payload: Dict[str, Any], *, job_id: str) -> ZPECompute
             delta=settings.delta,
             name=settings.vib_name,
         )
-        cast(Any, vib).run()
-        freqs_cm = cast(list[float], cast(Any, vib).get_frequencies())
+        vib.run()
+        freqs_cm = vib.get_frequencies()
 
     zpe_ev, s_vib_jmol_k = calc_zpe_and_s_vib(
         freqs_cm,
