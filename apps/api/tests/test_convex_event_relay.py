@@ -6,12 +6,15 @@ from io import BytesIO
 from typing import Any, Literal, cast
 from urllib import error as urlerror
 
+import pytest
+
 from services.convex_event_relay import (
     AiidaJobEvent,
     ConvexJobProjection,
     HttpConvexEventDispatcher,
     build_convex_projection,
     compute_event_idempotency_key,
+    get_convex_event_dispatcher,
 )
 from services.zpe.job_state import JobState
 
@@ -141,3 +144,14 @@ def test_http_dispatcher_treats_409_as_idempotent_success(monkeypatch: Any) -> N
     )
 
     dispatcher.dispatch_job_projection(projection, "idempotency-key-1")
+
+
+def test_get_convex_event_dispatcher_requires_runtime_relay_configuration() -> None:
+    with pytest.raises(RuntimeError, match="ZPE_CONVEX_RELAY_URL"):
+        get_convex_event_dispatcher(relay_url=None, relay_token="token-1")
+
+    with pytest.raises(RuntimeError, match="ZPE_CONVEX_RELAY_TOKEN"):
+        get_convex_event_dispatcher(
+            relay_url="https://relay.example.com/dispatch",
+            relay_token=None,
+        )

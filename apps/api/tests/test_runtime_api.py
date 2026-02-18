@@ -113,6 +113,7 @@ def test_runtime_submit_scope_violation(monkeypatch, tmp_path: Path):
 def test_runtime_event_updates_status(monkeypatch, tmp_path: Path):
     store = RuntimeStore(tmp_path / "runtime.sqlite3")
     monkeypatch.setattr("app.routers.runtime.get_runtime_store", lambda: store)
+    monkeypatch.setattr(store, "_dispatch_projection", lambda _event: None)
 
     client = TestClient(app)
     submit = client.post("/api/runtime/jobs:submit", json=_submit_payload(), headers=_headers())
@@ -247,6 +248,44 @@ def test_runtime_store_get_detail_honors_tenant_scope(monkeypatch, tmp_path: Pat
 
     with pytest.raises(RuntimeNotFoundError):
         store.get_detail("job-1", tenant_id="tenant-other")
+
+
+def test_runtime_store_dispatch_projection_builds_and_dispatches(monkeypatch, tmp_path: Path):
+    store = RuntimeStore(tmp_path / "runtime.sqlite3")
+    dispatched: dict[str, object] = {}
+
+    class _Dispatcher:
+        def dispatch_job_projection(self, *, payload, idempotency_key):  # type: ignore[no-untyped-def]
+            dispatched["payload"] = payload
+            dispatched["idempotency_key"] = idempotency_key
+
+    monkeypatch.setattr(
+        "services.runtime.get_zpe_settings",
+        lambda: SimpleNamespace(
+            convex_relay_url="https://convex.example",
+            convex_relay_token="token",
+            convex_relay_timeout_seconds=3,
+        ),
+    )
+    monkeypatch.setattr(
+        "services.runtime.get_convex_event_dispatcher",
+        lambda **_kwargs: _Dispatcher(),
+    )
+
+    event = _event(
+        event_id="evt-projection-1",
+        state="running",
+        submission_id="sub-projection-1",
+    )
+    store._dispatch_projection(event)
+
+    payload = dispatched.get("payload")
+    assert payload is not None
+    assert getattr(payload, "job_id", None) == "job-1"
+    assert getattr(payload, "status", None) == "started"
+    idempotency_key = dispatched.get("idempotency_key")
+    assert isinstance(idempotency_key, str)
+    assert idempotency_key != ""
 
 
 def test_resolve_runtime_db_path_handles_absolute_and_relative(monkeypatch):

@@ -110,9 +110,7 @@ async def zpe_ops_flags(raw: Request) -> OpsFlagsResponse:
     return OpsFlagsResponse(
         submission_enabled=flags.submission_enabled,
         dequeue_enabled=flags.dequeue_enabled,
-        submission_route=flags.submission_route,
         result_read_source=flags.result_read_source,
-        legacy_worker_endpoints_enabled=flags.legacy_worker_endpoints_enabled,
     )
 
 
@@ -125,9 +123,7 @@ async def zpe_ops_flags_update(
     flags = set_ops_flags(
         submission_enabled=request.submission_enabled,
         dequeue_enabled=request.dequeue_enabled,
-        submission_route=request.submission_route,
         result_read_source=request.result_read_source,
-        legacy_worker_endpoints_enabled=request.legacy_worker_endpoints_enabled,
     )
     settings = get_zpe_settings()
     log_event(
@@ -139,16 +135,12 @@ async def zpe_ops_flags_update(
         request_id=get_request_id(raw),
         submission_enabled=flags.submission_enabled,
         dequeue_enabled=flags.dequeue_enabled,
-        submission_route=flags.submission_route,
         result_read_source=flags.result_read_source,
-        legacy_worker_endpoints_enabled=flags.legacy_worker_endpoints_enabled,
         backend=settings.compute_mode,
         result_store=settings.result_store,
     )
     return OpsFlagsResponse(
         submission_enabled=flags.submission_enabled,
         dequeue_enabled=flags.dequeue_enabled,
-        submission_route=flags.submission_route,
         result_read_source=flags.result_read_source,
-        legacy_worker_endpoints_enabled=flags.legacy_worker_endpoints_enabled,
     )

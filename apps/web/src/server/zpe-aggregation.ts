@@ -10,36 +10,16 @@ export type AggregatedZpeJobStatusRequest = {
   token?: string | null
 }
 
-type LegacyZpeJobStatusPayload = {
+type ProjectionJobStatusPayload = {
   status: JobState
   detail?: string | null
   updated_at?: string | null
-}
-
-type ConvexProjectionJobStatusPayload = {
-  jobId: string
-  status: JobState
-  detail?: string | null
-  updatedAt?: string | null
-  eventTime?: string | null
-}
-
-type AdapterDetailJobStatusPayload = {
-  jobId?: string
-  job_id?: string
-  status?: JobState
-  state?: 'accepted' | 'running' | 'completed' | 'failed'
-  detail?: string | null
-  updated_at?: string | null
-  updatedAt?: string | null
 }
 
 export type AggregatedZpeErrorCode =
   | 'AUTH_REQUIRED'
   | 'UPSTREAM_UNAVAILABLE'
-  | 'UPSTREAM_PAYLOAD_UNSUPPORTED'
   | 'UPSTREAM_JOB_MISMATCH'
-  | 'UPSTREAM_STATUS_MISMATCH'
   | 'UNKNOWN'
 
 export type AggregatedZpeErrorEnvelope = {
@@ -106,78 +86,23 @@ const isRecord = (value: unknown): value is Record<string, unknown> => {
   return typeof value === 'object' && value !== null
 }
 
-const isStringOrNullish = (
-  value: unknown,
-): value is string | null | undefined => {
-  return value === null || value === undefined || typeof value === 'string'
-}
-
 const isJobState = (value: unknown): value is JobState => {
   return typeof value === 'string' && JOB_STATE_SET.has(value as JobState)
 }
 
-const isLegacyStatusPayload = (
+const isProjectionStatusPayload = (
   value: unknown,
-): value is LegacyZpeJobStatusPayload => {
+): value is ProjectionJobStatusPayload => {
   if (!isRecord(value)) {
     return false
   }
   return (
     isJobState(value.status) &&
-    isStringOrNullish(value.detail) &&
-    isStringOrNullish(value.updated_at)
+    (value.detail === undefined || value.detail === null || typeof value.detail === 'string') &&
+    (value.updated_at === undefined ||
+      value.updated_at === null ||
+      typeof value.updated_at === 'string')
   )
-}
-
-const isConvexProjectionStatusPayload = (
-  value: unknown,
-): value is ConvexProjectionJobStatusPayload => {
-  if (!isRecord(value)) {
-    return false
-  }
-  return (
-    typeof value.jobId === 'string' &&
-    isJobState(value.status) &&
-    isStringOrNullish(value.detail) &&
-    isStringOrNullish(value.updatedAt) &&
-    isStringOrNullish(value.eventTime)
-  )
-}
-
-const isAdapterDetailStatusPayload = (
-  value: unknown,
-): value is AdapterDetailJobStatusPayload => {
-  if (!isRecord(value)) {
-    return false
-  }
-  return (
-    (value.jobId === undefined || typeof value.jobId === 'string') &&
-    (value.job_id === undefined || typeof value.job_id === 'string') &&
-    (value.status === undefined || isJobState(value.status)) &&
-    (value.state === undefined ||
-      value.state === 'accepted' ||
-      value.state === 'running' ||
-      value.state === 'completed' ||
-      value.state === 'failed') &&
-    isStringOrNullish(value.detail) &&
-    isStringOrNullish(value.updated_at) &&
-    isStringOrNullish(value.updatedAt)
-  )
-}
-
-const runtimeToJobState = (state: AdapterDetailJobStatusPayload['state']): JobState => {
-  switch (state) {
-    case 'accepted':
-      return 'queued'
-    case 'running':
-      return 'started'
-    case 'completed':
-      return 'finished'
-    case 'failed':
-      return 'failed'
-    default:
-      return 'queued'
-  }
 }
 
 export const requireAuthToken = (token: string | null | undefined): string => {
@@ -189,94 +114,18 @@ export const requireAuthToken = (token: string | null | undefined): string => {
 
 export const normalizeAggregatedZpeJobStatus = (
   payload: unknown,
-  expectedJobId: string,
 ): ZPEJobStatus => {
-  const hasConvexMarkers =
-    isRecord(payload) &&
-    ('jobId' in payload || 'updatedAt' in payload || 'eventTime' in payload)
-
-  if (hasConvexMarkers) {
-    if (!isConvexProjectionStatusPayload(payload)) {
-      throw createAggregationError(
-        'UPSTREAM_PAYLOAD_UNSUPPORTED',
-        'Unsupported status payload from upstream',
-      )
-    }
-    if (payload.jobId !== expectedJobId) {
-      throw createAggregationError(
-        'UPSTREAM_JOB_MISMATCH',
-        'Upstream job status payload mismatch',
-      )
-    }
-    return {
-      status: payload.status,
-      detail: payload.detail ?? null,
-      updated_at: payload.updatedAt ?? payload.eventTime ?? null,
-    }
-  }
-
-  if (isLegacyStatusPayload(payload)) {
-    return {
-      status: payload.status,
-      detail: payload.detail ?? null,
-      updated_at: payload.updated_at ?? null,
-    }
-  }
-
-  throw createAggregationError(
-    'UPSTREAM_PAYLOAD_UNSUPPORTED',
-    'Unsupported status payload from upstream',
-  )
-}
-
-export const normalizeAggregatedZpeJobStatusFromSources = (
-  projectionPayload: unknown,
-  adapterPayload: unknown,
-  expectedJobId: string,
-): ZPEJobStatus => {
-  const projection = normalizeAggregatedZpeJobStatus(projectionPayload, expectedJobId)
-
-  if (!isAdapterDetailStatusPayload(adapterPayload)) {
+  if (!isProjectionStatusPayload(payload)) {
     throw createAggregationError(
-      'UPSTREAM_PAYLOAD_UNSUPPORTED',
-      'Unsupported status payload from upstream',
-    )
-  }
-
-  const adapterJobId = adapterPayload.jobId ?? adapterPayload.job_id
-  if (adapterJobId && adapterJobId !== expectedJobId) {
-    throw createAggregationError(
-      'UPSTREAM_JOB_MISMATCH',
-      'Upstream job status payload mismatch',
-    )
-  }
-
-  const adapterStatus =
-    adapterPayload.status ??
-    (adapterPayload.state ? runtimeToJobState(adapterPayload.state) : undefined)
-
-  if (
-    adapterStatus !== undefined &&
-    adapterStatus !== projection.status
-  ) {
-    throw createAggregationError(
-      'UPSTREAM_STATUS_MISMATCH',
-      'Upstream status payload mismatch',
-      {
-        projectionStatus: projection.status,
-        adapterStatus,
-      },
+      'UPSTREAM_UNAVAILABLE',
+      'Unsupported projection payload from upstream',
     )
   }
 
   return {
-    status: projection.status,
-    detail: adapterPayload.detail ?? projection.detail ?? null,
-    updated_at:
-      projection.updated_at ??
-      adapterPayload.updated_at ??
-      adapterPayload.updatedAt ??
-      null,
+    status: payload.status,
+    detail: payload.detail ?? null,
+    updated_at: payload.updated_at ?? null,
   }
 }
 
@@ -286,19 +135,17 @@ type UpstreamStatusRequester = (request: {
 }) => Promise<unknown>
 
 const DEFAULT_UPSTREAM_TIMEOUT_MS = 3000
-const SECONDARY_SOURCE_GRACE_MS = 25
 
 const withTimeout = <T>(
   promise: Promise<T>,
   timeoutMs: number,
-  source: 'projection' | 'adapter',
 ): Promise<T> => {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => {
       reject(
         createAggregationError(
           'UPSTREAM_UNAVAILABLE',
-          `Timed out fetching ${source} job status`,
+          'Timed out fetching projection job status',
         ),
       )
     }, timeoutMs)
@@ -329,115 +176,28 @@ export const fetchAggregatedZpeJobStatusFromUpstreams = async ({
 }): Promise<ZPEJobStatus> => {
   const safeJobId = encodeURIComponent(jobId)
   const projectionPath = `/runtime/jobs/${safeJobId}/projection`
-  const adapterStatusPath = `/runtime/jobs/${safeJobId}`
 
-  type Source = 'projection' | 'adapter'
-  type SourceResult =
-    | {
-        source: Source
-        status: 'fulfilled'
-        value: unknown
-      }
-    | {
-        source: Source
-        status: 'rejected'
-        reason: unknown
-      }
-  type PendingResult = {
-    status: 'pending'
-  }
-
-  const projectionPromise: Promise<SourceResult> = withTimeout(
-    requester({
-      path: projectionPath,
-      token,
-    }),
-    timeoutMs,
-    'projection',
-  ).then(
-    (value) => ({
-      source: 'projection',
-      status: 'fulfilled',
-      value,
-    }),
-    (reason: unknown) => ({
-      source: 'projection',
-      status: 'rejected',
-      reason,
-    }),
-  )
-
-  const adapterPromise: Promise<SourceResult> = withTimeout(
-    requester({
-      path: adapterStatusPath,
-      token,
-    }),
-    timeoutMs,
-    'adapter',
-  ).then(
-    (value) => ({
-      source: 'adapter',
-      status: 'fulfilled',
-      value,
-    }),
-    (reason: unknown) => ({
-      source: 'adapter',
-      status: 'rejected',
-      reason,
-    }),
-  )
-
-  const firstSettled = await Promise.race([projectionPromise, adapterPromise])
-  const secondaryPromise =
-    firstSettled.source === 'projection' ? adapterPromise : projectionPromise
-
-  const secondarySettled = await Promise.race<SourceResult | PendingResult>([
-    secondaryPromise,
-    new Promise<PendingResult>((resolve) => {
-      setTimeout(() => resolve({ status: 'pending' }), SECONDARY_SOURCE_GRACE_MS)
-    }),
-  ])
-
-  const settled: Array<SourceResult> = [
-    firstSettled,
-    ...(secondarySettled.status === 'pending' ? [] : [secondarySettled]),
-  ]
-
-  const projectionResult = settled.find(
-    (result) => result.source === 'projection',
-  )
-  const adapterResult = settled.find((result) => result.source === 'adapter')
-
-  if (
-    projectionResult?.status === 'fulfilled' &&
-    adapterResult?.status === 'fulfilled'
-  ) {
-    return normalizeAggregatedZpeJobStatusFromSources(
-      projectionResult.value,
-      adapterResult.value,
-      jobId,
+  try {
+    const payload = await withTimeout(
+      requester({
+        path: projectionPath,
+        token,
+      }),
+      timeoutMs,
+    )
+    return normalizeAggregatedZpeJobStatus(payload)
+  } catch (error: unknown) {
+    if (error instanceof AggregatedZpeError) {
+      throw error
+    }
+    throw createAggregationError(
+      'UPSTREAM_UNAVAILABLE',
+      'Failed to fetch projection job status',
+      {
+        jobId,
+      },
     )
   }
-
-  if (projectionResult?.status === 'fulfilled') {
-    return normalizeAggregatedZpeJobStatus(projectionResult.value, jobId)
-  }
-
-  if (adapterResult?.status === 'fulfilled') {
-    return normalizeAggregatedZpeJobStatus(adapterResult.value, jobId)
-  }
-
-  if (secondarySettled.status === 'pending') {
-    const finalResult = await secondaryPromise
-    if (finalResult.status === 'fulfilled') {
-      return normalizeAggregatedZpeJobStatus(finalResult.value, jobId)
-    }
-  }
-
-  throw createAggregationError(
-    'UPSTREAM_UNAVAILABLE',
-    'Failed to fetch upstream job status',
-  )
 }
 
 type FetchAggregatedZpeJobStatusFn = ((options: {

@@ -7,6 +7,7 @@ from app.api import app as fastapi_app
 image = (
     modal.Image.debian_slim(python_version="3.13")
     .pip_install_from_pyproject("apps/api/pyproject.toml")
+    .add_local_dir("apps/api", remote_path="/root")
 )
 
 app = modal.App("chem-model-edit-api")

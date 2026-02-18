@@ -6,12 +6,7 @@ from typing import cast
 from pydantic import Field, model_validator
 
 from .base import ApiModel
-from .zpe import (
-    ExecutionCompletedEvent,
-    ExecutionFailedEvent,
-    _normalize_aiida_state,
-    _normalize_execution_event_payload,
-)
+from .zpe import _normalize_aiida_state, _normalize_execution_event_payload
 
 
 RuntimeState = Literal["accepted", "running", "completed", "failed"]
@@ -115,19 +110,3 @@ class RuntimeJobStatusResponse(ApiModel):
 class RuntimeEventAck(ApiModel):
     ok: bool = True
     idempotent: bool = False
-
-
-class LegacyComputeResultBridge(ApiModel):
-    """Bridge shape for existing compute callback payloads."""
-
-    tenant_id: str
-    lease_id: str
-    execution_event: ExecutionCompletedEvent
-
-
-class LegacyComputeFailureBridge(ApiModel):
-    """Bridge shape for existing compute callback payloads."""
-
-    tenant_id: str
-    lease_id: str
-    execution_event: ExecutionFailedEvent

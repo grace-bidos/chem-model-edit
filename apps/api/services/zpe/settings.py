@@ -29,7 +29,7 @@ class ZPESettings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     work_dir: str = "zpe_jobs"
     queue_name: str = "zpe"
-    compute_mode: str = "remote-queue"
+    compute_mode: str = "remote-http"
     result_store: str = "redis"
     worker_mode: Literal["qe", "mock"] = "qe"
     admin_token: Optional[str] = None
@@ -37,9 +37,7 @@ class ZPESettings(BaseSettings):
     worker_token_ttl_seconds: int = 604800
     submission_enabled: bool = True
     dequeue_enabled: bool = True
-    cutover_submission_route: Literal["redis-worker", "next-gen"] = "redis-worker"
     cutover_result_read_source: Literal["redis", "projection"] = "redis"
-    legacy_worker_endpoints_enabled: bool = True
     ops_flag_ttl_seconds: int = 3600
 
     pw_command: str = "pw.x"

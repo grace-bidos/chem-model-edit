@@ -81,18 +81,6 @@ class ConvexEventDispatcher(Protocol):
         ...
 
 
-class NoopConvexEventDispatcher:
-    """No-op dispatcher used when relay configuration is not provided."""
-
-    def dispatch_job_projection(
-        self,
-        payload: ConvexJobProjection,
-        idempotency_key: str,
-    ) -> None:
-        _ = payload
-        _ = idempotency_key
-
-
 class HttpConvexEventDispatcher:
     """POST job projection updates to an HTTP relay endpoint."""
 
@@ -153,7 +141,9 @@ def get_convex_event_dispatcher(
     timeout_seconds: int = 5,
 ) -> ConvexEventDispatcher:
     if not relay_url:
-        return NoopConvexEventDispatcher()
+        raise RuntimeError("ZPE_CONVEX_RELAY_URL is required for runtime operation")
+    if not relay_token:
+        raise RuntimeError("ZPE_CONVEX_RELAY_TOKEN is required for runtime operation")
     return HttpConvexEventDispatcher(
         relay_url=relay_url,
         relay_token=relay_token,
