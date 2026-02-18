@@ -12,7 +12,7 @@ Primary capabilities include parallel structure views, partial structure transpl
 - JS/TS: pnpm
 - Python: uv (+ ruff, mypy, pytest)
 - Tooling: Nx, Storybook, Chromatic
-- Deploy: Cloudflare Workers (web), Cloud Run (api)
+- Deploy: Cloudflare Workers (web), Modal (api)
 
 ## Language and Communication
 

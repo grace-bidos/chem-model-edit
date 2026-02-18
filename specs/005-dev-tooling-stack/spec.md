@@ -1,5 +1,8 @@
 # Feature Specification: 開発基盤整備 (Nx/Storybook/CI/CD/Docstring/Refactor)
 
+> [!NOTE]
+> Historical spec document. Superseded by the Modal-first runtime/deploy operating model on February 18, 2026.
+
 **Feature Branch**: `[stack/nx-roadmap]`  
 **Created**: 2026-01-31  
 **Status**: Draft  
@@ -18,7 +21,7 @@
 - Storybook導入（Chromatic連携を含む）
 - Justfile更新（新ツール群向けの統一コマンド追加）
 - CI整備（GitHub Actions、Axe-core/Fast-check/Schemathesis含む）
-- CDの既存連携の維持（Web: Cloudflare Pages、API: Cloud Run）
+- CDの既存連携の維持（historical: Web: Cloudflare Pages、API: Cloud Run）
 - docstring/TSDoc方針の整備と主要領域への適用
 - リファクタリング（TanStack Start設定再構築→Shadcn table統合→その他）
 

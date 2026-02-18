@@ -1,11 +1,16 @@
 # ZPE ワーカーセットアップ（compute-plane）
 
+> [!WARNING]
+> このガイドは履歴参照用です。
+> 現行の実動経路は `/api/runtime/*` + user-managed AiiDA/Slurm です。
+> 最新は `docs/process/modal-aiida-slurm-runtime-gate.md` を参照してください。
+
 このガイドは、ZPE 計算ワーカーを別マシンで動かすための手順です。
 control-plane（FastAPI）はジョブ投入のみを行い、QE 計算は compute-plane に委譲します。
 
 ## 構成
 
-- **control-plane**: FastAPI API（Cloud Run など）
+- **control-plane**: FastAPI API（Modal などのASGIホスト）
 - **compute-plane**: HTTP worker（別マシン）
 - **共有ストア**: Redis（control-plane のみが接続）
 

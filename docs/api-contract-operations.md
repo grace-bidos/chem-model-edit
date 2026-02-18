@@ -11,9 +11,9 @@ This project separates frontend and backend responsibilities at the OpenAPI cont
 
 ## Environment variables
 
-### Cloud Run (FastAPI)
+### FastAPI on Modal
 
-Set CORS allow list and preview regex in the Cloud Run service:
+Set CORS allow list and preview regex in the Modal-deployed FastAPI service:
 
 - `CORS_ALLOW_ORIGINS`
   - Comma-separated exact origins.
@@ -28,7 +28,9 @@ Set CORS allow list and preview regex in the Cloud Run service:
 
 Set the backend base including `/api`:
 
-- `API_BASE_PUBLIC=https://chem-model-api-668647845784.asia-northeast1.run.app/api`
+- `API_BASE_PUBLIC=https://<workspace>--chem-model-edit-api-api.modal.run/api`
+- `MODAL_PROXY_KEY=<proxy key>` (required when API uses Modal proxy auth)
+- `MODAL_PROXY_SECRET=<proxy secret>` (required when API uses Modal proxy auth)
 
 `TSS_SHELL=true` must remain enabled to render the SPA shell correctly.
 

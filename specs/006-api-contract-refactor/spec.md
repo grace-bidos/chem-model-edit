@@ -1,5 +1,8 @@
 # Feature Specification: API契約/URL整理とフロント連携リファクタ
 
+> [!NOTE]
+> Historical spec document. Superseded by the Modal-first runtime/deploy operating model on February 18, 2026.
+
 **Feature Branch**: `[refactor/api-contract]`  
 **Created**: 2026-01-31  
 **Status**: Draft  
