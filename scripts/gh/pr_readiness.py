@@ -57,6 +57,24 @@ def get_pr(pr_number: int) -> dict[str, Any]:
     return json.loads(out)
 
 
+def get_required_status_checks(base_ref: str) -> set[str] | None:
+    owner, repo = get_repo_owner_name()
+    try:
+        out = run_gh(
+            [
+                "api",
+                f"repos/{owner}/{repo}/branches/{base_ref}/protection",
+                "--jq",
+                ".required_status_checks.contexts[]?",
+            ]
+        )
+    except Exception:
+        return None
+
+    contexts = {line.strip() for line in out.splitlines() if line.strip()}
+    return contexts or None
+
+
 def get_unresolved_thread_count(pr_number: int) -> int:
     owner, repo = get_repo_owner_name()
     query = """
@@ -115,13 +133,17 @@ query($owner:String!, $repo:String!, $num:Int!, $after:String) {
     return unresolved
 
 
-def classify_checks(rollup: list[dict[str, Any]]) -> tuple[list[str], list[str]]:
+def classify_checks(
+    rollup: list[dict[str, Any]], required_checks: set[str] | None
+) -> tuple[list[str], list[str]]:
     pending: list[str] = []
     failing: list[str] = []
 
     for item in rollup:
         item_type = item.get("__typename")
         name = item.get("name") or item.get("context") or "(unknown)"
+        if required_checks is not None and name not in required_checks:
+            continue
         if item_type == "CheckRun":
             status = item.get("status", "")
             conclusion = item.get("conclusion", "")
@@ -164,8 +186,12 @@ def main() -> int:
     try:
         pr_number = parse_pr_number(args.pr)
         pr = get_pr(pr_number)
+        required_checks = get_required_status_checks(pr.get("baseRefName", "main"))
         unresolved_count = get_unresolved_thread_count(pr_number)
-        pending_checks, failing_checks = classify_checks(pr.get("statusCheckRollup") or [])
+        pending_checks, failing_checks = classify_checks(
+            pr.get("statusCheckRollup") or [],
+            required_checks,
+        )
     except Exception as exc:  # noqa: BLE001
         print(str(exc), file=sys.stderr)
         return 3
@@ -185,6 +211,11 @@ def main() -> int:
         f", failing={len(failing_checks)}"
         f", unresolved_review_threads={unresolved_count}"
     )
+    if required_checks is None:
+        print("Required check scope: unavailable (fallback to all checks in rollup)")
+    else:
+        names = ", ".join(sorted(required_checks)) if required_checks else "(none)"
+        print(f"Required check scope: {names}")
 
     if failing_checks:
         print("Failing checks:")

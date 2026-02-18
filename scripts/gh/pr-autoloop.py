@@ -73,6 +73,24 @@ def get_pr(pr_number: int) -> dict[str, Any]:
     return json.loads(out)
 
 
+def get_required_status_checks(base_ref: str) -> set[str] | None:
+    owner, repo = get_repo_owner_name()
+    try:
+        out = run_gh(
+            [
+                "api",
+                f"repos/{owner}/{repo}/branches/{base_ref}/protection",
+                "--jq",
+                ".required_status_checks.contexts[]?",
+            ]
+        )
+    except Exception:
+        return None
+
+    contexts = {line.strip() for line in out.splitlines() if line.strip()}
+    return contexts or None
+
+
 def get_unresolved_threads(pr_number: int) -> list[ThreadInfo]:
     owner, repo = get_repo_owner_name()
     query = """
@@ -154,12 +172,16 @@ query($owner:String!, $repo:String!, $num:Int!, $after:String) {
     return unresolved
 
 
-def classify_checks(rollup: list[dict[str, Any]]) -> tuple[list[str], list[str]]:
+def classify_checks(
+    rollup: list[dict[str, Any]], required_checks: set[str] | None
+) -> tuple[list[str], list[str]]:
     pending: list[str] = []
     failing: list[str] = []
 
     for item in rollup:
         name = item.get("name") or item.get("context") or "(unknown)"
+        if required_checks is not None and name not in required_checks:
+            continue
         kind = item.get("__typename")
         if kind == "CheckRun":
             status = item.get("status", "")
@@ -251,6 +273,7 @@ def main() -> int:
 
     while True:
         pr = get_pr(pr_number)
+        required_checks = get_required_status_checks(pr.get("baseRefName", "main"))
         unresolved = get_unresolved_threads(pr_number)
 
         if args.resolve_outdated_threads:
@@ -269,7 +292,10 @@ def main() -> int:
                 )
             unresolved = get_unresolved_threads(pr_number)
 
-        pending_checks, failing_checks = classify_checks(pr.get("statusCheckRollup") or [])
+        pending_checks, failing_checks = classify_checks(
+            pr.get("statusCheckRollup") or [],
+            required_checks,
+        )
 
         print(f"[{now_str()}] PR #{pr['number']} {pr['title']}")
         print(f"  url: {pr['url']}")
@@ -283,6 +309,11 @@ def main() -> int:
             f"  checks: pending={len(pending_checks)}, failing={len(failing_checks)},"
             f" unresolved_threads={len(unresolved)}"
         )
+        if required_checks is None:
+            print("  required-check scope: unavailable (fallback to all checks)")
+        else:
+            names = ", ".join(sorted(required_checks)) if required_checks else "(none)"
+            print(f"  required-check scope: {names}")
         if failing_checks:
             print("  failing checks:")
             for name in failing_checks:

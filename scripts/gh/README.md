@@ -14,6 +14,8 @@ scripts/gh/create_pr_from_template.sh main feature/gra-60-pr-ci-helper-scripts "
 ## `pr_readiness.py`
 
 One-shot PR readiness summary for merge checks, unresolved review threads, and branch-behind state.
+By default, it evaluates required status checks from branch protection. If required-check
+contexts cannot be loaded, it falls back to full rollup checks.
 
 Examples:
 
@@ -45,6 +47,7 @@ scripts/gh/stack_lane_loop.py 123 --gt-sync --watch --dry-run
 ## `pr-autoloop.py`
 
 Watch a PR, report readiness blockers, and optionally merge when ready.
+Check reporting follows required status checks from branch protection (with rollup fallback).
 
 Examples:
 

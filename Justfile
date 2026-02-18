@@ -648,6 +648,32 @@ quality-quick:
   just web-typecheck
   just web-test
 
+contract-drift-check:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  PYTHONPATH=apps/api uv run --project apps/api python apps/api/scripts/export_openapi.py --check
+  pnpm -C packages/api-client run generate
+  git diff --exit-code -- packages/api-client/src/generated/schema.ts
+
+ci-pr-quick:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  just quality-quick
+  just api-ruff
+  just api-mypy
+  just api-test
+  just contract-drift-check
+
+pre-push-strict:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  just ci-pr-quick
+
+git-hooks-install:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  ./scripts/git/install_hooks.sh
+
 quality-standard:
   #!/usr/bin/env bash
   set -euo pipefail

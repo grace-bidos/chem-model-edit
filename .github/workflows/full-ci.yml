@@ -1,0 +1,151 @@
+name: Full CI (On Demand)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * *'
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: full-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      web: ${{ steps.filter.outputs.web == 'true' || steps.filter.outputs.ci == 'true' }}
+      api: ${{ steps.filter.outputs.api == 'true' || steps.filter.outputs.ci == 'true' }}
+      projection_smoke: ${{ steps.filter.outputs.projection_smoke == 'true' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Detect code changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            ci:
+              - '.github/workflows/full-ci.yml'
+            web:
+              - 'apps/web/**'
+              - 'packages/shared/**'
+              - 'packages/api-client/**'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+            api:
+              - 'apps/api/**'
+              - 'scripts/api/**'
+              - 'apps/api/pyproject.toml'
+              - 'apps/api/uv.lock'
+            projection_smoke:
+              - 'apps/api/**'
+              - 'packages/api-client/**'
+              - 'apps/api/pyproject.toml'
+              - 'apps/api/uv.lock'
+              - 'scripts/submit-event-projection-smoke.sh'
+
+  guard:
+    runs-on: ubuntu-latest
+    outputs:
+      run_full: ${{ steps.decide.outputs.run_full }}
+    steps:
+      - name: Decide trigger eligibility
+        id: decide
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          HAS_LABEL: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci:full') || false }}
+        run: |
+          set -euo pipefail
+          if [[ "${EVENT_NAME}" == "workflow_dispatch" || "${EVENT_NAME}" == "schedule" ]]; then
+            echo "run_full=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "${EVENT_NAME}" == "pull_request" && "${HAS_LABEL}" == "true" ]]; then
+            echo "run_full=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "run_full=false" >> "$GITHUB_OUTPUT"
+
+  web-a11y:
+    needs: [changes, guard]
+    if: ${{ needs.guard.outputs.run_full == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.27.0
+          run_install: false
+      - name: Export pnpm to PATH
+        run: echo "$PNPM_HOME" >> "$GITHUB_PATH"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+      - name: A11y tests
+        run: pnpm exec nx run web:a11y
+      - name: Fast-check tests
+        run: pnpm -C apps/web run test:fastcheck
+
+  api-heavy:
+    needs: [changes, guard]
+    if: ${{ needs.guard.outputs.run_full == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: astral-sh/setup-uv@v7
+      - name: Install dependencies
+        run: uv sync --dev
+        working-directory: apps/api
+      - name: Pyright
+        run: uv run pyright --project pyrightconfig.json
+        working-directory: apps/api
+      - name: Bandit
+        run: uv run bandit -q -r app services main.py
+        working-directory: apps/api
+      - name: Pip-audit
+        run: uv run pip-audit --progress-spinner off
+        working-directory: apps/api
+      - name: Schemathesis broad
+        env:
+          SCHEMATHESIS_MODE: broad
+          SCHEMATHESIS_SEED: '137'
+          SCHEMATHESIS_MAX_EXAMPLES: '40'
+          SCHEMATHESIS_MAX_FAILURES: '5'
+          SCHEMATHESIS_TENANT_ID: tenant-ci
+          SCHEMATHESIS_EXTRA_ARGS: --suppress-health-check=filter_too_much
+        run: uv run bash scripts/schemathesis.sh
+        working-directory: apps/api
+
+  projection-smoke:
+    needs: [changes, guard]
+    if: ${{ needs.guard.outputs.run_full == 'true' }}
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: astral-sh/setup-uv@v7
+      - name: Submit event projection smoke
+        run: bash scripts/submit-event-projection-smoke.sh
