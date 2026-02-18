@@ -222,11 +222,12 @@ class ConvexStructureStore:
         )
 
         chunks: list[dict[str, Any]] = []
-        value = chunks_payload.get("value")
-        if isinstance(value, list):
-            chunks = cast(list[dict[str, Any]], value)
-        elif isinstance(chunks_payload, list):
+        if isinstance(chunks_payload, list):
             chunks = cast(list[dict[str, Any]], chunks_payload)
+        else:
+            value = chunks_payload.get("value")
+            if isinstance(value, list):
+                chunks = cast(list[dict[str, Any]], value)
         raw_input = "".join(
             chunk.get("chunk_text", "")
             for chunk in sorted(chunks, key=lambda item: int(item.get("chunk_index", 0)))
