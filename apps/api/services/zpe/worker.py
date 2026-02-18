@@ -3,6 +3,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import importlib
 import os
 import shutil
 import uuid
@@ -11,7 +12,6 @@ from typing import Any, Dict, Iterator, cast
 
 from ase.calculators.espresso import Espresso
 from ase.vibrations import Vibrations
-from rq import get_current_job
 
 from app.schemas.zpe import ZPEJobRequest
 from .cache import clean_vib_cache, sanitize_vib_cache
@@ -30,6 +30,17 @@ from .qe import build_espresso_profile
 from .result_store import get_result_store
 from .settings import ZPESettings, get_zpe_settings
 from .thermo import calc_zpe_and_s_vib, normalize_frequencies
+
+
+def get_current_job() -> Any:
+    try:
+        rq_module = importlib.import_module("rq")
+    except ImportError:  # pragma: no cover
+        return None
+    getter = getattr(rq_module, "get_current_job", None)
+    if getter is None:
+        return None
+    return getter()
 
 
 @contextmanager
@@ -252,8 +263,8 @@ def compute_zpe_artifacts(payload: Dict[str, Any], *, job_id: str) -> ZPECompute
             delta=settings.delta,
             name=settings.vib_name,
         )
-        cast(Any, vib).run()
-        freqs_cm = cast(list[float], cast(Any, vib).get_frequencies())
+        vib.run()
+        freqs_cm = vib.get_frequencies()
 
     zpe_ev, s_vib_jmol_k = calc_zpe_and_s_vib(
         freqs_cm,

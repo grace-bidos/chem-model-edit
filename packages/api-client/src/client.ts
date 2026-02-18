@@ -1,22 +1,22 @@
 import type {
   DeltaTransplantRequest,
   DeltaTransplantResponse,
-  EnrollTokenRequest,
-  EnrollTokenResponse,
+  ExecutionEvent,
+  RuntimeEventAck,
+  RuntimeJobDetail,
+  RuntimeJobStatus,
   Structure,
   StructureCreateResponse,
   StructureExportRequest,
   StructureGetResponse,
   StructureParseRequest,
+  SubmitJobAccepted,
+  SubmitJobCommand,
   SupercellBuildRequest,
   SupercellBuildResponse,
-  ZPEJobRequest,
-  ZPEJobResponse,
-  ZPEJobStatus,
   ZPEParseResponse,
   ZPEQueueTargetList,
   ZPEQueueTargetSelectResponse,
-  ZPEResult,
 } from './types'
 
 export type ApiRequest = {
@@ -43,13 +43,12 @@ export type ApiClient = {
   deltaTransplant: (params: DeltaTransplantRequest) => Promise<string>
   buildSupercell: (params: SupercellBuildRequest) => Promise<SupercellBuildResponse>
   parseZpeInput: (content: string, structure_id?: string | null) => Promise<ZPEParseResponse>
-  createEnrollToken: (params?: EnrollTokenRequest) => Promise<EnrollTokenResponse>
   fetchQueueTargets: (params?: { limit?: number; offset?: number }) => Promise<ZPEQueueTargetList>
   selectQueueTarget: (target_id: string) => Promise<ZPEQueueTargetSelectResponse>
-  createZpeJob: (request: ZPEJobRequest) => Promise<ZPEJobResponse>
-  fetchZpeStatus: (job_id: string) => Promise<ZPEJobStatus>
-  fetchZpeResult: (job_id: string) => Promise<ZPEResult>
-  downloadZpeFile: (job_id: string, kind: 'summary' | 'freqs') => Promise<string>
+  submitRuntimeJob: (request: SubmitJobCommand) => Promise<SubmitJobAccepted>
+  postRuntimeEvent: (job_id: string, event: ExecutionEvent) => Promise<RuntimeEventAck>
+  fetchRuntimeStatus: (job_id: string) => Promise<RuntimeJobStatus>
+  fetchRuntimeDetail: (job_id: string) => Promise<RuntimeJobDetail>
   structureViewPath: (
     structure_id: string,
     params?: { format?: 'cif' },
@@ -143,18 +142,6 @@ export const createApiClient = (options: ApiClientOptions): ApiClient => {
       })
     },
 
-    async createEnrollToken(params) {
-      return requestJson<EnrollTokenResponse>({
-        path: '/zpe/compute/enroll-tokens',
-        method: 'POST',
-        token: withToken(),
-        body: {
-          ttl_seconds: params?.ttl_seconds,
-          label: params?.label,
-        },
-      })
-    },
-
     async fetchQueueTargets(params) {
       const search = new URLSearchParams()
       if (params?.limit !== undefined) {
@@ -179,36 +166,37 @@ export const createApiClient = (options: ApiClientOptions): ApiClient => {
       })
     },
 
-    async createZpeJob(requestPayload) {
-      return requestJson<ZPEJobResponse>({
-        path: '/zpe/jobs',
+    async submitRuntimeJob(requestPayload) {
+      return requestJson<SubmitJobAccepted>({
+        path: '/runtime/jobs:submit',
         method: 'POST',
         token: withToken(),
         body: requestPayload,
       })
     },
 
-    async fetchZpeStatus(job_id) {
+    async postRuntimeEvent(job_id, event) {
       const safeId = encodeURIComponent(job_id)
-      return requestJson<ZPEJobStatus>({
-        path: `/zpe/jobs/${safeId}`,
+      return requestJson<RuntimeEventAck>({
+        path: `/runtime/jobs/${safeId}/events`,
+        method: 'POST',
+        token: withToken(),
+        body: event,
+      })
+    },
+
+    async fetchRuntimeStatus(job_id) {
+      const safeId = encodeURIComponent(job_id)
+      return requestJson<RuntimeJobStatus>({
+        path: `/runtime/jobs/${safeId}`,
         token: withToken(),
       })
     },
 
-    async fetchZpeResult(job_id) {
+    async fetchRuntimeDetail(job_id) {
       const safeId = encodeURIComponent(job_id)
-      const data = await requestJson<{ result: ZPEResult }>({
-        path: `/zpe/jobs/${safeId}/result`,
-        token: withToken(),
-      })
-      return data.result
-    },
-
-    async downloadZpeFile(job_id, kind) {
-      const safeId = encodeURIComponent(job_id)
-      return requestText({
-        path: `/zpe/jobs/${safeId}/files?kind=${kind}`,
+      return requestJson<RuntimeJobDetail>({
+        path: `/runtime/jobs/${safeId}/detail`,
         token: withToken(),
       })
     },

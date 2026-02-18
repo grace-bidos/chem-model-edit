@@ -1,6 +1,10 @@
 import { createApiClient } from '@chem-model/api-client'
 
-import type { ApiRequest, ZPEJobStatus } from '@chem-model/api-client'
+import type {
+  ApiRequest,
+  SubmitJobCommand,
+  ZPEJobStatus,
+} from '@chem-model/api-client'
 import { requestApi } from '@/server/api'
 import { fetchAggregatedZpeJobStatus } from '@/server/zpe-aggregation'
 
@@ -24,7 +28,6 @@ const api = createApiClient({
   request,
 })
 
-// API_BASE should be a host root or already end with "/api" (no "/api/v1" style path).
 const normalizeApiBase = (base: string) => {
   const trimmed = base.endsWith('/') ? base.slice(0, -1) : base
   return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`
@@ -39,31 +42,106 @@ const resolveApiBase = (): string => {
   )
 }
 
-/** QE 入力テキストを構造とパラメータへ解析する。 */
+const decodeJwtPayload = (token: string): Record<string, unknown> | null => {
+  const parts = token.split('.')
+  if (parts.length < 2) {
+    return null
+  }
+  try {
+    const payloadPart = parts[1] ?? ''
+    const normalized = payloadPart.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = normalized.padEnd(
+      normalized.length + ((4 - (normalized.length % 4)) % 4),
+      '=',
+    )
+    const payload = JSON.parse(atob(padded)) as unknown
+    return payload && typeof payload === 'object'
+      ? (payload as Record<string, unknown>)
+      : null
+  } catch (_error) {
+    return null
+  }
+}
+
+const resolveClaimString = (
+  claims: Record<string, unknown> | null,
+  keys: Array<string>,
+): string | null => {
+  if (!claims) {
+    return null
+  }
+  for (const key of keys) {
+    const value = claims[key]
+    if (typeof value === 'string' && value.trim().length > 0) {
+      return value.trim()
+    }
+  }
+  return null
+}
+
+export type RuntimeSubmitInput = {
+  queueName: string
+  managementNodeId: string
+}
+
 export const parseQeInput = api.parseQeInput
-/** QE 入力テキストから永続化済み構造を作成する。 */
 export const createStructureFromQe = api.createStructureFromQe
-/** ID を指定して永続化済み構造を取得する。 */
 export const getStructure = api.getStructure
-/** 構造 ID から QE 入力テキストをエクスポートする。 */
 export const exportQeInput = api.exportQeInput
-/** 構造を CIF テキストとしてエクスポートする。 */
 export const exportStructureCif = api.exportStructureCif
-/** 小セル/大セル入力から Δ 移植結果を生成する。 */
 export const deltaTransplant = api.deltaTransplant
-/** supercell オプションに基づいて新規構造を構築する。 */
 export const buildSupercell = api.buildSupercell
-/** ZPE 入力を解析する。 */
 export const parseZpeInput = api.parseZpeInput
-/** 計算リソース登録用トークンを発行する。 */
-export const createEnrollToken = api.createEnrollToken
-/** 利用可能なキューターゲット一覧を取得する。 */
 export const fetchQueueTargets = api.fetchQueueTargets
-/** 現在ユーザーのアクティブなキューターゲットを選択する。 */
 export const selectQueueTarget = api.selectQueueTarget
-/** ZPE ジョブを作成する。 */
-export const createZpeJob = api.createZpeJob
-/** ZPE ジョブ状態を ID で取得する。 */
+
+export const createZpeJob = async (
+  input: RuntimeSubmitInput,
+): Promise<{ id: string }> => {
+  const token = (await tokenProvider?.()) ?? null
+  if (!token) {
+    throw new Error('Authentication required')
+  }
+  const claims = decodeJwtPayload(token)
+  const tenantId =
+    resolveClaimString(claims, ['tenant_id', 'tenantId', 'org_id', 'orgId']) ??
+    null
+  const userId = resolveClaimString(claims, ['sub', 'user_id', 'userId']) ?? null
+  if (!tenantId || !userId) {
+    throw new Error('Missing required tenant/user claims for runtime submit')
+  }
+
+  const jobId = `job-${crypto.randomUUID()}`
+  const command: SubmitJobCommand = {
+    tenant_id: tenantId,
+    workspace_id: tenantId,
+    job_id: jobId,
+    idempotency_key: `submit-${jobId}`,
+    management_node_id: input.managementNodeId,
+    execution_profile: {
+      queue_name: input.queueName,
+      qos: null,
+      account: null,
+    },
+    resource_shape: {
+      cpu: 1,
+      memory_mib: 2048,
+      walltime_seconds: 3600,
+    },
+    payload_ref: {
+      input_uri: `inline://runtime-submit/${jobId}`,
+      artifact_bucket: null,
+    },
+    requested_by: {
+      user_id: userId,
+      session_id: null,
+    },
+  }
+
+  const accepted = await api.submitRuntimeJob(command)
+  return { id: accepted.job_id }
+}
+
 export const fetchZpeStatus = async (job_id: string): Promise<ZPEJobStatus> => {
   const token = (await tokenProvider?.()) ?? null
   return fetchAggregatedZpeJobStatus({
@@ -73,12 +151,7 @@ export const fetchZpeStatus = async (job_id: string): Promise<ZPEJobStatus> => {
     },
   })
 }
-/** ZPE ジョブ結果を ID で取得する。 */
-export const fetchZpeResult = api.fetchZpeResult
-/** ZPE ジョブ出力ファイルをダウンロードする。 */
-export const downloadZpeFile = api.downloadZpeFile
 
-/** 構造 ID から公開表示用 URL を組み立てる。 */
 export function structureViewUrl(
   structureId: string,
   params?: {
