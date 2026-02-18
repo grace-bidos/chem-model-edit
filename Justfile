@@ -691,7 +691,8 @@ pr-open linear title type='Ship' size='S' queue='Optional' stack='Standalone' co
     --size "$size" \
     --queue "$queue" \
     --stack "$stack" \
-    --coderabbit "$coderabbit"
+    --coderabbit "$coderabbit" \
+    --force
 
   if [[ "$draft" == "true" ]]; then
     scripts/gh/create_pr_from_template.sh "$base" "$head" "$title" "$body_file" --draft
