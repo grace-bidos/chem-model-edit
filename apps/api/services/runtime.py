@@ -2,13 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from hashlib import sha256
 import json
-from pathlib import Path
-import sqlite3
-from threading import RLock
 from typing import Any, Literal
-from uuid import uuid4
+from urllib import error as urlerror
+from urllib import parse as urlparse
+from urllib import request as urlrequest
 
 from app.schemas.runtime import (
     ExecutionEvent,
@@ -25,16 +23,9 @@ from services.convex_event_relay import (
 )
 from services.zpe.settings import get_zpe_settings
 
-from .runtime_settings import get_runtime_settings, resolve_runtime_db_path
+from .runtime_settings import get_runtime_settings
 
 RuntimeState = Literal["accepted", "running", "completed", "failed"]
-
-_STATE_ORDER: dict[RuntimeState, int] = {
-    "accepted": 0,
-    "running": 1,
-    "completed": 2,
-    "failed": 2,
-}
 
 
 class RuntimeConflictError(ValueError):
@@ -42,6 +33,14 @@ class RuntimeConflictError(ValueError):
 
 
 class RuntimeNotFoundError(KeyError):
+    pass
+
+
+class RuntimeConfigurationError(RuntimeError):
+    pass
+
+
+class RuntimeDownstreamError(RuntimeError):
     pass
 
 
@@ -56,15 +55,11 @@ class EventAck:
     idempotent: bool
 
 
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
-
 def _event_time_iso(value: str) -> str:
     try:
         parsed = datetime.fromisoformat(value)
     except ValueError:
-        return _now_iso()
+        parsed = datetime.now(timezone.utc)
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=timezone.utc)
     return parsed.isoformat()
@@ -80,206 +75,122 @@ def _to_job_state(value: RuntimeState) -> Literal["queued", "started", "finished
     return "failed"
 
 
-def _fingerprint_submit(command: SubmitJobCommand) -> str:
-    payload = command.model_dump()
-    canonical = json.dumps(payload, ensure_ascii=True, separators=(",", ":"), sort_keys=True)
-    return sha256(canonical.encode("utf-8")).hexdigest()
+def _require_url(value: str | None, *, key: str) -> str:
+    if value and value.strip():
+        return value.strip()
+    raise RuntimeConfigurationError(f"missing runtime setting: {key}")
 
 
-def _fingerprint_event(event: ExecutionEvent) -> str:
-    payload = event.model_dump()
-    canonical = json.dumps(payload, ensure_ascii=True, separators=(",", ":"), sort_keys=True)
-    return sha256(canonical.encode("utf-8")).hexdigest()
+def _build_url(template: str, *, job_id: str) -> str:
+    quoted = urlparse.quote(job_id, safe="")
+    return template.format(job_id=quoted)
 
 
-class RuntimeStore:
-    def __init__(self, db_path: Path | None = None) -> None:
-        self._db_path = db_path or resolve_runtime_db_path()
-        self._lock = RLock()
-        self._ensure_schema()
+def _parse_json_body(payload: bytes | None) -> dict[str, Any]:
+    if not payload:
+        return {}
+    text = payload.decode("utf-8", errors="replace").strip()
+    if not text:
+        return {}
+    parsed = json.loads(text)
+    return parsed if isinstance(parsed, dict) else {}
 
-    def _connect(self) -> sqlite3.Connection:
-        self._db_path.parent.mkdir(parents=True, exist_ok=True)
-        conn = sqlite3.connect(str(self._db_path), timeout=30, isolation_level=None)
-        conn.row_factory = sqlite3.Row
-        return conn
 
-    def _ensure_schema(self) -> None:
-        with self._connect() as conn:
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS runtime_jobs (
-                  job_id TEXT PRIMARY KEY,
-                  tenant_id TEXT NOT NULL,
-                  workspace_id TEXT NOT NULL,
-                  idempotency_key TEXT NOT NULL,
-                  request_fingerprint TEXT NOT NULL,
-                  submission_id TEXT NOT NULL,
-                  execution_owner TEXT NOT NULL,
-                  state TEXT NOT NULL,
-                  detail TEXT,
-                  accepted_at TEXT NOT NULL,
-                  updated_at TEXT NOT NULL,
-                  trace_id TEXT NOT NULL
-                )
-                """
-            )
-            conn.execute(
-                """
-                CREATE UNIQUE INDEX IF NOT EXISTS idx_runtime_submit_idempotency
-                ON runtime_jobs(tenant_id, workspace_id, idempotency_key)
-                """
-            )
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS runtime_events (
-                  id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  job_id TEXT NOT NULL,
-                  event_id TEXT NOT NULL,
-                  event_fingerprint TEXT NOT NULL,
-                  occurred_at TEXT NOT NULL,
-                  state TEXT NOT NULL,
-                  detail TEXT,
-                  trace_id TEXT NOT NULL,
-                  created_at TEXT NOT NULL,
-                  UNIQUE(job_id, event_id)
-                )
-                """
-            )
+def _error_detail(payload: dict[str, Any]) -> str:
+    if not payload:
+        return "downstream_error"
+    error = payload.get("error")
+    if isinstance(error, dict):
+        message = error.get("message")
+        if isinstance(message, str) and message.strip():
+            return message.strip()
+    detail = payload.get("detail")
+    if isinstance(detail, str) and detail.strip():
+        return detail.strip()
+    return "downstream_error"
+
+
+class RuntimeGateway:
+    def __init__(self) -> None:
+        self._settings = get_runtime_settings()
+        timeout = self._settings.request_timeout_seconds
+        self._timeout_seconds = timeout if timeout > 0 else 5
+
+    def _headers(self, *, tenant_id: str) -> dict[str, str]:
+        headers = {
+            "Content-Type": "application/json",
+            "x-tenant-id": tenant_id,
+        }
+        token = self._settings.service_auth_bearer_token
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        return headers
+
+    def _request_json(
+        self,
+        *,
+        method: str,
+        url: str,
+        tenant_id: str,
+        body: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        encoded = None
+        if body is not None:
+            encoded = json.dumps(body, ensure_ascii=True, separators=(",", ":")).encode("utf-8")
+        req = urlrequest.Request(
+            url,
+            method=method,
+            data=encoded,
+            headers=self._headers(tenant_id=tenant_id),
+        )
+        try:
+            with urlrequest.urlopen(req, timeout=self._timeout_seconds) as resp:
+                return _parse_json_body(resp.read())
+        except urlerror.HTTPError as exc:
+            payload = _parse_json_body(exc.read())
+            detail = _error_detail(payload)
+            if exc.code == 404:
+                raise RuntimeNotFoundError(detail) from exc
+            if exc.code in {409, 422}:
+                raise RuntimeConflictError(detail) from exc
+            raise RuntimeDownstreamError(
+                f"runtime downstream HTTP {exc.code}: {detail}"
+            ) from exc
+        except urlerror.URLError as exc:
+            raise RuntimeDownstreamError("runtime downstream request failed") from exc
 
     def submit(self, command: SubmitJobCommand, *, trace_id: str) -> SubmitResult:
-        fingerprint = _fingerprint_submit(command)
-        now = _now_iso()
-        with self._lock, self._connect() as conn:
-            row = conn.execute(
-                """
-                SELECT * FROM runtime_jobs
-                WHERE tenant_id = ? AND workspace_id = ? AND idempotency_key = ?
-                """,
-                (command.tenant_id, command.workspace_id, command.idempotency_key),
-            ).fetchone()
-            if row is not None:
-                if row["request_fingerprint"] != fingerprint:
-                    raise RuntimeConflictError("idempotency_conflict")
-                return SubmitResult(
-                    response=SubmitJobAccepted(
-                        job_id=row["job_id"],
-                        submission_id=row["submission_id"],
-                        execution_owner=row["execution_owner"],
-                        accepted_at=row["accepted_at"],
-                        trace_id=row["trace_id"],
-                    ),
-                    idempotent=True,
-                )
-
-            existing_job = conn.execute(
-                "SELECT job_id FROM runtime_jobs WHERE job_id = ?",
-                (command.job_id,),
-            ).fetchone()
-            if existing_job is not None:
-                raise RuntimeConflictError("job_id_conflict")
-
-            submission_id = f"sub-{uuid4().hex}"
-            execution_owner = get_runtime_settings().execution_owner
-            conn.execute(
-                """
-                INSERT INTO runtime_jobs(
-                  job_id, tenant_id, workspace_id, idempotency_key, request_fingerprint,
-                  submission_id, execution_owner, state, detail, accepted_at, updated_at, trace_id
-                ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    command.job_id,
-                    command.tenant_id,
-                    command.workspace_id,
-                    command.idempotency_key,
-                    fingerprint,
-                    submission_id,
-                    execution_owner,
-                    "accepted",
-                    None,
-                    now,
-                    now,
-                    trace_id,
-                ),
-            )
-            return SubmitResult(
-                response=SubmitJobAccepted(
-                    job_id=command.job_id,
-                    submission_id=submission_id,
-                    execution_owner=execution_owner,
-                    accepted_at=now,
-                    trace_id=trace_id,
-                ),
-                idempotent=False,
-            )
+        url = _require_url(
+            self._settings.command_submit_url,
+            key="RUNTIME_COMMAND_SUBMIT_URL",
+        )
+        payload = command.model_dump()
+        payload["trace_id"] = trace_id
+        response = self._request_json(
+            method="POST",
+            url=url,
+            tenant_id=command.tenant_id,
+            body=payload,
+        )
+        accepted = SubmitJobAccepted.model_validate(response)
+        return SubmitResult(
+            response=accepted,
+            idempotent=bool(response.get("idempotent", False)),
+        )
 
     def apply_event(self, event: ExecutionEvent) -> EventAck:
-        fingerprint = _fingerprint_event(event)
-        now = _now_iso()
-        with self._lock, self._connect() as conn:
-            job = conn.execute(
-                "SELECT * FROM runtime_jobs WHERE job_id = ?",
-                (event.job_id,),
-            ).fetchone()
-            if job is None:
-                raise RuntimeNotFoundError(event.job_id)
-
-            if (
-                job["tenant_id"] != event.tenant_id
-                or job["workspace_id"] != event.workspace_id
-                or job["submission_id"] != event.submission_id
-            ):
-                raise RuntimeConflictError("scope_conflict")
-
-            existing_event = conn.execute(
-                "SELECT event_fingerprint FROM runtime_events WHERE job_id = ? AND event_id = ?",
-                (event.job_id, event.event_id),
-            ).fetchone()
-            if existing_event is not None:
-                if existing_event["event_fingerprint"] != fingerprint:
-                    raise RuntimeConflictError("event_id_conflict")
-                return EventAck(idempotent=True)
-
-            prev_state = job["state"]
-            next_state = event.state
-            if _STATE_ORDER[next_state] < _STATE_ORDER[prev_state]:
-                raise RuntimeConflictError("invalid_transition")
-            if prev_state in {"completed", "failed"} and next_state != prev_state:
-                raise RuntimeConflictError("invalid_transition")
-
-            conn.execute(
-                """
-                INSERT INTO runtime_events(
-                  job_id, event_id, event_fingerprint, occurred_at, state, detail, trace_id, created_at
-                ) VALUES(?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    event.job_id,
-                    event.event_id,
-                    fingerprint,
-                    _event_time_iso(event.occurred_at),
-                    event.state,
-                    event.status_detail,
-                    event.trace_id,
-                    now,
-                ),
+        template = self._settings.command_event_url_template
+        if template:
+            url = _build_url(template, job_id=event.job_id)
+            response = self._request_json(
+                method="POST",
+                url=url,
+                tenant_id=event.tenant_id,
+                body=event.model_dump(),
             )
-            conn.execute(
-                """
-                UPDATE runtime_jobs
-                SET state = ?, detail = ?, updated_at = ?, trace_id = ?
-                WHERE job_id = ?
-                """,
-                (
-                    next_state,
-                    event.status_detail,
-                    _event_time_iso(event.occurred_at),
-                    event.trace_id,
-                    event.job_id,
-                ),
-            )
+            return EventAck(idempotent=bool(response.get("idempotent", False)))
 
+        # Direct relay fallback for event->projection path when no command endpoint is configured.
         self._dispatch_projection(event)
         return EventAck(idempotent=False)
 
@@ -290,7 +201,7 @@ class RuntimeStore:
             relay_token=settings.convex_relay_token,
             timeout_seconds=settings.convex_relay_timeout_seconds,
         )
-        evt = AiidaJobEvent(
+        projected_event = AiidaJobEvent(
             job_id=event.job_id,
             node_id=event.execution_id,
             project_id=event.workspace_id,
@@ -300,71 +211,44 @@ class RuntimeStore:
             timestamp=datetime.fromisoformat(_event_time_iso(event.occurred_at)),
             sequence=1,
         )
-        projection = build_convex_projection(evt)
+        projection = build_convex_projection(projected_event)
         dispatcher.dispatch_job_projection(
             payload=projection,
-            idempotency_key=compute_event_idempotency_key(evt),
+            idempotency_key=compute_event_idempotency_key(projected_event),
         )
 
     def get_status(self, job_id: str, *, tenant_id: str) -> RuntimeJobStatusResponse:
-        with self._connect() as conn:
-            row = conn.execute(
-                "SELECT * FROM runtime_jobs WHERE job_id = ? AND tenant_id = ?",
-                (job_id, tenant_id),
-            ).fetchone()
-        if row is None:
-            raise RuntimeNotFoundError(job_id)
-        return RuntimeJobStatusResponse(
-            job_id=row["job_id"],
-            submission_id=row["submission_id"],
-            execution_owner=row["execution_owner"],
-            state=row["state"],
-            detail=row["detail"],
-            updated_at=row["updated_at"],
-            trace_id=row["trace_id"],
+        template = _require_url(
+            self._settings.read_status_url_template,
+            key="RUNTIME_READ_STATUS_URL_TEMPLATE",
         )
-
-    def get_projection_status(self, job_id: str, *, tenant_id: str) -> ZPEJobStatus:
-        status = self.get_status(job_id, tenant_id=tenant_id)
-        return ZPEJobStatus(
-            status=_to_job_state(status.state),
-            detail=status.detail,
-            updated_at=status.updated_at,
-        )
+        url = _build_url(template, job_id=job_id)
+        payload = self._request_json(method="GET", url=url, tenant_id=tenant_id)
+        return RuntimeJobStatusResponse.model_validate(payload)
 
     def get_detail(self, job_id: str, *, tenant_id: str) -> dict[str, Any]:
-        with self._connect() as conn:
-            job = conn.execute(
-                "SELECT * FROM runtime_jobs WHERE job_id = ? AND tenant_id = ?",
-                (job_id, tenant_id),
-            ).fetchone()
-            event = conn.execute(
-                """
-                SELECT event_id, occurred_at, state, detail, trace_id
-                FROM runtime_events
-                WHERE job_id = ?
-                ORDER BY id DESC
-                LIMIT 1
-                """,
-                (job_id,),
-            ).fetchone()
-        if job is None:
-            raise RuntimeNotFoundError(job_id)
-        return {
-            "job_id": job["job_id"],
-            "submission_id": job["submission_id"],
-            "state": job["state"],
-            "detail": job["detail"],
-            "updated_at": job["updated_at"],
-            "last_event": dict(event) if event is not None else None,
-        }
+        template = _require_url(
+            self._settings.read_detail_url_template,
+            key="RUNTIME_READ_DETAIL_URL_TEMPLATE",
+        )
+        url = _build_url(template, job_id=job_id)
+        return self._request_json(method="GET", url=url, tenant_id=tenant_id)
+
+    def get_projection_status(self, job_id: str, *, tenant_id: str) -> ZPEJobStatus:
+        template = _require_url(
+            self._settings.read_projection_url_template,
+            key="RUNTIME_READ_PROJECTION_URL_TEMPLATE",
+        )
+        url = _build_url(template, job_id=job_id)
+        payload = self._request_json(method="GET", url=url, tenant_id=tenant_id)
+        return ZPEJobStatus.model_validate(payload)
 
 
-_store_instance: RuntimeStore | None = None
+_runtime_gateway: RuntimeGateway | None = None
 
 
-def get_runtime_store() -> RuntimeStore:
-    global _store_instance
-    if _store_instance is None:
-        _store_instance = RuntimeStore()
-    return _store_instance
+def get_runtime_store() -> RuntimeGateway:
+    global _runtime_gateway
+    if _runtime_gateway is None:
+        _runtime_gateway = RuntimeGateway()
+    return _runtime_gateway
