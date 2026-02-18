@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from hashlib import sha256
 import json
-import logging
 from pathlib import Path
 import sqlite3
 from threading import RLock
@@ -27,8 +26,6 @@ from services.convex_event_relay import (
 from services.zpe.settings import get_zpe_settings
 
 from .runtime_settings import get_runtime_settings, resolve_runtime_db_path
-
-logger = logging.getLogger(__name__)
 
 RuntimeState = Literal["accepted", "running", "completed", "failed"]
 
@@ -293,24 +290,21 @@ class RuntimeStore:
             relay_token=settings.convex_relay_token,
             timeout_seconds=settings.convex_relay_timeout_seconds,
         )
-        try:
-            evt = AiidaJobEvent(
-                job_id=event.job_id,
-                node_id=event.execution_id,
-                project_id=event.workspace_id,
-                owner_id=None,
-                state=_to_job_state(event.state),
-                event_id=event.event_id,
-                timestamp=datetime.fromisoformat(_event_time_iso(event.occurred_at)),
-                sequence=1,
-            )
-            projection = build_convex_projection(evt)
-            dispatcher.dispatch_job_projection(
-                payload=projection,
-                idempotency_key=compute_event_idempotency_key(evt),
-            )
-        except Exception:
-            logger.warning("runtime projection dispatch failed", exc_info=True)
+        evt = AiidaJobEvent(
+            job_id=event.job_id,
+            node_id=event.execution_id,
+            project_id=event.workspace_id,
+            owner_id=None,
+            state=_to_job_state(event.state),
+            event_id=event.event_id,
+            timestamp=datetime.fromisoformat(_event_time_iso(event.occurred_at)),
+            sequence=1,
+        )
+        projection = build_convex_projection(evt)
+        dispatcher.dispatch_job_projection(
+            payload=projection,
+            idempotency_key=compute_event_idempotency_key(evt),
+        )
 
     def get_status(self, job_id: str, *, tenant_id: str) -> RuntimeJobStatusResponse:
         with self._connect() as conn:

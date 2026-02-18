@@ -4,7 +4,6 @@ import {
   AggregatedZpeError,
   fetchAggregatedZpeJobStatusFromUpstreams,
   normalizeAggregatedZpeJobStatus,
-  normalizeAggregatedZpeJobStatusFromSources,
   requireAuthToken,
   toAggregatedZpeErrorEnvelope,
 } from './zpe-aggregation'
@@ -20,15 +19,12 @@ describe('requireAuthToken', () => {
 })
 
 describe('normalizeAggregatedZpeJobStatus', () => {
-  it('normalizes legacy FastAPI status payloads', () => {
-    const normalized = normalizeAggregatedZpeJobStatus(
-      {
-        status: 'started',
-        detail: 'running',
-        updated_at: '2026-02-15T08:00:00Z',
-      },
-      'job-1',
-    )
+  it('accepts runtime projection payloads', () => {
+    const normalized = normalizeAggregatedZpeJobStatus({
+      status: 'started',
+      detail: 'running',
+      updated_at: '2026-02-15T08:00:00Z',
+    })
 
     expect(normalized).toEqual({
       status: 'started',
@@ -37,170 +33,24 @@ describe('normalizeAggregatedZpeJobStatus', () => {
     })
   })
 
-  it('normalizes Convex-style status payloads', () => {
-    const normalized = normalizeAggregatedZpeJobStatus(
-      {
-        jobId: 'job-2',
-        status: 'finished',
-        detail: null,
-        updatedAt: '2026-02-15T08:01:00Z',
-      },
-      'job-2',
-    )
-
-    expect(normalized).toEqual({
-      status: 'finished',
-      detail: null,
-      updated_at: '2026-02-15T08:01:00Z',
-    })
-  })
-
-  it('falls back to eventTime when updatedAt is missing', () => {
-    const normalized = normalizeAggregatedZpeJobStatus(
-      {
-        jobId: 'job-3',
-        status: 'queued',
-        eventTime: '2026-02-15T08:02:00Z',
-      },
-      'job-3',
-    )
-
-    expect(normalized).toEqual({
-      status: 'queued',
-      detail: null,
-      updated_at: '2026-02-15T08:02:00Z',
-    })
-  })
-
-  it('rejects job id mismatch for Convex-style payloads', () => {
-    expect(() =>
-      normalizeAggregatedZpeJobStatus(
-        {
-          jobId: 'other-job',
-          status: 'queued',
-        },
-        'job-4',
-      ),
-    ).toThrow('Upstream job status payload mismatch')
-  })
-
   it('rejects unsupported payloads', () => {
     expect(() =>
-      normalizeAggregatedZpeJobStatus(
-        {
-          status: 'queued',
-          updatedAt: '2026-02-15T08:03:00Z',
-        },
-        'job-5',
-      ),
-    ).toThrow('Unsupported status payload from upstream')
-  })
-})
-
-describe('normalizeAggregatedZpeJobStatusFromSources', () => {
-  it('merges projection status with adapter detail', () => {
-    const normalized = normalizeAggregatedZpeJobStatusFromSources(
-      {
-        jobId: 'job-6',
-        status: 'started',
-        updatedAt: '2026-02-15T08:10:00Z',
-      },
-      {
-        jobId: 'job-6',
-        status: 'started',
-        detail: 'adapter-running',
-        updated_at: '2026-02-15T08:09:59Z',
-      },
-      'job-6',
-    )
-
-    expect(normalized).toEqual({
-      status: 'started',
-      detail: 'adapter-running',
-      updated_at: '2026-02-15T08:10:00Z',
-    })
-  })
-
-  it('keeps compatibility by falling back to projection detail when adapter detail missing', () => {
-    const normalized = normalizeAggregatedZpeJobStatusFromSources(
-      {
-        jobId: 'job-7',
-        status: 'queued',
-        detail: 'projection-queued',
-        eventTime: '2026-02-15T08:11:00Z',
-      },
-      {
-        jobId: 'job-7',
-        status: 'queued',
-      },
-      'job-7',
-    )
-
-    expect(normalized).toEqual({
-      status: 'queued',
-      detail: 'projection-queued',
-      updated_at: '2026-02-15T08:11:00Z',
-    })
-  })
-
-  it('rejects status mismatch across projection and adapter', () => {
-    expect(() =>
-      normalizeAggregatedZpeJobStatusFromSources(
-        {
-          jobId: 'job-8',
-          status: 'started',
-          updatedAt: '2026-02-15T08:12:00Z',
-        },
-        {
-          jobId: 'job-8',
-          status: 'failed',
-          detail: 'boom',
-        },
-        'job-8',
-      ),
-    ).toThrow('Upstream status payload mismatch')
-  })
-
-  it('maps runtime state payload to job status when adapter returns state field', () => {
-    const normalized = normalizeAggregatedZpeJobStatusFromSources(
-      {
-        jobId: 'job-8b',
-        status: 'started',
-        updatedAt: '2026-02-15T08:12:00Z',
-      },
-      {
-        job_id: 'job-8b',
-        state: 'running',
-        detail: 'runtime-running',
-      },
-      'job-8b',
-    )
-
-    expect(normalized).toEqual({
-      status: 'started',
-      detail: 'runtime-running',
-      updated_at: '2026-02-15T08:12:00Z',
-    })
+      normalizeAggregatedZpeJobStatus({
+        detail: 'missing-status',
+      }),
+    ).toThrow('Unsupported projection payload from upstream')
   })
 })
 
 describe('fetchAggregatedZpeJobStatusFromUpstreams', () => {
-  it('fans out to projection and adapter endpoints, then merges', async () => {
+  it('uses projection endpoint only', async () => {
     const calls: Array<string> = []
     const requester = (request: { path: string; token: string }) => {
       calls.push(`${request.path}|${request.token}`)
-      if (request.path.endsWith('/projection')) {
-        return Promise.resolve({
-          jobId: 'job-9',
-          status: 'finished',
-          updatedAt: '2026-02-15T08:20:00Z',
-        })
-      }
       return Promise.resolve({
-        jobId: 'job-9',
         status: 'finished',
         detail: 'done',
-        updated_at: '2026-02-15T08:19:59Z',
+        updated_at: '2026-02-15T08:20:00Z',
       })
     }
 
@@ -210,10 +60,7 @@ describe('fetchAggregatedZpeJobStatusFromUpstreams', () => {
       requester,
     })
 
-    expect(calls).toEqual([
-      '/runtime/jobs/job-9/projection|token-9',
-      '/runtime/jobs/job-9|token-9',
-    ])
+    expect(calls).toEqual(['/runtime/jobs/job-9/projection|token-9'])
     expect(normalized).toEqual({
       status: 'finished',
       detail: 'done',
@@ -221,157 +68,56 @@ describe('fetchAggregatedZpeJobStatusFromUpstreams', () => {
     })
   })
 
-  it('falls back to adapter payload when projection source fails', async () => {
-    const requester = (request: { path: string }) => {
-      if (request.path.endsWith('/projection')) {
-        return Promise.reject(new Error('projection unavailable'))
-      }
-      return Promise.resolve({
-        status: 'started',
-        detail: 'legacy-running',
-        updated_at: '2026-02-15T08:21:00Z',
-      })
-    }
-
-    const normalized = await fetchAggregatedZpeJobStatusFromUpstreams({
-      jobId: 'job-10',
-      token: 'token-10',
-      requester,
-    })
-
-    expect(normalized).toEqual({
-      status: 'started',
-      detail: 'legacy-running',
-      updated_at: '2026-02-15T08:21:00Z',
-    })
-  })
-
-  it('falls back to projection payload when adapter source fails', async () => {
-    const requester = (request: { path: string }) => {
-      if (!request.path.endsWith('/projection')) {
-        return Promise.reject(new Error('adapter unavailable'))
-      }
-      return Promise.resolve({
-        jobId: 'job-11',
-        status: 'queued',
-        eventTime: '2026-02-15T08:22:00Z',
-      })
-    }
-
-    const normalized = await fetchAggregatedZpeJobStatusFromUpstreams({
-      jobId: 'job-11',
-      token: 'token-11',
-      requester,
-    })
-
-    expect(normalized).toEqual({
-      status: 'queued',
-      detail: null,
-      updated_at: '2026-02-15T08:22:00Z',
-    })
-  })
-
-  it('throws typed unavailable error when both sources fail', async () => {
-    await expect(
-      fetchAggregatedZpeJobStatusFromUpstreams({
-        jobId: 'job-12',
-        token: 'token-12',
-        requester: () => Promise.reject(new Error('down')),
-      }),
-    ).rejects.toThrow('Failed to fetch upstream job status')
-  })
-
-  it('times out hung projection source and falls back to adapter', async () => {
+  it('times out when projection source hangs', async () => {
     vi.useFakeTimers()
     try {
       const request = fetchAggregatedZpeJobStatusFromUpstreams({
         jobId: 'job-13',
         token: 'token-13',
         timeoutMs: 25,
-        requester: (input: { path: string }) => {
-          if (input.path.endsWith('/projection')) {
-            return new Promise<unknown>(() => {})
-          }
-          return Promise.resolve({
-            status: 'started',
-            detail: 'adapter-live',
-            updated_at: '2026-02-15T08:23:00Z',
-          })
-        },
+        requester: () => new Promise<unknown>(() => {}),
       })
+      const assertion = expect(request).rejects.toThrow(
+        'Timed out fetching projection job status',
+      )
 
       await vi.advanceTimersByTimeAsync(25)
-      await expect(request).resolves.toEqual({
-        status: 'started',
-        detail: 'adapter-live',
-        updated_at: '2026-02-15T08:23:00Z',
-      })
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
-  it('throws unavailable when secondary source stays pending then rejects', async () => {
-    vi.useFakeTimers()
-    try {
-      const request = fetchAggregatedZpeJobStatusFromUpstreams({
-        jobId: 'job-14',
-        token: 'token-14',
-        timeoutMs: 10,
-        requester: (input: { path: string }) => {
-          if (input.path.endsWith('/projection')) {
-            return Promise.reject(new Error('projection down'))
-          }
-          return new Promise<unknown>(() => {})
-        },
-      })
-
-      const assertion = expect(request).rejects.toThrow(
-        'Failed to fetch upstream job status',
-      )
-      await vi.advanceTimersByTimeAsync(40)
       await assertion
     } finally {
       vi.useRealTimers()
     }
   })
+
+  it('throws unavailable when requester fails', async () => {
+    await expect(
+      fetchAggregatedZpeJobStatusFromUpstreams({
+        jobId: 'job-12',
+        token: 'token-12',
+        requester: () => Promise.reject(new Error('down')),
+      }),
+    ).rejects.toThrow('Failed to fetch projection job status')
+  })
 })
 
 describe('toAggregatedZpeErrorEnvelope', () => {
-  it('returns envelope from AggregatedZpeError', () => {
-    const envelope = toAggregatedZpeErrorEnvelope(
-      new AggregatedZpeError('UPSTREAM_JOB_MISMATCH', 'payload mismatch', {
-        expectedJobId: 'job-1',
-      }),
+  it('serializes AggregatedZpeError', () => {
+    const error = new AggregatedZpeError(
+      'UPSTREAM_UNAVAILABLE',
+      'Projection unavailable',
+      { jobId: 'job-1' },
     )
-
-    expect(envelope).toEqual({
+    expect(toAggregatedZpeErrorEnvelope(error)).toEqual({
       error: {
-        code: 'UPSTREAM_JOB_MISMATCH',
-        message: 'payload mismatch',
-        details: {
-          expectedJobId: 'job-1',
-        },
+        code: 'UPSTREAM_UNAVAILABLE',
+        message: 'Projection unavailable',
+        details: { jobId: 'job-1' },
       },
     })
   })
 
-  it('maps unknown errors to UNKNOWN envelope shape', () => {
+  it('serializes native Error as UNKNOWN', () => {
     const envelope = toAggregatedZpeErrorEnvelope(new Error('boom'))
-    expect(envelope).toEqual({
-      error: {
-        code: 'UNKNOWN',
-        message: 'boom',
-      },
-    })
-  })
-
-  it('maps non-error throwables to UNKNOWN envelope shape', () => {
-    expect(toAggregatedZpeErrorEnvelope('boom')).toEqual({
-      error: {
-        code: 'UNKNOWN',
-        message: 'Unknown aggregation error',
-      },
-    })
+    expect(envelope.error.code).toBe('UNKNOWN')
+    expect(envelope.error.message).toBe('boom')
   })
 })

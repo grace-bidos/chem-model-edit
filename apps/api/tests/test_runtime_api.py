@@ -113,6 +113,7 @@ def test_runtime_submit_scope_violation(monkeypatch, tmp_path: Path):
 def test_runtime_event_updates_status(monkeypatch, tmp_path: Path):
     store = RuntimeStore(tmp_path / "runtime.sqlite3")
     monkeypatch.setattr("app.routers.runtime.get_runtime_store", lambda: store)
+    monkeypatch.setattr(store, "_dispatch_projection", lambda _event: None)
 
     client = TestClient(app)
     submit = client.post("/api/runtime/jobs:submit", json=_submit_payload(), headers=_headers())
