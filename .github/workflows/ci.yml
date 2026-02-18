@@ -127,6 +127,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Activate pnpm via Corepack
+        if: ${{ steps.decide.outputs.run == 'true' }}
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.27.0 --activate
       - name: Configure pnpm store path
         if: ${{ steps.decide.outputs.run == 'true' }}
         run: pnpm config set store-dir "$HOME/.pnpm-store"
@@ -386,6 +391,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Activate pnpm via Corepack
+        if: ${{ steps.decide.outputs.run == 'true' }}
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.27.0 --activate
       - name: Configure pnpm store path
         if: ${{ steps.decide.outputs.run == 'true' }}
         run: pnpm config set store-dir "$HOME/.pnpm-store"
