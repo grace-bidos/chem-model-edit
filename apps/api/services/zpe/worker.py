@@ -11,7 +11,11 @@ from typing import Any, Dict, Iterator, cast
 
 from ase.calculators.espresso import Espresso
 from ase.vibrations import Vibrations
-from rq import get_current_job
+try:
+    from rq import get_current_job
+except ImportError:  # pragma: no cover
+    def get_current_job() -> Any:  # type: ignore[misc]
+        return None
 
 from app.schemas.zpe import ZPEJobRequest
 from .cache import clean_vib_cache, sanitize_vib_cache

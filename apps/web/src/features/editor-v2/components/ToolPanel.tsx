@@ -4,7 +4,6 @@ import {
   Activity,
   AlertTriangle,
   CheckCircle2,
-  Copy,
   Download,
   Layers,
   MousePointerClick,
@@ -24,7 +23,6 @@ import type {
   ZPEJobStatus,
   ZPEParseResponse,
   ZPEQueueTarget,
-  ZPEResult,
 } from '@/lib/types'
 
 import MolstarViewer from '@/components/molstar/MolstarViewer'
@@ -40,14 +38,11 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import {
-  createEnrollToken,
   createStructureFromQe,
   createZpeJob,
   deltaTransplant,
-  downloadZpeFile,
   exportQeInput,
   fetchQueueTargets,
-  fetchZpeResult,
   fetchZpeStatus,
   getStructure,
   parseZpeInput,
@@ -84,13 +79,6 @@ type TransferSummary = {
   sourceAtoms: number | null
   targetAtoms: number | null
   transferredAtoms: number | null
-}
-
-const formatNumber = (value: number | null | undefined, digits = 3) => {
-  if (value === null || value === undefined) {
-    return '—'
-  }
-  return value.toFixed(digits)
 }
 
 const statusTone = (status?: string | null) => {
@@ -177,7 +165,6 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
   const [atomFilter, setAtomFilter] = useState('')
   const [jobId, setJobId] = useState<string | null>(null)
   const [jobStatus, setJobStatus] = useState<ZPEJobStatus | null>(null)
-  const [jobResult, setJobResult] = useState<ZPEResult | null>(null)
   const [runError, setRunError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [useEnviron, setUseEnviron] = useState(false)
@@ -187,15 +174,6 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
   const [activeTargetId, setActiveTargetId] = useState<string | null>(null)
   const [targetsError, setTargetsError] = useState<string | null>(null)
   const [targetsBusy, setTargetsBusy] = useState(false)
-  const [enrollToken, setEnrollToken] = useState<{
-    token: string
-    expires_at: string
-    ttl_seconds: number
-    label?: string | null
-  } | null>(null)
-  const [enrollError, setEnrollError] = useState<string | null>(null)
-  const [enrollBusy, setEnrollBusy] = useState(false)
-  const [tokenCopied, setTokenCopied] = useState(false)
   const parseTokenRef = useRef(0)
   const { isSignedIn, signOut } = useAuth()
   const { user } = useUser()
@@ -286,7 +264,6 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
     setMobileIndices(new Set())
     setJobId(null)
     setJobStatus(null)
-    setJobResult(null)
     setRunError(null)
     setAtomFilter('')
   }, [selectedFileId])
@@ -308,11 +285,6 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
         }
         setJobStatus(status)
         if (status.status === 'finished') {
-          const result = await fetchZpeResult(jobId)
-          if (!isActive()) {
-            return
-          }
-          setJobResult(result)
           if (intervalId) {
             window.clearInterval(intervalId)
           }
@@ -393,22 +365,6 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
     [parseResult],
   )
 
-  const freqSummary = useMemo(() => {
-    if (!jobResult || jobResult.freqs_cm.length === 0) {
-      return null
-    }
-    const values = jobResult.freqs_cm
-    const min = Math.min(...values)
-    const max = Math.max(...values)
-    const imagCount = values.filter((value) => value < 0).length
-    return {
-      count: values.length,
-      min,
-      max,
-      imagCount,
-    }
-  }, [jobResult])
-
   const runParse = useCallback(
     async (content: string, structure_id?: string | null) => {
       const token = parseTokenRef.current + 1
@@ -465,7 +421,6 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
     }
     setQueueTargets([])
     setActiveTargetId(null)
-    setEnrollToken(null)
   }
 
   const handleSelectTarget = async (targetId: string) => {
@@ -480,35 +435,6 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
       )
     } finally {
       setTargetsBusy(false)
-    }
-  }
-
-  const handleGenerateToken = async () => {
-    setEnrollBusy(true)
-    setEnrollError(null)
-    setTokenCopied(false)
-    try {
-      const response = await createEnrollToken({ ttl_seconds: 3600 })
-      setEnrollToken(response)
-    } catch (err) {
-      setEnrollError(
-        err instanceof Error ? err.message : 'Failed to create enroll token.',
-      )
-    } finally {
-      setEnrollBusy(false)
-    }
-  }
-
-  const handleCopyToken = async () => {
-    if (!enrollToken?.token) {
-      return
-    }
-    try {
-      await navigator.clipboard.writeText(enrollToken.token)
-      setTokenCopied(true)
-      window.setTimeout(() => setTokenCopied(false), 1500)
-    } catch (_err) {
-      setTokenCopied(false)
     }
   }
 
@@ -533,6 +459,10 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
       setRunError('Select an active compute target before running.')
       return
     }
+    if (!activeTarget) {
+      setRunError('Selected compute target metadata is unavailable.')
+      return
+    }
     if (!parseResult) {
       setRunError('Parsing is not complete yet.')
       return
@@ -544,16 +474,10 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
     setRunError(null)
     setIsSubmitting(true)
     setJobStatus(null)
-    setJobResult(null)
     try {
       const response = await createZpeJob({
-        calc_type: 'qe.zpe.v1',
-        content: selectedFile.qeInput,
-        mobile_indices: Array.from(mobileIndices).sort((a, b) => a - b),
-        use_environ: useEnviron,
-        input_dir: inputDir.trim() ? inputDir.trim() : null,
-        calc_mode: calcMode,
-        structure_id: selectedFile.structureId ?? null,
+        queueName: activeTarget.queue_name,
+        managementNodeId: activeTarget.server_id,
       })
       setJobId(response.id)
     } catch (err) {
@@ -562,30 +486,6 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
       )
     } finally {
       setIsSubmitting(false)
-    }
-  }
-
-  const handleDownload = async (kind: 'summary' | 'freqs') => {
-    if (!isSignedIn) {
-      setRunError('Sign in to download results.')
-      return
-    }
-    if (!jobId) {
-      setRunError('No completed job available for download.')
-      return
-    }
-    setRunError(null)
-    try {
-      const content = await downloadZpeFile(jobId, kind)
-      const suffix = kind === 'summary' ? 'summary' : 'freqs'
-      const extension = kind === 'summary' ? 'txt' : 'csv'
-      downloadTextFile(
-        content,
-        `zpe-${suffix}-${jobId.slice(0, 8)}.${extension}`,
-        kind === 'summary' ? 'text/plain' : 'text/csv',
-      )
-    } catch (err) {
-      setRunError(err instanceof Error ? err.message : 'Download failed.')
     }
   }
 
@@ -946,50 +846,6 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
                     </p>
                   )}
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="h-7 px-2 text-[11px]"
-                      onClick={handleGenerateToken}
-                      disabled={enrollBusy}
-                    >
-                      {enrollBusy ? 'Generating...' : 'Generate enroll token'}
-                    </Button>
-                    {enrollToken ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-7 px-2 text-[11px]"
-                        onClick={handleCopyToken}
-                      >
-                        <Copy className="h-3 w-3" />
-                        {tokenCopied ? 'Copied' : 'Copy'}
-                      </Button>
-                    ) : null}
-                  </div>
-
-                  {enrollToken ? (
-                    <div className="rounded-md border border-slate-200 bg-white px-2 py-2 text-[10px] text-slate-500">
-                      <p className="text-[10px] uppercase tracking-[0.3em] text-slate-400">
-                        Enroll token
-                      </p>
-                      <p className="mt-1 break-all font-mono text-[10px] text-slate-700">
-                        {enrollToken.token}
-                      </p>
-                      <p className="mt-1 text-[10px] text-slate-400">
-                        expires {enrollToken.expires_at}
-                      </p>
-                    </div>
-                  ) : null}
-
-                  {enrollError ? (
-                    <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-600">
-                      {enrollError}
-                    </div>
-                  ) : null}
-
                   {targetsError ? (
                     <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
                       {targetsError}
@@ -1288,95 +1144,13 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
                 Result
               </p>
               <p className="text-sm font-semibold text-slate-800">
-                ZPE Summary
+                Runtime Detail
               </p>
             </div>
           </div>
           <div className="mt-3 space-y-3">
-            {jobResult ? (
-              <div className="grid gap-2 text-xs text-slate-600">
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
-                    <p className="text-[10px] uppercase tracking-[0.3em] text-slate-400">
-                      ZPE (eV)
-                    </p>
-                    <p className="mt-1 text-sm font-semibold text-slate-700">
-                      {formatNumber(jobResult.zpe_ev, 6)}
-                    </p>
-                  </div>
-                  <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
-                    <p className="text-[10px] uppercase tracking-[0.3em] text-slate-400">
-                      S_vib
-                    </p>
-                    <p className="mt-1 text-sm font-semibold text-slate-700">
-                      {formatNumber(jobResult.s_vib_jmol_k, 3)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
-                    <p className="text-[10px] uppercase tracking-[0.3em] text-slate-400">
-                      Elapsed
-                    </p>
-                    <p className="mt-1 text-sm font-semibold text-slate-700">
-                      {formatNumber(jobResult.elapsed_seconds, 2)}s
-                    </p>
-                  </div>
-                  <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
-                    <p className="text-[10px] uppercase tracking-[0.3em] text-slate-400">
-                      Modes
-                    </p>
-                    <p className="mt-1 text-sm font-semibold text-slate-700">
-                      {jobResult.freqs_cm.length}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2 text-[11px] text-slate-500">
-                  <div className="flex items-center justify-between">
-                    <span>freqs min / max</span>
-                    <span className="font-mono">
-                      {freqSummary
-                        ? `${formatNumber(freqSummary.min, 2)} / ${formatNumber(freqSummary.max, 2)}`
-                        : '—'}
-                    </span>
-                  </div>
-                  <div className="mt-1 flex items-center justify-between">
-                    <span>imaginary modes</span>
-                    <span className="font-mono">
-                      {freqSummary ? freqSummary.imagCount : '—'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="rounded-md border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
-                Results appear after the job finishes.
-              </div>
-            )}
-
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs"
-                onClick={() => handleDownload('summary')}
-                disabled={!jobResult}
-              >
-                <Download className="h-3 w-3" />
-                summary.txt
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs"
-                onClick={() => handleDownload('freqs')}
-                disabled={!jobResult}
-              >
-                <Download className="h-3 w-3" />
-                freqs.csv
-              </Button>
+            <div className="rounded-md border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
+              Runtime events are shown via status polling. Detailed result artifacts are managed by the execution owner (AiiDA/Slurm).
             </div>
           </div>
         </div>

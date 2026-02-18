@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
-
-from rq.job import Job
+from typing import Any, Optional
 
 from .parse import parse_namelist
 from .settings import ZPESettings, get_zpe_settings
@@ -39,7 +37,7 @@ def resolve_work_dir(settings: Optional[ZPESettings] = None) -> Path:
     return base
 
 
-def resolve_job_file(job: Job, kind: str) -> Path:
+def resolve_job_file(job: Any, kind: str) -> Path:
     key_map = {
         "summary": "summary_file",
         "freqs": "freqs_file",
