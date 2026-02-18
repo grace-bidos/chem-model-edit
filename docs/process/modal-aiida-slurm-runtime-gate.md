@@ -9,6 +9,16 @@ This runbook defines executable checks for the runtime-only compute contract (`/
 - User-managed AiiDA/Slurm execution event flow through stateless runtime gateway
 - Convex projection consistency checks
 
+## Local Operator Setup
+
+For WSL + Hyper-V local operator stability (secret file placement, env sync flow,
+and VM networking pitfalls), see:
+
+- `docs/process/local-dev-runtime-ops.md`
+- `scripts/dev/bootstrap_dev_secrets_file.sh`
+- `scripts/dev/apply_dev_runtime_env.sh`
+- `scripts/dev/runtime_submit_smoke.sh`
+
 ## Preconditions
 
 - Modal app deployed from `apps/api/modal_app.py`
