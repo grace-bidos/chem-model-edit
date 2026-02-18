@@ -96,7 +96,7 @@ def _parse_json_body(payload: bytes | None) -> dict[str, Any]:
     if not isinstance(parsed_obj, dict):
         return {}
     parsed_dict: dict[str, Any] = {}
-    for key, value in cast(dict[Any, Any], parsed_obj).items():
+    for key, value in parsed_obj.items():  # pyright: ignore[reportUnknownVariableType]
         if isinstance(key, str):
             parsed_dict[key] = value
     return parsed_dict
