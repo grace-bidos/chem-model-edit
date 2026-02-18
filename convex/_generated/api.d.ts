@@ -8,13 +8,21 @@
  * @module
  */
 
+import type * as projectionStateMachine from "../projectionStateMachine.js";
+import type * as projectionUpdates from "../projectionUpdates.js";
+import type * as structures from "../structures.js";
+
 import type {
   ApiFromModules,
   FilterApi,
   FunctionReference,
 } from "convex/server";
 
-declare const fullApi: ApiFromModules<{}>;
+declare const fullApi: ApiFromModules<{
+  projectionStateMachine: typeof projectionStateMachine;
+  projectionUpdates: typeof projectionUpdates;
+  structures: typeof structures;
+}>;
 
 /**
  * A utility for referencing Convex functions in your app's public API.

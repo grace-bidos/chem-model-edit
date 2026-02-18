@@ -9,6 +9,34 @@ const projectionStateValidator = v.union(
 )
 
 export default defineSchema({
+  structures: defineTable({
+    tenant_id: v.string(),
+    workspace_id: v.string(),
+    structure_id: v.string(),
+    source: v.string(),
+    cif: v.string(),
+    structure: v.any(),
+    params: v.optional(v.any()),
+    created_at: v.string(),
+    updated_at: v.string(),
+    raw_input_chunk_count: v.number(),
+  })
+    .index("by_key", ["tenant_id", "workspace_id", "structure_id"])
+    .index("by_structure_id", ["structure_id"]),
+
+  structure_raw_chunks: defineTable({
+    tenant_id: v.string(),
+    workspace_id: v.string(),
+    structure_id: v.string(),
+    chunk_index: v.number(),
+    chunk_text: v.string(),
+  }).index("by_structure", [
+    "tenant_id",
+    "workspace_id",
+    "structure_id",
+    "chunk_index",
+  ]),
+
   projection_states: defineTable({
     tenant_id: v.string(),
     workspace_id: v.string(),
