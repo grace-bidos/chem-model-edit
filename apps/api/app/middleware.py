@@ -33,7 +33,7 @@ async def add_request_context(
     request: Request,
     call_next: Callable[[Request], Awaitable[Response]],
 ) -> Response:
-    """リクエストの相関IDとZPE向けアクセスログを付与する．
+    """リクエストの相関IDとランタイム/オンボーディング向けアクセスログを付与する．
 
     Parameters:
         request: 受信したHTTPリクエスト．
@@ -49,11 +49,11 @@ async def add_request_context(
     response = await call_next(request)
     response.headers["x-request-id"] = request_id
     path = request.url.path
-    if path.startswith("/api/zpe/") or path.startswith("/api/runtime/"):
+    if path.startswith("/api/runtime/") or path.startswith("/api/onboarding/"):
         duration_ms = int((time.monotonic() - start) * 1000)
         log_event(
             logger,
-            event="zpe_http_request",
+            event="runtime_onboarding_http_request",
             service="control-plane",
             request_id=request_id,
             tenant_id=get_tenant_id(request),

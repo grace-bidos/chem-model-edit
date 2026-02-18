@@ -64,7 +64,7 @@ def test_onboarding_dry_run_requires_admin_token(monkeypatch) -> None:
 
     client = TestClient(main.app)
     response = client.post(
-        "/api/zpe/admin/onboarding/dry-run",
+        "/api/onboarding/dry-run",
         json={
             "path_mode": "path-a-existing-slurm",
             "policy": _base_policy(),
@@ -80,7 +80,7 @@ def test_onboarding_route_available_from_app_api_import(monkeypatch) -> None:
 
     client = TestClient(api_app)
     response = client.post(
-        "/api/zpe/admin/onboarding/dry-run",
+        "/api/onboarding/dry-run",
         headers={"Authorization": "Bearer secret"},
         json={
             "path_mode": "path-a-existing-slurm",
@@ -97,7 +97,7 @@ def test_onboarding_dry_run_returns_valid_report_and_queue_decision(monkeypatch)
 
     client = TestClient(main.app)
     response = client.post(
-        "/api/zpe/admin/onboarding/dry-run",
+        "/api/onboarding/dry-run",
         headers={"Authorization": "Bearer secret"},
         json={
             "path_mode": "path-a-existing-slurm",
@@ -129,7 +129,7 @@ def test_onboarding_dry_run_returns_structured_errors(monkeypatch) -> None:
 
     client = TestClient(main.app)
     response = client.post(
-        "/api/zpe/admin/onboarding/dry-run",
+        "/api/onboarding/dry-run",
         headers={"Authorization": "Bearer secret"},
         json={
             "path_mode": "path-b-bootstrap-slurm-aiida",
@@ -167,7 +167,7 @@ def test_onboarding_dry_run_rejects_boolean_walltime(monkeypatch) -> None:
 
     client = TestClient(main.app)
     response = client.post(
-        "/api/zpe/admin/onboarding/dry-run",
+        "/api/onboarding/dry-run",
         headers={"Authorization": "Bearer secret"},
         json={
             "path_mode": "path-a-existing-slurm",

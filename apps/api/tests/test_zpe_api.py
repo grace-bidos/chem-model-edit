@@ -7,6 +7,9 @@ import main
 
 
 LEGACY_REMOVED_ENDPOINTS = [
+    ("post", "/api/zpe/parse", {"content": "&control\n/"}),
+    ("get", "/api/zpe/targets", None),
+    ("put", "/api/zpe/targets/target-1/active", None),
     ("post", "/api/zpe/jobs", {"calc_type": "qe.zpe.v1", "content": "", "mobile_indices": [0]}),
     ("get", "/api/zpe/jobs/job-1", None),
     ("get", "/api/zpe/jobs/job-1/result", None),
@@ -20,10 +23,10 @@ LEGACY_REMOVED_ENDPOINTS = [
 ]
 
 
-def test_zpe_parse_still_available() -> None:
+def test_runtime_parse_available() -> None:
     client = TestClient(main.app)
     response = client.post(
-        "/api/zpe/parse",
+        "/api/runtime/parse",
         json={
             "content": """
 &control

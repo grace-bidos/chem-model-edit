@@ -7,7 +7,7 @@ from app.schemas.errors import ErrorResponse
 from app.schemas.onboarding import OnboardingDryRunRequest, OnboardingDryRunResponse
 from services.onboarding_manifest import run_onboarding_dry_run
 
-router = APIRouter(prefix="/api/zpe/admin/onboarding", tags=["zpe"])
+router = APIRouter(prefix="/api/onboarding", tags=["onboarding"])
 
 
 @router.post(

@@ -480,78 +480,6 @@
         "title": "OnboardingValidationIssue",
         "type": "object"
       },
-      "OpsFlagsRequest": {
-        "additionalProperties": false,
-        "properties": {
-          "dequeue_enabled": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Dequeue Enabled"
-          },
-          "result_read_source": {
-            "anyOf": [
-              {
-                "enum": [
-                  "redis",
-                  "projection"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Result Read Source"
-          },
-          "submission_enabled": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Submission Enabled"
-          }
-        },
-        "title": "OpsFlagsRequest",
-        "type": "object"
-      },
-      "OpsFlagsResponse": {
-        "additionalProperties": false,
-        "properties": {
-          "dequeue_enabled": {
-            "title": "Dequeue Enabled",
-            "type": "boolean"
-          },
-          "result_read_source": {
-            "enum": [
-              "redis",
-              "projection"
-            ],
-            "title": "Result Read Source",
-            "type": "string"
-          },
-          "submission_enabled": {
-            "title": "Submission Enabled",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "submission_enabled",
-          "dequeue_enabled",
-          "result_read_source"
-        ],
-        "title": "OpsFlagsResponse",
-        "type": "object"
-      },
       "Pagination": {
         "additionalProperties": false,
         "properties": {
@@ -1727,6 +1655,57 @@
         ]
       }
     },
+    "/api/onboarding/dry-run": {
+      "post": {
+        "operationId": "onboarding_dry_run_api_onboarding_dry_run_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnboardingDryRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnboardingDryRunResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized (admin required)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Onboarding Dry Run",
+        "tags": [
+          "onboarding"
+        ]
+      }
+    },
     "/api/ready": {
       "get": {
         "operationId": "ready_api_ready_get",
@@ -1966,6 +1945,142 @@
           }
         },
         "summary": "Submit Runtime Job",
+        "tags": [
+          "runtime"
+        ]
+      }
+    },
+    "/api/runtime/parse": {
+      "post": {
+        "operationId": "parse_runtime_input_api_runtime_parse_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ZPEParseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZPEParseResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Parse Runtime Input",
+        "tags": [
+          "runtime"
+        ]
+      }
+    },
+    "/api/runtime/targets": {
+      "get": {
+        "operationId": "list_runtime_targets_api_runtime_targets_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueTargetListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Runtime Targets",
+        "tags": [
+          "runtime"
+        ]
+      }
+    },
+    "/api/runtime/targets/{target_id}/active": {
+      "put": {
+        "operationId": "select_runtime_target_api_runtime_targets__target_id__active_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "target_id",
+            "required": true,
+            "schema": {
+              "title": "Target Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueTargetSelectResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Select Runtime Target",
         "tags": [
           "runtime"
         ]
@@ -2304,255 +2419,6 @@
         "summary": "Delta Transplant",
         "tags": [
           "transforms"
-        ]
-      }
-    },
-    "/api/zpe/admin/onboarding/dry-run": {
-      "post": {
-        "operationId": "onboarding_dry_run_api_zpe_admin_onboarding_dry_run_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/OnboardingDryRunRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OnboardingDryRunResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized (admin required)"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Onboarding Dry Run",
-        "tags": [
-          "zpe"
-        ]
-      }
-    },
-    "/api/zpe/admin/ops": {
-      "get": {
-        "operationId": "zpe_ops_flags_api_zpe_admin_ops_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OpsFlagsResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Zpe Ops Flags",
-        "tags": [
-          "zpe"
-        ]
-      },
-      "patch": {
-        "operationId": "zpe_ops_flags_update_api_zpe_admin_ops_patch",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/OpsFlagsRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OpsFlagsResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Zpe Ops Flags Update",
-        "tags": [
-          "zpe"
-        ]
-      }
-    },
-    "/api/zpe/parse": {
-      "post": {
-        "operationId": "zpe_parse_api_zpe_parse_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ZPEParseRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ZPEParseResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Zpe Parse",
-        "tags": [
-          "zpe"
-        ]
-      }
-    },
-    "/api/zpe/targets": {
-      "get": {
-        "operationId": "list_queue_targets_api_zpe_targets_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 50,
-              "minimum": 1,
-              "title": "Limit",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "offset",
-            "required": false,
-            "schema": {
-              "default": 0,
-              "minimum": 0,
-              "title": "Offset",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/QueueTargetListResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "List Queue Targets",
-        "tags": [
-          "zpe"
-        ]
-      }
-    },
-    "/api/zpe/targets/{target_id}/active": {
-      "put": {
-        "operationId": "select_queue_target_api_zpe_targets__target_id__active_put",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "target_id",
-            "required": true,
-            "schema": {
-              "title": "Target Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/QueueTargetSelectResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Select Queue Target",
-        "tags": [
-          "zpe"
         ]
       }
     }

@@ -11,7 +11,15 @@ from app.schemas.runtime import (
     SubmitJobAccepted,
     SubmitJobCommand,
 )
-from app.schemas.zpe import ZPEJobStatus
+from app.schemas.zpe import (
+    QueueTarget,
+    QueueTargetListResponse,
+    QueueTargetSelectResponse,
+    ZPEJobStatus,
+    ZPEParseRequest,
+    ZPEParseResponse,
+)
+from app.schemas.common import Pagination
 from services.runtime import (
     RuntimeConfigurationError,
     RuntimeConflictError,
@@ -19,6 +27,15 @@ from services.runtime import (
     RuntimeNotFoundError,
     get_runtime_store,
 )
+from services.structures import get_structure
+from services.zpe.parse import (
+    extract_fixed_indices,
+    parse_atomic_species,
+    parse_kpoints_automatic,
+    parse_qe_atoms,
+    parse_qe_structure,
+)
+from services.zpe.queue_targets import get_queue_target_store
 
 router = APIRouter(prefix="/api/runtime", tags=["runtime"])
 
@@ -106,3 +123,72 @@ async def get_runtime_job_projection(job_id: str, request: Request) -> ZPEJobSta
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except RuntimeDownstreamError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@router.post("/parse", response_model=ZPEParseResponse)
+async def parse_runtime_input(request: ZPEParseRequest) -> ZPEParseResponse:
+    if request.structure_id:
+        try:
+            structure = get_structure(request.structure_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Structure not found") from exc
+        fixed_indices = extract_fixed_indices(request.content)
+        atoms = parse_qe_atoms(request.content)
+        if len(atoms) != len(structure.atoms):
+            raise HTTPException(
+                status_code=409,
+                detail="Structure does not match QE input atom count",
+            )
+    else:
+        structure, fixed_indices = parse_qe_structure(request.content)
+    kpts = parse_kpoints_automatic(request.content)
+    return ZPEParseResponse(
+        structure=structure,
+        fixed_indices=fixed_indices,
+        atomic_species=parse_atomic_species(request.content),
+        kpoints=kpts[0] if kpts else None,
+    )
+
+
+@router.get("/targets", response_model=QueueTargetListResponse)
+async def list_runtime_targets(
+    raw: Request,
+    limit: int = 50,
+    offset: int = 0,
+) -> QueueTargetListResponse:
+    user = require_user_identity(raw)
+    target_store = get_queue_target_store()
+    targets = target_store.list_targets(user.user_id)
+    total = len(targets)
+    sliced = targets[offset : offset + limit]
+    active = target_store.get_active_target(user.user_id)
+    response_targets = [
+        QueueTarget(
+            id=target.target_id,
+            queue_name=target.queue_name,
+            server_id=target.server_id,
+            registered_at=target.registered_at,
+            name=target.name,
+        )
+        for target in sliced
+    ]
+    return QueueTargetListResponse(
+        targets=response_targets,
+        active_target_id=active.target_id if active else None,
+        pagination=Pagination(total=total, limit=limit, offset=offset),
+    )
+
+
+@router.put("/targets/{target_id}/active", response_model=QueueTargetSelectResponse)
+async def select_runtime_target(
+    target_id: str,
+    raw: Request,
+) -> QueueTargetSelectResponse:
+    user = require_user_identity(raw)
+    target_store = get_queue_target_store()
+    try:
+        target_store.ensure_target_owner(user.user_id, target_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="target not found") from exc
+    target_store.set_active_target(user.user_id, target_id)
+    return QueueTargetSelectResponse(active_target_id=target_id)
