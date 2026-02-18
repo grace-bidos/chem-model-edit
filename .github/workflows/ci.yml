@@ -115,6 +115,8 @@ jobs:
         with:
           version: 10.27.0
           run_install: false
+      - name: Export pnpm to PATH
+        run: echo "$PNPM_HOME" >> "$GITHUB_PATH"
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -569,6 +571,8 @@ jobs:
         with:
           version: 10.27.0
           run_install: false
+      - name: Export pnpm to PATH
+        run: echo "$PNPM_HOME" >> "$GITHUB_PATH"
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
