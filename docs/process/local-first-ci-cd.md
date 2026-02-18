@@ -65,7 +65,8 @@ Manual deploy remains available via `workflow_dispatch`.
 ## Docs-only PR behavior
 
 On pull requests, quick lanes are routed by changed paths.
-Docs-only changes should skip `web/api/contract` lanes unless CI workflow files affecting quick lanes changed.
+Docs-only changes should short-circuit `web/api/contract` lanes with no-op success unless CI workflow files affecting quick lanes changed.
+This keeps required checks satisfiable without running full lane workloads.
 On `push` to `main` and `merge_group`, quick lanes still run by design.
 
 ## Local strict gate
