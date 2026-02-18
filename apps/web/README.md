@@ -27,6 +27,9 @@ pnpm -C apps/web dev
 - Set `API_BASE_PUBLIC` in the worker environment to the backend `/api` base.
   - Production example:
     - `API_BASE_PUBLIC=https://<workspace>--chem-model-edit-api-api.modal.run/api`
+- Set Modal proxy auth vars when `requires_proxy_auth=True` on the API app:
+  - `MODAL_PROXY_KEY=<proxy key>`
+  - `MODAL_PROXY_SECRET=<proxy secret>`
 
 ## Contract update workflow
 

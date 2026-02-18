@@ -29,6 +29,8 @@ Set CORS allow list and preview regex in the Modal-deployed FastAPI service:
 Set the backend base including `/api`:
 
 - `API_BASE_PUBLIC=https://<workspace>--chem-model-edit-api-api.modal.run/api`
+- `MODAL_PROXY_KEY=<proxy key>` (required when API uses Modal proxy auth)
+- `MODAL_PROXY_SECRET=<proxy secret>` (required when API uses Modal proxy auth)
 
 `TSS_SHELL=true` must remain enabled to render the SPA shell correctly.
 
