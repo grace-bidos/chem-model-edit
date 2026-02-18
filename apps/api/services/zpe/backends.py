@@ -19,7 +19,6 @@ from .parse import (
     parse_qe_structure,
 )
 from .http_queue import enqueue_http_job
-from .queue import get_queue
 from .queue_targets import get_queue_target_store
 from .result_store import ResultStore, ZPEJobStatus, get_result_store
 from .settings import ZPESettings, get_zpe_settings
@@ -422,23 +421,9 @@ def submit_compute_failure(
 
 def enqueue_zpe_job(payload: Dict[str, Any], *, queue_name: str | None = None) -> str:
     settings = get_zpe_settings()
-    if settings.compute_mode not in {"remote-queue", "remote-http", "mock"}:
-        raise ValueError(
-            "compute_mode must be 'remote-queue', 'remote-http', or 'mock'."
-        )
+    if settings.compute_mode not in {"remote-http", "mock"}:
+        raise ValueError("compute_mode must be 'remote-http' or 'mock'.")
     store = get_result_store()
-    if settings.compute_mode == "remote-queue":
-        job = get_queue(queue_name).enqueue(
-            "services.zpe.worker.run_zpe_job",
-            payload,
-            job_timeout=settings.job_timeout_seconds,
-            result_ttl=settings.result_ttl_seconds,
-        )
-        job_id = job.id
-        if not isinstance(job_id, str) or not job_id:
-            raise RuntimeError("RQ enqueue returned an invalid job id")
-        store.set_status(job_id, "queued")
-        return job_id
     if settings.compute_mode == "remote-http":
         return enqueue_http_job(payload)
     return _run_mock_job(payload, store)

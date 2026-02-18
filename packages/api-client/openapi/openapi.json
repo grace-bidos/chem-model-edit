@@ -494,17 +494,6 @@
             ],
             "title": "Dequeue Enabled"
           },
-          "legacy_worker_endpoints_enabled": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Legacy Worker Endpoints Enabled"
-          },
           "result_read_source": {
             "anyOf": [
               {
@@ -530,21 +519,6 @@
               }
             ],
             "title": "Submission Enabled"
-          },
-          "submission_route": {
-            "anyOf": [
-              {
-                "enum": [
-                  "redis-worker",
-                  "next-gen"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Submission Route"
           }
         },
         "title": "OpsFlagsRequest",
@@ -555,10 +529,6 @@
         "properties": {
           "dequeue_enabled": {
             "title": "Dequeue Enabled",
-            "type": "boolean"
-          },
-          "legacy_worker_endpoints_enabled": {
-            "title": "Legacy Worker Endpoints Enabled",
             "type": "boolean"
           },
           "result_read_source": {
@@ -572,22 +542,12 @@
           "submission_enabled": {
             "title": "Submission Enabled",
             "type": "boolean"
-          },
-          "submission_route": {
-            "enum": [
-              "redis-worker",
-              "next-gen"
-            ],
-            "title": "Submission Route",
-            "type": "string"
           }
         },
         "required": [
           "submission_enabled",
           "dequeue_enabled",
-          "submission_route",
-          "result_read_source",
-          "legacy_worker_endpoints_enabled"
+          "result_read_source"
         ],
         "title": "OpsFlagsResponse",
         "type": "object"

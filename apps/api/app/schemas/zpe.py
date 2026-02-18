@@ -392,14 +392,10 @@ class ComputeFailedResponse(ApiModel):
 class OpsFlagsRequest(ApiModel):
     submission_enabled: Optional[bool] = None
     dequeue_enabled: Optional[bool] = None
-    submission_route: Optional[Literal["redis-worker", "next-gen"]] = None
     result_read_source: Optional[Literal["redis", "projection"]] = None
-    legacy_worker_endpoints_enabled: Optional[bool] = None
 
 
 class OpsFlagsResponse(ApiModel):
     submission_enabled: bool
     dequeue_enabled: bool
-    submission_route: Literal["redis-worker", "next-gen"]
     result_read_source: Literal["redis", "projection"]
-    legacy_worker_endpoints_enabled: bool

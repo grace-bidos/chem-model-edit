@@ -3,7 +3,6 @@ from __future__ import annotations
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
-import importlib
 import os
 import shutil
 import uuid
@@ -33,14 +32,7 @@ from .thermo import calc_zpe_and_s_vib, normalize_frequencies
 
 
 def get_current_job() -> Any:
-    try:
-        rq_module = importlib.import_module("rq")
-    except ImportError:  # pragma: no cover
-        return None
-    getter = getattr(rq_module, "get_current_job", None)
-    if getter is None:
-        return None
-    return getter()
+    return None
 
 
 @contextmanager
