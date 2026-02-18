@@ -55,6 +55,8 @@ REPORT_DIR="${SCHEMATHESIS_REPORT_DIR:-schemathesis-report/${MODE}}"
 REQUEST_TIMEOUT="${SCHEMATHESIS_STARTUP_TIMEOUT:-30}"
 
 SERVER_LOG="$(mktemp -t schemathesis-api.XXXXXX.log)"
+# CI/dev contract smoke should not require external Convex credentials.
+export STRUCTURE_STORE_BACKEND="${STRUCTURE_STORE_BACKEND:-memory}"
 uvicorn main:app --host "${HOST}" --port "${PORT}" --log-level warning >"${SERVER_LOG}" 2>&1 &
 server_pid=$!
 
