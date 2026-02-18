@@ -121,7 +121,7 @@ class ConvexStructureStore:
         except urlerror.URLError as exc:
             raise RuntimeError(f"convex {method} failed") from exc
 
-        payload_obj = json.loads(raw) if raw.strip() else {}
+        payload_obj: object = json.loads(raw) if raw.strip() else {}
         if not isinstance(payload_obj, dict):
             raise RuntimeError(f"convex {method} returned invalid payload")
         payload = cast(dict[str, Any], payload_obj)
