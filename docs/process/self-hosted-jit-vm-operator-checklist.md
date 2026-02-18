@@ -156,6 +156,15 @@ After setup + one successful dry run, enable trusted routing and verify behavior
 - `gh variable set CI_SELF_HOSTED_TRUSTED_ROUTING --repo <owner>/<repo> --body true`
 - open a trusted PR and verify route job selects self-hosted label target
 
+Canary policy:
+
+- Stage 0 (smoke): 1 trusted PR
+- Stage 1 (light): next 10 trusted PRs
+- Stage 2 (broader): next 25 trusted PRs
+- Stage 3 (steady state): all trusted PRs
+
+Advance only if rollback triggers are not hit.
+
 ## 7) Fast rollback
 
 Immediate rollback:
@@ -171,6 +180,13 @@ Hard rollback:
 Restore default routing after incident:
 
 - `gh variable set CI_SELF_HOSTED_TRUSTED_ROUTING --repo <owner>/<repo> --body true`
+
+Rollback triggers (execute immediate rollback if any is true):
+
+- two consecutive trusted PRs fail before test execution because runner boot/registration failed
+- p95 trusted queue wait exceeds 120 seconds across latest 10 trusted PRs
+- self-hosted runner offline state persists for more than 10 minutes after recovery command
+- route mismatch is observed (trusted PR not routed to self-hosted labels, or untrusted routed to self-hosted)
 
 ## 8) Local runner health check (incident triage)
 
@@ -316,3 +332,20 @@ If self-hosted runners are unavailable during an incident, immediately route tru
 - set repository variable `CI_SELF_HOSTED_TRUSTED_ROUTING=false`
 
 This is safe to apply before or during local runner recovery.
+
+## 11) Post-rollout success criteria and ownership
+
+Post-rollout success criteria (evaluate on latest 50 trusted PR runs):
+
+- runner lifecycle success rate >= 98%
+- routing correctness = 100% (trusted/untrusted split)
+- p95 queue wait <= 120 seconds
+- p95 setup latency <= 180 seconds from job start
+
+Ownership and escalation:
+
+- Primary owner: repository maintainers for CI operations
+- Secondary owner: infrastructure maintainer for host/VM runtime
+- Escalation SLA:
+  - acknowledge incident within 15 minutes
+  - restore safe routing state (hosted fallback or healthy self-hosted) within 30 minutes

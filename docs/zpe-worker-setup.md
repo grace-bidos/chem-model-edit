@@ -1,5 +1,11 @@
 # ZPE Worker Setup (compute-plane)
 
+> [!WARNING]
+> This guide is retained for legacy reference only.
+> The RQ/HTTP worker runtime path is retired.
+> Current production path is runtime-only via `/api/runtime/*` with user-managed AiiDA/Slurm.
+> See `docs/process/modal-aiida-slurm-runtime-gate.md`.
+
 This guide explains how to run the ZPE compute worker on a separate machine.
 The control-plane (FastAPI) only enqueues jobs and never runs QE locally.
 
