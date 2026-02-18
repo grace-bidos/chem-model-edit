@@ -65,7 +65,7 @@ const decodeJwtPayload = (token: string): Record<string, unknown> | null => {
 
 const resolveClaimString = (
   claims: Record<string, unknown> | null,
-  keys: string[],
+  keys: Array<string>,
 ): string | null => {
   if (!claims) {
     return null
