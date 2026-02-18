@@ -36,7 +36,7 @@ _RUNTIME_ENV_KEYS = [
 ]
 
 
-def _clear_aiida_env(monkeypatch: Any) -> None:
+def _setup_runtime_and_clear_aiida_env(monkeypatch: Any) -> None:
     get_runtime_settings.cache_clear()
     for key in _AIIA_ENV_KEYS:
         monkeypatch.delenv(key, raising=False)
@@ -79,7 +79,7 @@ class _DummyResponse:
 
 
 def test_health_reports_skipped_when_managed_aiida_checks_disabled(monkeypatch: Any) -> None:
-    _clear_aiida_env(monkeypatch)
+    _setup_runtime_and_clear_aiida_env(monkeypatch)
     client = TestClient(main.app)
 
     response = client.get("/api/health")
@@ -93,7 +93,7 @@ def test_health_reports_skipped_when_managed_aiida_checks_disabled(monkeypatch: 
 
 
 def test_ready_returns_503_when_managed_aiida_is_misconfigured(monkeypatch: Any) -> None:
-    _clear_aiida_env(monkeypatch)
+    _setup_runtime_and_clear_aiida_env(monkeypatch)
     monkeypatch.setenv("AIIA_MANAGED_CHECKS_ENABLED", "true")
     client = TestClient(main.app)
 
@@ -112,7 +112,7 @@ def test_ready_returns_503_when_managed_aiida_is_misconfigured(monkeypatch: Any)
 def test_health_reports_degraded_when_runtime_gateway_contract_is_incomplete(
     monkeypatch: Any,
 ) -> None:
-    _clear_aiida_env(monkeypatch)
+    _setup_runtime_and_clear_aiida_env(monkeypatch)
     monkeypatch.delenv("RUNTIME_READ_DETAIL_URL_TEMPLATE", raising=False)
     get_runtime_settings.cache_clear()
     client = TestClient(main.app)
@@ -130,7 +130,7 @@ def test_health_reports_degraded_when_runtime_gateway_contract_is_incomplete(
 def test_ready_returns_503_when_runtime_gateway_contract_is_incomplete(
     monkeypatch: Any,
 ) -> None:
-    _clear_aiida_env(monkeypatch)
+    _setup_runtime_and_clear_aiida_env(monkeypatch)
     monkeypatch.delenv("RUNTIME_COMMAND_EVENT_URL_TEMPLATE", raising=False)
     get_runtime_settings.cache_clear()
     client = TestClient(main.app)
@@ -148,7 +148,7 @@ def test_ready_returns_503_when_runtime_gateway_contract_is_incomplete(
 def test_ready_returns_503_when_managed_aiida_base_url_is_malformed(
     monkeypatch: Any,
 ) -> None:
-    _clear_aiida_env(monkeypatch)
+    _setup_runtime_and_clear_aiida_env(monkeypatch)
     monkeypatch.setenv("AIIA_MANAGED_CHECKS_ENABLED", "true")
     monkeypatch.setenv("AIIA_MANAGED_BASE_URL", "http://[::1")
     client = TestClient(main.app)
@@ -167,7 +167,7 @@ def test_ready_returns_503_when_managed_aiida_base_url_is_malformed(
 def test_health_returns_200_degraded_when_managed_aiida_base_url_is_malformed(
     monkeypatch: Any,
 ) -> None:
-    _clear_aiida_env(monkeypatch)
+    _setup_runtime_and_clear_aiida_env(monkeypatch)
     monkeypatch.setenv("AIIA_MANAGED_CHECKS_ENABLED", "true")
     monkeypatch.setenv("AIIA_MANAGED_BASE_URL", "http://[::1")
     client = TestClient(main.app)
@@ -184,7 +184,7 @@ def test_health_returns_200_degraded_when_managed_aiida_base_url_is_malformed(
 
 
 def test_ready_returns_503_when_managed_aiida_is_unreachable(monkeypatch: Any) -> None:
-    _clear_aiida_env(monkeypatch)
+    _setup_runtime_and_clear_aiida_env(monkeypatch)
     monkeypatch.setenv("AIIA_MANAGED_CHECKS_ENABLED", "true")
     monkeypatch.setenv("AIIA_MANAGED_BASE_URL", "https://aiida.example")
 
@@ -208,7 +208,7 @@ def test_ready_returns_503_when_managed_aiida_is_unreachable(monkeypatch: Any) -
 
 
 def test_ready_returns_200_when_managed_aiida_is_healthy(monkeypatch: Any) -> None:
-    _clear_aiida_env(monkeypatch)
+    _setup_runtime_and_clear_aiida_env(monkeypatch)
     monkeypatch.setenv("AIIA_MANAGED_CHECKS_ENABLED", "true")
     monkeypatch.setenv("AIIA_MANAGED_BASE_URL", "https://aiida.example")
     monkeypatch.setenv("AIIA_MANAGED_READY_PATH", "/api/v1/readyz")
@@ -237,7 +237,7 @@ def test_ready_returns_200_when_managed_aiida_is_healthy(monkeypatch: Any) -> No
 
 
 def test_ready_returns_503_when_real_adapter_policy_path_is_missing(monkeypatch: Any) -> None:
-    _clear_aiida_env(monkeypatch)
+    _setup_runtime_and_clear_aiida_env(monkeypatch)
     monkeypatch.setenv("ZPE_SLURM_ADAPTER", "real-policy")
     monkeypatch.delenv("ZPE_SLURM_POLICY_PATH", raising=False)
     client = TestClient(main.app)
@@ -254,7 +254,7 @@ def test_ready_returns_503_when_real_adapter_policy_path_is_missing(monkeypatch:
 
 
 def test_ready_uses_zpe_settings_env_file_for_real_adapter(monkeypatch: Any, tmp_path: Any) -> None:
-    _clear_aiida_env(monkeypatch)
+    _setup_runtime_and_clear_aiida_env(monkeypatch)
     env_file = tmp_path / ".env.pr-check"
     env_file.write_text("ZPE_SLURM_ADAPTER=real-policy\n", encoding="utf-8")
     monkeypatch.setenv("ZPE_ENV_FILE", str(env_file))
@@ -272,7 +272,7 @@ def test_ready_uses_zpe_settings_env_file_for_real_adapter(monkeypatch: Any, tmp
 
 
 def test_ready_returns_503_when_real_adapter_guard_forces_fallback(monkeypatch: Any) -> None:
-    _clear_aiida_env(monkeypatch)
+    _setup_runtime_and_clear_aiida_env(monkeypatch)
     monkeypatch.setenv("ZPE_SLURM_ADAPTER", "real-policy")
     monkeypatch.setenv("ZPE_SLURM_ADAPTER_ROLLBACK_GUARD", "force-stub-policy")
     client = TestClient(main.app)
@@ -288,7 +288,7 @@ def test_ready_returns_503_when_real_adapter_guard_forces_fallback(monkeypatch: 
 
 
 def test_ready_returns_200_when_real_adapter_preconditions_pass(monkeypatch: Any, tmp_path: Any) -> None:
-    _clear_aiida_env(monkeypatch)
+    _setup_runtime_and_clear_aiida_env(monkeypatch)
     monkeypatch.setenv("ZPE_SLURM_ADAPTER", "real-policy")
     policy_path = tmp_path / "policy.json"
     policy_path.write_text(
@@ -321,7 +321,7 @@ def test_ready_returns_200_when_real_adapter_preconditions_pass(monkeypatch: Any
 def test_health_reports_degraded_when_managed_aiida_returns_http_error(
     monkeypatch: Any,
 ) -> None:
-    _clear_aiida_env(monkeypatch)
+    _setup_runtime_and_clear_aiida_env(monkeypatch)
     monkeypatch.setenv("AIIA_MANAGED_CHECKS_ENABLED", "true")
     monkeypatch.setenv("AIIA_MANAGED_BASE_URL", "https://aiida.example")
 
@@ -355,7 +355,7 @@ def test_health_reports_degraded_when_managed_aiida_returns_http_error(
 def test_ready_returns_503_when_user_managed_deep_readiness_tooling_missing(
     monkeypatch: Any,
 ) -> None:
-    _clear_aiida_env(monkeypatch)
+    _setup_runtime_and_clear_aiida_env(monkeypatch)
     monkeypatch.setenv("AIIA_USER_MANAGED_DEEP_READY_ENABLED", "true")
 
     def _run_probe(command: list[str], **kwargs: Any) -> Any:
@@ -387,7 +387,7 @@ def test_ready_returns_503_when_user_managed_deep_readiness_tooling_missing(
 def test_health_reports_degraded_when_user_managed_deep_readiness_command_fails(
     monkeypatch: Any,
 ) -> None:
-    _clear_aiida_env(monkeypatch)
+    _setup_runtime_and_clear_aiida_env(monkeypatch)
     monkeypatch.setenv("AIIA_USER_MANAGED_DEEP_READY_ENABLED", "true")
     commands: list[tuple[str, ...]] = []
 
@@ -427,7 +427,7 @@ def test_health_reports_degraded_when_user_managed_deep_readiness_command_fails(
 def test_health_reports_degraded_when_user_managed_deep_readiness_command_launch_fails(
     monkeypatch: Any,
 ) -> None:
-    _clear_aiida_env(monkeypatch)
+    _setup_runtime_and_clear_aiida_env(monkeypatch)
     monkeypatch.setenv("AIIA_USER_MANAGED_DEEP_READY_ENABLED", "true")
 
     def _run_probe(command: list[str], **kwargs: Any) -> Any:
@@ -457,7 +457,7 @@ def test_health_reports_degraded_when_user_managed_deep_readiness_command_launch
 
 
 def test_ready_returns_200_when_user_managed_deep_readiness_passes(monkeypatch: Any) -> None:
-    _clear_aiida_env(monkeypatch)
+    _setup_runtime_and_clear_aiida_env(monkeypatch)
     monkeypatch.setenv("AIIA_USER_MANAGED_DEEP_READY_ENABLED", "true")
     monkeypatch.setenv("AIIDA_PROFILE", "default")
 
@@ -494,7 +494,7 @@ def test_ready_returns_200_when_user_managed_deep_readiness_passes(monkeypatch: 
 def test_ready_returns_503_when_aiida_profile_is_missing_from_verdi_profile_list(
     monkeypatch: Any,
 ) -> None:
-    _clear_aiida_env(monkeypatch)
+    _setup_runtime_and_clear_aiida_env(monkeypatch)
     monkeypatch.setenv("AIIA_USER_MANAGED_DEEP_READY_ENABLED", "true")
     monkeypatch.setenv("AIIDA_PROFILE", "target-profile")
 
@@ -527,7 +527,7 @@ def test_ready_returns_503_when_aiida_profile_is_missing_from_verdi_profile_list
 def test_ready_returns_503_when_aiida_profile_matches_only_as_substring(
     monkeypatch: Any,
 ) -> None:
-    _clear_aiida_env(monkeypatch)
+    _setup_runtime_and_clear_aiida_env(monkeypatch)
     monkeypatch.setenv("AIIA_USER_MANAGED_DEEP_READY_ENABLED", "true")
     monkeypatch.setenv("AIIDA_PROFILE", "fault")
 
@@ -560,7 +560,7 @@ def test_ready_returns_503_when_aiida_profile_matches_only_as_substring(
 def test_ready_returns_200_when_aiida_profile_exists_beyond_truncation_boundary(
     monkeypatch: Any,
 ) -> None:
-    _clear_aiida_env(monkeypatch)
+    _setup_runtime_and_clear_aiida_env(monkeypatch)
     monkeypatch.setenv("AIIA_USER_MANAGED_DEEP_READY_ENABLED", "true")
     monkeypatch.setenv("AIIDA_PROFILE", "target-profile")
 

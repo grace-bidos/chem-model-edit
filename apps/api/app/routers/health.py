@@ -14,7 +14,7 @@ from services.runtime_settings import get_runtime_settings
 router = APIRouter(prefix="/api", tags=["health"])
 
 
-def _runtime_gateway_contract_check() -> dict[str, str]:
+def _runtime_gateway_contract_check() -> dict[str, Any]:
     settings = get_runtime_settings()
     required = {
         "RUNTIME_COMMAND_SUBMIT_URL": settings.command_submit_url,
@@ -28,7 +28,7 @@ def _runtime_gateway_contract_check() -> dict[str, str]:
         return {
             "status": "failed",
             "detail": "runtime gateway settings are incomplete",
-            "missing": ",".join(missing),
+            "missing": missing,
         }
     return {
         "status": "ok",
