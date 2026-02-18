@@ -115,6 +115,35 @@ to_wsl_path_if_windows() {
   printf '%s\n' "$value"
 }
 
+to_windows_path_if_wsl() {
+  local value="$1"
+  local drive=""
+  local rest=""
+  if [[ "$value" =~ ^/mnt/([A-Za-z])/(.*)$ ]]; then
+    drive="${BASH_REMATCH[1]^}"
+    rest="${BASH_REMATCH[2]}"
+    printf '%s:/%s\n' "$drive" "$rest"
+    return 0
+  fi
+  printf '%s\n' "$value"
+}
+
+is_windows_ssh_bin() {
+  local value
+  value="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+  [[ "$value" == *"ssh.exe" ]]
+}
+
+normalize_ssh_key_path_for_ssh_bin() {
+  local key_path="$1"
+  local ssh_bin_path="$2"
+  if is_windows_ssh_bin "$ssh_bin_path"; then
+    printf '%s\n' "$(to_windows_path_if_wsl "$key_path")"
+    return 0
+  fi
+  printf '%s\n' "$key_path"
+}
+
 slugify() {
   local value="$1"
   local slug=""
@@ -248,6 +277,7 @@ parse_args() {
       REMOTE_VM_SSH_KEY="$(to_abs_path "$REMOTE_VM_SSH_KEY")"
     fi
     REMOTE_VM_SSH_KEY="${REMOTE_VM_SSH_KEY/#\~/$HOME}"
+    REMOTE_VM_SSH_KEY="$(normalize_ssh_key_path_for_ssh_bin "$REMOTE_VM_SSH_KEY" "$REMOTE_SSH_BIN")"
   fi
 }
 
