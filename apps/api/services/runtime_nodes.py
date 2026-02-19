@@ -221,8 +221,9 @@ class RuntimeNodeStore:
         )
         if not isinstance(value, list):
             return []
+        rows = cast(list[object], value)
         targets: list[RuntimeTarget] = []
-        for item in value:
+        for item in rows:
             if not isinstance(item, dict):
                 continue
             payload = cast(dict[str, Any], item)
