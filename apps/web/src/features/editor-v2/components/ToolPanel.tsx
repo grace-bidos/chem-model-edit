@@ -50,7 +50,6 @@ import {
   selectQueueTarget,
   structureViewUrl,
 } from '@/lib/api'
-import { clearSession } from '@/lib/auth'
 import { cn } from '@/lib/utils'
 
 interface ToolPanelProps {
@@ -211,11 +210,6 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
     }
     void refreshTargets()
   }, [hasRuntimeAuth, refreshTargets])
-
-  useEffect(() => {
-    // Remove deprecated local auth session when Clerk auth is active.
-    clearSession()
-  }, [])
 
   const activeTarget = useMemo(
     () => queueTargets.find((target) => target.id === activeTargetId),
