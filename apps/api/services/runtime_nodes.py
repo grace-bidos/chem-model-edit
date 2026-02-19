@@ -33,6 +33,7 @@ def _normalize_queue_name(queue_name: str) -> str:
 @dataclass(frozen=True)
 class RuntimeTarget:
     target_id: str
+    tenant_id: str
     user_id: str
     queue_name: str
     server_id: str
@@ -204,6 +205,7 @@ class RuntimeNodeStore:
         )
         return RuntimeTarget(
             target_id=target_id,
+            tenant_id=tenant_id,
             user_id=user_id,
             queue_name=normalized_queue,
             server_id=server_id,
@@ -229,16 +231,19 @@ class RuntimeNodeStore:
             server_id = payload.get("server_id")
             registered_at = payload.get("registered_at")
             row_user_id = payload.get("user_id")
+            row_tenant_id = payload.get("tenant_id")
             if (
                 isinstance(target_id, str)
                 and isinstance(queue_name, str)
                 and isinstance(server_id, str)
                 and isinstance(registered_at, str)
                 and isinstance(row_user_id, str)
+                and isinstance(row_tenant_id, str)
             ):
                 targets.append(
                     RuntimeTarget(
                         target_id=target_id,
+                        tenant_id=row_tenant_id,
                         user_id=row_user_id,
                         queue_name=queue_name,
                         server_id=server_id,
@@ -261,15 +266,18 @@ class RuntimeNodeStore:
         server_id = payload.get("server_id")
         registered_at = payload.get("registered_at")
         user_id = payload.get("user_id")
+        tenant_id = payload.get("tenant_id")
         if (
             not isinstance(queue_name, str)
             or not isinstance(server_id, str)
             or not isinstance(registered_at, str)
             or not isinstance(user_id, str)
+            or not isinstance(tenant_id, str)
         ):
             return None
         return RuntimeTarget(
             target_id=target_id,
+            tenant_id=tenant_id,
             user_id=user_id,
             queue_name=queue_name,
             server_id=server_id,
@@ -291,16 +299,19 @@ class RuntimeNodeStore:
         server_id = payload.get("server_id")
         registered_at = payload.get("registered_at")
         row_user_id = payload.get("user_id")
+        row_tenant_id = payload.get("tenant_id")
         if (
             not isinstance(target_id, str)
             or not isinstance(queue_name, str)
             or not isinstance(server_id, str)
             or not isinstance(registered_at, str)
             or not isinstance(row_user_id, str)
+            or not isinstance(row_tenant_id, str)
         ):
             return None
         return RuntimeTarget(
             target_id=target_id,
+            tenant_id=row_tenant_id,
             user_id=row_user_id,
             queue_name=queue_name,
             server_id=server_id,
@@ -322,7 +333,7 @@ class RuntimeNodeStore:
 
     def ensure_target_owner(self, tenant_id: str, user_id: str, target_id: str) -> RuntimeTarget:
         target = self.get_target_by_id(target_id)
-        if not target or target.user_id != user_id:
+        if not target or target.user_id != user_id or target.tenant_id != tenant_id:
             raise KeyError("target not found")
         return target
 

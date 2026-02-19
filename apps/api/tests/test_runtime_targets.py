@@ -13,6 +13,13 @@ def _headers(user_id: str) -> dict[str, str]:
     }
 
 
+def _headers_for_tenant(user_id: str, tenant_id: str) -> dict[str, str]:
+    return {
+        "Authorization": f"Bearer {user_id}",
+        "X-Tenant-Id": tenant_id,
+    }
+
+
 class _RuntimeNodeStore:
     def __init__(self) -> None:
         self._targets: dict[str, RuntimeTarget] = {}
@@ -22,6 +29,7 @@ class _RuntimeNodeStore:
     def seed_target(self, *, tenant_id: str, user_id: str, queue_name: str, server_id: str) -> str:
         target = RuntimeTarget(
             target_id=f"qt-{len(self._targets) + 1}",
+            tenant_id=tenant_id,
             user_id=user_id,
             queue_name=queue_name,
             server_id=server_id,
@@ -116,5 +124,35 @@ def test_queue_target_is_user_scoped(monkeypatch) -> None:
     forbidden = client.put(
         f"/api/runtime/targets/{owner_target}/active",
         headers=other_headers,
+    )
+    assert forbidden.status_code == 404
+
+
+def test_queue_target_is_tenant_scoped_even_for_same_user_id(monkeypatch) -> None:
+    store = _RuntimeNodeStore()
+    tenant_a_target = store.seed_target(
+        tenant_id="tenant-a",
+        user_id="shared-user",
+        queue_name="zpe-a",
+        server_id="server-a",
+    )
+    store.set_active_target("tenant-a", "shared-user", tenant_a_target)
+
+    monkeypatch.setattr("app.routers.runtime.get_runtime_node_store", lambda: store)
+    client = TestClient(main.app)
+    tenant_a_headers = _headers_for_tenant("shared-user", "tenant-a")
+    tenant_b_headers = _headers_for_tenant("shared-user", "tenant-b")
+
+    tenant_a_listing = client.get("/api/runtime/targets", headers=tenant_a_headers)
+    assert tenant_a_listing.status_code == 200
+    assert len(tenant_a_listing.json()["targets"]) == 1
+
+    tenant_b_listing = client.get("/api/runtime/targets", headers=tenant_b_headers)
+    assert tenant_b_listing.status_code == 200
+    assert tenant_b_listing.json()["targets"] == []
+
+    forbidden = client.put(
+        f"/api/runtime/targets/{tenant_a_target}/active",
+        headers=tenant_b_headers,
     )
     assert forbidden.status_code == 404

@@ -336,6 +336,7 @@ def test_runtime_register_compute_node(monkeypatch):
             _ = metadata
             return RuntimeTarget(
                 target_id="qt-1",
+                tenant_id="tenant-1",
                 user_id="user-1",
                 queue_name=queue_name,
                 server_id="compute-1",
@@ -349,6 +350,7 @@ def test_runtime_register_compute_node(monkeypatch):
         def set_active_target(self, _tenant_id, _user_id, _target_id):  # type: ignore[no-untyped-def]
             self.active_target = RuntimeTarget(
                 target_id="qt-1",
+                tenant_id="tenant-1",
                 user_id="user-1",
                 queue_name="standard",
                 server_id="compute-1",
