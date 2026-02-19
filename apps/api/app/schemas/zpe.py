@@ -397,14 +397,3 @@ class ComputeFailedResponse(ApiModel):
     requeued: bool
     retry_count: int
 
-
-class OpsFlagsRequest(ApiModel):
-    submission_enabled: Optional[bool] = None
-    dequeue_enabled: Optional[bool] = None
-    result_read_source: Optional[Literal["redis", "projection"]] = None
-
-
-class OpsFlagsResponse(ApiModel):
-    submission_enabled: bool
-    dequeue_enabled: bool
-    result_read_source: Literal["redis", "projection"]

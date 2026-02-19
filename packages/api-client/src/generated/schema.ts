@@ -140,6 +140,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/runtime/nodes/install.sh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Runtime Compute Node Install Script */
+        get: operations["runtime_compute_node_install_script_api_runtime_nodes_install_sh_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/runtime/nodes/join-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Issue Runtime Node Join Token */
+        post: operations["issue_runtime_node_join_token_api_runtime_nodes_join_token_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/runtime/nodes/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register Runtime Compute Node */
+        post: operations["register_runtime_compute_node_api_runtime_nodes_register_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/runtime/parse": {
         parameters: {
             query?: never;
@@ -602,6 +653,56 @@ export interface components {
             trace_id: string;
             /** Updated At */
             updated_at: string;
+        };
+        /** RuntimeNodeJoinTokenRequest */
+        RuntimeNodeJoinTokenRequest: {
+            /** Node Name Hint */
+            node_name_hint?: string | null;
+            /** Queue Name */
+            queue_name?: string | null;
+            /** Ttl Seconds */
+            ttl_seconds?: number | null;
+        };
+        /** RuntimeNodeJoinTokenResponse */
+        RuntimeNodeJoinTokenResponse: {
+            /** Expires At */
+            expires_at: string;
+            /** Install Command */
+            install_command: string;
+            /** Install Script Url */
+            install_script_url: string;
+            /** Join Token */
+            join_token: string;
+            /** Queue Name */
+            queue_name: string;
+            /** Register Endpoint */
+            register_endpoint: string;
+            /** Token Ttl Seconds */
+            token_ttl_seconds: number;
+        };
+        /** RuntimeNodeRegisterRequest */
+        RuntimeNodeRegisterRequest: {
+            /** Meta */
+            meta?: {
+                [key: string]: unknown;
+            } | null;
+            /** Name */
+            name?: string | null;
+            /** Token */
+            token: string;
+        };
+        /** RuntimeNodeRegisterResponse */
+        RuntimeNodeRegisterResponse: {
+            /** Name */
+            name?: string | null;
+            /** Queue Name */
+            queue_name: string;
+            /** Registered At */
+            registered_at: string;
+            /** Server Id */
+            server_id: string;
+            /** Target Id */
+            target_id: string;
         };
         /** SchedulerRef */
         SchedulerRef: {
@@ -1110,6 +1211,92 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SubmitJobAccepted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    runtime_compute_node_install_script_api_runtime_nodes_install_sh_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    issue_runtime_node_join_token_api_runtime_nodes_join_token_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RuntimeNodeJoinTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuntimeNodeJoinTokenResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    register_runtime_compute_node_api_runtime_nodes_register_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RuntimeNodeRegisterRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuntimeNodeRegisterResponse"];
                 };
             };
             /** @description Validation Error */

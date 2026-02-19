@@ -71,7 +71,6 @@ submission/lease/result/ownership paths are production-ready.
     - `result_store=redis`
     - legacy cutover defaults:
       - `cutover_submission_route`
-      - `cutover_result_read_source`
       - `legacy_worker_endpoints_enabled`
 - `apps/api/services/zpe/__init__.py`
   - remove exports for deleted legacy modules
@@ -94,12 +93,7 @@ submission/lease/result/ownership paths are production-ready.
    - next-gen lease/result/failure flow replaces legacy `/compute/jobs/*`
 3. Replace auth and ownership stores.
    - move worker auth/enrollment and job owner/meta to durable authorities
-4. Disable legacy routes through cutover controls.
-   - set:
-     - `submission_route=next-gen`
-     - `result_read_source=projection`
-     - `legacy_worker_endpoints_enabled=false`
-5. Remove Redis-bound modules and endpoint wiring in one cleanup PR layer.
+4. Remove Redis-bound modules and endpoint wiring in one cleanup PR layer.
 
 ### Rollback policy
 

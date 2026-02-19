@@ -84,6 +84,22 @@ export type RuntimeSubmitInput = {
   managementNodeId: string
 }
 
+export type ComputeNodeJoinTokenInput = {
+  queueName?: string
+  ttlSeconds?: number
+  nodeNameHint?: string
+}
+
+export type ComputeNodeJoinTokenResponse = {
+  join_token: string
+  expires_at: string
+  token_ttl_seconds: number
+  queue_name: string
+  install_script_url: string
+  register_endpoint: string
+  install_command: string
+}
+
 export const parseQeInput = api.parseQeInput
 export const createStructureFromQe = api.createStructureFromQe
 export const getStructure = api.getStructure
@@ -105,6 +121,19 @@ export const buildSupercell = api.buildSupercell
 export const parseZpeInput = api.parseZpeInput
 export const fetchQueueTargets = api.fetchQueueTargets
 export const selectQueueTarget = api.selectQueueTarget
+export const createComputeNodeJoinToken = async (
+  input: ComputeNodeJoinTokenInput,
+): Promise<ComputeNodeJoinTokenResponse> => {
+  return request<ComputeNodeJoinTokenResponse>({
+    path: '/runtime/nodes/join-token',
+    method: 'POST',
+    body: {
+      queue_name: input.queueName ?? null,
+      ttl_seconds: input.ttlSeconds ?? null,
+      node_name_hint: input.nodeNameHint ?? null,
+    },
+  })
+}
 
 export const createZpeJob = async (
   input: RuntimeSubmitInput,
@@ -114,9 +143,10 @@ export const createZpeJob = async (
     throw new Error('Authentication required')
   }
   const claims = decodeJwtPayload(token)
-  const tenantId =
+  const tenantId = (
     resolveClaimString(claims, ['tenant_id', 'tenantId', 'org_id', 'orgId']) ??
     null
+  )
   const userId = resolveClaimString(claims, ['sub', 'user_id', 'userId']) ?? null
   if (!tenantId || !userId) {
     throw new Error('Missing required tenant/user claims for runtime submit')

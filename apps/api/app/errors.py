@@ -1,20 +1,13 @@
 from __future__ import annotations
 
-import logging
 from typing import Any, Optional, cast
 
 from fastapi import HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
-from redis.exceptions import RedisError
 
-from app.middleware import get_request_id
 from app.schemas.errors import ErrorResponse, ErrorInfo
-from services.zpe.structured_log import log_event
-
-
-logger = logging.getLogger(__name__)
 
 _STATUS_CODE_MAP = {
     400: "bad_request",
@@ -105,19 +98,3 @@ def overflow_error_handler(_: Request, exc: Exception) -> JSONResponse:
     overflow_exc = cast(OverflowError, exc)
     payload = _error_payload(status_code=400, message=str(overflow_exc))
     return JSONResponse(status_code=400, content=payload)
-
-
-def redis_error_handler(request: Request, exc: Exception) -> JSONResponse:
-    redis_exc = cast(RedisError, exc)
-    logger.error("Redis error", exc_info=redis_exc)
-    log_event(
-        logger,
-        event="zpe_redis_error",
-        service="control-plane",
-        stage="redis",
-        status="error",
-        request_id=get_request_id(request),
-        error_message=str(redis_exc),
-    )
-    payload = _error_payload(status_code=503, message="redis unavailable")
-    return JSONResponse(status_code=503, content=payload)

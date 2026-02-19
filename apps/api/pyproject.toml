@@ -13,7 +13,6 @@ dependencies = [
     "pyjwt[crypto]>=2.10.1",
     "pydantic-settings>=2.8.0",
     "pymatgen>=2025.10.7",
-    "redis>=5.0.8",
     "starlette>=0.47.3",
     "uvicorn[standard]>=0.40.0",
 ]
@@ -22,7 +21,6 @@ dependencies = [
 dev = [
     "bandit>=1.8.6",
     "deptry>=0.23.1",
-    "fakeredis>=2.29.0",
     "hypothesis>=6.151.4",
     "httpx>=0.28.1",
     "mypy>=1.19.1",
@@ -78,10 +76,6 @@ warn_redundant_casts = true
 exclude = [
     "htmlcov",
 ]
-
-[[tool.mypy.overrides]]
-module = ["services.zpe.submit_idempotency"]
-disable_error_code = ["no-untyped-call"]
 
 [tool.pydantic-mypy]
 init_typed = true

@@ -1,25 +1,24 @@
 from __future__ import annotations
 
-import fakeredis
 from fastapi.testclient import TestClient
 
 import app.deps as deps
 import main
 from services.authn.settings import AuthnSettings
 from services.authn.types import UserIdentity
-from services.zpe import queue_targets as zpe_queue_targets
 
 TENANT_HEADERS = {"X-Tenant-Id": "tenant-auth-tests"}
 
 
-def _patch_target_store_redis(monkeypatch):
-    fake = fakeredis.FakeRedis()
-    monkeypatch.setattr(zpe_queue_targets, "get_redis_connection", lambda: fake)
-    return fake
+class _RuntimeNodeStore:
+    def list_targets(self, _tenant_id: str, _user_id: str):  # type: ignore[no-untyped-def]
+        return []
+
+    def get_active_target(self, _tenant_id: str, _user_id: str):  # type: ignore[no-untyped-def]
+        return None
 
 
 def test_clerk_mode_accepts_verified_token(monkeypatch):
-    _patch_target_store_redis(monkeypatch)
     monkeypatch.setattr(
         deps,
         "get_authn_settings",
@@ -34,6 +33,7 @@ def test_clerk_mode_accepts_verified_token(monkeypatch):
         "verify_clerk_token",
         lambda token: UserIdentity(user_id="user-clerk-1", email="user@example.com"),
     )
+    monkeypatch.setattr("app.routers.runtime.get_runtime_node_store", lambda: _RuntimeNodeStore())
 
     client = TestClient(main.app)
     response = client.get(
@@ -46,7 +46,6 @@ def test_clerk_mode_accepts_verified_token(monkeypatch):
 
 
 def test_clerk_mode_rejects_allowlist_denied(monkeypatch):
-    _patch_target_store_redis(monkeypatch)
     monkeypatch.setattr(
         deps,
         "get_authn_settings",
@@ -61,6 +60,7 @@ def test_clerk_mode_rejects_allowlist_denied(monkeypatch):
         raise PermissionError("allowlist denied")
 
     monkeypatch.setattr(deps, "verify_clerk_token", _deny)
+    monkeypatch.setattr("app.routers.runtime.get_runtime_node_store", lambda: _RuntimeNodeStore())
 
     client = TestClient(main.app)
     response = client.get(

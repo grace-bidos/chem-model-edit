@@ -6,9 +6,7 @@ import secrets
 from fastapi import HTTPException, Request
 
 from services.authn import UserIdentity, get_authn_settings, verify_clerk_token
-from services.zpe.job_owner import get_job_owner_store
 from services.zpe.settings import get_zpe_settings
-from services.zpe.worker_auth import WorkerPrincipal, get_worker_token_store
 
 _TENANT_HEADER = "x-tenant-id"
 _TENANT_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{1,127}$")
@@ -61,20 +59,6 @@ def require_user_identity(request: Request) -> UserIdentity:
         ) from exc
 
 
-def require_job_owner(request: Request, job_id: str) -> UserIdentity:
-    user = require_user_identity(request)
-    tenant_id = require_tenant_id(request)
-    owner_store = get_job_owner_store()
-    owner = owner_store.get_owner_record(job_id)
-    if not owner:
-        raise HTTPException(status_code=404, detail="job not found")
-    if owner.user_id != user.user_id:
-        raise HTTPException(status_code=403, detail="forbidden")
-    if owner.tenant_id is None or owner.tenant_id != tenant_id:
-        raise HTTPException(status_code=403, detail="forbidden")
-    return user
-
-
 def require_admin(request: Request) -> None:
     settings = get_zpe_settings()
     if not settings.admin_token:
@@ -91,15 +75,3 @@ def has_admin_access(request: Request) -> bool:
     token = _extract_bearer_token(request)
     return bool(token and secrets.compare_digest(token, settings.admin_token))
 
-
-def require_worker(request: Request) -> WorkerPrincipal:
-    token = _extract_bearer_token(request)
-    if not token:
-        raise HTTPException(status_code=401, detail="missing worker token")
-    store = get_worker_token_store()
-    try:
-        return store.validate(token)
-    except PermissionError as exc:
-        detail = str(exc) or "invalid token"
-        status = 403 if "revoked" in detail else 401
-        raise HTTPException(status_code=status, detail=detail) from exc

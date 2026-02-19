@@ -26,19 +26,11 @@ class ZPESettings(BaseSettings):
         extra="ignore",
     )
 
-    redis_url: str = "redis://localhost:6379/0"
     work_dir: str = "zpe_jobs"
     queue_name: str = "zpe"
-    compute_mode: str = "remote-http"
-    result_store: str = "redis"
-    worker_mode: Literal["qe", "mock"] = "qe"
+    compute_mode: Literal["remote-http"] = "remote-http"
     admin_token: Optional[str] = None
     enroll_token_ttl_seconds: int = 3600
-    worker_token_ttl_seconds: int = 604800
-    submission_enabled: bool = True
-    dequeue_enabled: bool = True
-    cutover_result_read_source: Literal["redis", "projection"] = "redis"
-    ops_flag_ttl_seconds: int = 3600
 
     pw_command: str = "pw.x"
     pw_path: Optional[str] = None
@@ -64,10 +56,6 @@ class ZPESettings(BaseSettings):
 
     environ_path: Optional[str] = None
     control_api_url: str = "http://localhost:8000"
-    worker_token: Optional[str] = None
-    worker_poll_interval_seconds: int = 10
-    worker_poll_max_interval_seconds: int = 60
-    worker_request_timeout_seconds: int = 60
     convex_relay_url: Optional[str] = None
     convex_relay_token: Optional[str] = None
     convex_relay_timeout_seconds: int = 5
