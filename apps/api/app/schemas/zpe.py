@@ -359,36 +359,10 @@ class ComputeFailedRequest(ApiModel):
         payload = _to_string_key_dict(value)
         if payload is None:
             return value
-        # Accept legacy top-level aliases while keeping ApiModel(extra="forbid") strict.
-        if "error_code" not in payload and "errorCode" in payload:
-            payload["error_code"] = payload["errorCode"]
-        if "error_message" not in payload and "errorMessage" in payload:
-            payload["error_message"] = payload["errorMessage"]
-        payload.pop("errorCode", None)
-        payload.pop("errorMessage", None)
         execution_event = payload.get("execution_event")
-        retryable_alias = _first_present(payload, "retryable", "retriable")
-        payload.pop("retryable", None)
-        payload.pop("retriable", None)
         if execution_event is None:
             return payload
-        normalized_event = _normalize_execution_event_payload(execution_event)
-        normalized_event_payload = _to_string_key_dict(normalized_event)
-        if (
-            normalized_event_payload is not None
-            and normalized_event_payload.get("error") is None
-        ):
-            error_code = _first_present(payload, "error_code", "errorCode")
-            error_message = _first_present(payload, "error_message", "errorMessage")
-            if error_code is not None and error_message is not None:
-                error_payload: dict[str, Any] = {
-                    "code": error_code,
-                    "message": error_message,
-                }
-                if retryable_alias is not None:
-                    error_payload["retryable"] = retryable_alias
-                normalized_event_payload["error"] = error_payload
-        payload["execution_event"] = normalized_event_payload or normalized_event
+        payload["execution_event"] = _normalize_execution_event_payload(execution_event)
         return payload
 
 
@@ -396,4 +370,3 @@ class ComputeFailedResponse(ApiModel):
     ok: bool = True
     requeued: bool
     retry_count: int
-
