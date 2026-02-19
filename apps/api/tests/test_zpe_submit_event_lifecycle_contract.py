@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from pydantic import ValidationError
+
 from app.schemas.zpe import ComputeFailedRequest, ComputeResultRequest
 
 
@@ -162,7 +164,7 @@ def test_failed_request_normalizes_aiida_runtime_execution_event_shape() -> None
     assert normalized.execution_event.error.retryable is True
 
 
-def test_failed_request_accepts_top_level_error_aliases() -> None:
+def test_failed_request_rejects_top_level_error_aliases() -> None:
     payload: dict[str, Any] = {
         "tenant_id": "tenant-contract",
         "lease_id": "lease-123",
@@ -182,10 +184,12 @@ def test_failed_request_accepts_top_level_error_aliases() -> None:
         },
     }
 
-    normalized = ComputeFailedRequest(**payload)
-    assert normalized.error_code == "COMPUTE_ERROR"
-    assert normalized.error_message == "boom"
-    assert normalized.execution_event is not None
-    assert normalized.execution_event.error.code == "COMPUTE_ERROR"
-    assert normalized.execution_event.error.message == "boom"
-    assert normalized.execution_event.error.retryable is True
+    try:
+        ComputeFailedRequest(**payload)
+        raise AssertionError("expected legacy top-level aliases to be rejected")
+    except ValidationError as exc:
+        error_locations = {tuple(error["loc"]) for error in exc.errors()}
+        assert ("errorCode",) in error_locations
+        assert ("errorMessage",) in error_locations
+        assert ("retryable",) in error_locations
+        assert ("execution_event", "error") in error_locations
