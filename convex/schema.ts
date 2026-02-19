@@ -91,4 +91,36 @@ export default defineSchema({
       'submission_id',
       'projection_event_id',
     ]),
+
+  runtime_targets: defineTable({
+    tenant_id: v.string(),
+    user_id: v.string(),
+    target_id: v.string(),
+    queue_name: v.string(),
+    server_id: v.string(),
+    registered_at: v.string(),
+    name: v.optional(v.string()),
+    metadata: v.optional(v.any()),
+  })
+    .index('by_target_id', ['target_id'])
+    .index('by_user', ['tenant_id', 'user_id']),
+
+  runtime_active_targets: defineTable({
+    tenant_id: v.string(),
+    user_id: v.string(),
+    target_id: v.string(),
+    updated_at: v.string(),
+  }).index('by_user', ['tenant_id', 'user_id']),
+
+  runtime_join_tokens: defineTable({
+    token: v.string(),
+    tenant_id: v.string(),
+    owner_user_id: v.string(),
+    queue_name: v.string(),
+    created_at: v.string(),
+    expires_at: v.string(),
+    used_at: v.optional(v.string()),
+    node_name_hint: v.optional(v.string()),
+    label: v.optional(v.string()),
+  }).index('by_token', ['token']),
 })

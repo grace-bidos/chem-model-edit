@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import {
+  createComputeNodeJoinToken,
   createStructureFromQe,
   createZpeJob,
   deltaTransplant,
@@ -174,12 +175,17 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
   const [activeTargetId, setActiveTargetId] = useState<string | null>(null)
   const [targetsError, setTargetsError] = useState<string | null>(null)
   const [targetsBusy, setTargetsBusy] = useState(false)
+  const [nodeSetupCommand, setNodeSetupCommand] = useState<string | null>(null)
+  const [nodeSetupError, setNodeSetupError] = useState<string | null>(null)
+  const [nodeSetupBusy, setNodeSetupBusy] = useState(false)
+  const [nodeSetupCopied, setNodeSetupCopied] = useState(false)
   const parseTokenRef = useRef(0)
   const { isSignedIn, signOut } = useAuth()
   const { user } = useUser()
+  const hasRuntimeAuth = isSignedIn
 
   const refreshTargets = useCallback(async () => {
-    if (!isSignedIn) {
+    if (!hasRuntimeAuth) {
       return
     }
     setTargetsBusy(true)
@@ -195,16 +201,16 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
     } finally {
       setTargetsBusy(false)
     }
-  }, [isSignedIn])
+  }, [hasRuntimeAuth])
 
   useEffect(() => {
-    if (!isSignedIn) {
+    if (!hasRuntimeAuth) {
       setQueueTargets([])
       setActiveTargetId(null)
       return
     }
     void refreshTargets()
-  }, [isSignedIn, refreshTargets])
+  }, [hasRuntimeAuth, refreshTargets])
 
   useEffect(() => {
     // Remove deprecated local auth session when Clerk auth is active.
@@ -414,13 +420,17 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
   ])
 
   const handleLogout = async () => {
-    try {
-      await signOut()
-    } catch (_err) {
-      // ignore sign-out errors
+    if (isSignedIn) {
+      try {
+        await signOut()
+      } catch (_err) {
+        // ignore sign-out errors
+      }
     }
     setQueueTargets([])
     setActiveTargetId(null)
+    setNodeSetupCommand(null)
+    setNodeSetupError(null)
   }
 
   const handleSelectTarget = async (targetId: string) => {
@@ -438,6 +448,40 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
     }
   }
 
+  const handleGenerateNodeSetupCommand = async () => {
+    if (!hasRuntimeAuth) {
+      setNodeSetupError('Sign in to generate setup command.')
+      return
+    }
+    setNodeSetupBusy(true)
+    setNodeSetupError(null)
+    setNodeSetupCopied(false)
+    try {
+      const payload = await createComputeNodeJoinToken({
+        queueName: activeTarget?.queue_name,
+      })
+      setNodeSetupCommand(payload.install_command)
+    } catch (err) {
+      setNodeSetupError(
+        err instanceof Error ? err.message : 'Failed to generate setup command.',
+      )
+    } finally {
+      setNodeSetupBusy(false)
+    }
+  }
+
+  const handleCopyNodeSetupCommand = async () => {
+    if (!nodeSetupCommand) {
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(nodeSetupCommand)
+      setNodeSetupCopied(true)
+    } catch (_err) {
+      setNodeSetupError('Clipboard copy failed. Copy manually from the command box.')
+    }
+  }
+
   const handleParse = () => {
     if (!selectedFile?.qeInput) {
       setParseError('QE input is missing. Re-import the .in file.')
@@ -451,7 +495,7 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
       setRunError('QE input is missing. Re-import the .in file.')
       return
     }
-    if (!isSignedIn) {
+    if (!hasRuntimeAuth) {
       setRunError('Sign in to run ZPE.')
       return
     }
@@ -579,7 +623,7 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
     hasStructure &&
     hasParseMeta &&
     mobileIndices.size > 0 &&
-    Boolean(isSignedIn) &&
+    Boolean(hasRuntimeAuth) &&
     Boolean(activeTargetId)
 
   return (
@@ -738,11 +782,11 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
               variant="outline"
               className="rounded-full border-slate-200 px-2 text-[10px] uppercase tracking-wide text-slate-500"
             >
-              {isSignedIn ? 'signed in' : 'guest'}
+              {hasRuntimeAuth ? 'signed in' : 'guest'}
             </Badge>
           </div>
           <div className="mt-3 space-y-3 text-xs text-slate-600">
-            {!isSignedIn ? (
+            {!hasRuntimeAuth ? (
               <div className="space-y-2">
                 <SignInButton mode="modal">
                   <Button
@@ -798,7 +842,7 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
               <p className="text-[10px] uppercase tracking-[0.3em] text-slate-400">
                 Compute queue
               </p>
-              {!isSignedIn ? (
+              {!hasRuntimeAuth ? (
                 <p className="mt-2 text-[11px] text-slate-400">
                   Sign in to register and select your compute targets.
                 </p>
@@ -851,6 +895,48 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
                       {targetsError}
                     </div>
                   ) : null}
+
+                  <div className="rounded-md border border-slate-200 bg-white px-3 py-2 text-[11px]">
+                    <p className="text-[10px] uppercase tracking-[0.3em] text-slate-400">
+                      Add compute node
+                    </p>
+                    <p className="mt-1 text-slate-500">
+                      Generate a one-command installer and run it on your Ubuntu
+                      compute node.
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2 text-[11px]"
+                        onClick={handleGenerateNodeSetupCommand}
+                        disabled={nodeSetupBusy}
+                      >
+                        {nodeSetupBusy ? 'Generating...' : 'Generate command'}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2 text-[11px]"
+                        onClick={handleCopyNodeSetupCommand}
+                        disabled={!nodeSetupCommand}
+                      >
+                        {nodeSetupCopied ? 'Copied' : 'Copy command'}
+                      </Button>
+                    </div>
+                    {nodeSetupCommand ? (
+                      <pre className="mt-2 overflow-x-auto rounded border border-slate-200 bg-slate-50 p-2 text-[10px] text-slate-700">
+                        <code>{nodeSetupCommand}</code>
+                      </pre>
+                    ) : null}
+                    {nodeSetupError ? (
+                      <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] text-amber-700">
+                        {nodeSetupError}
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               )}
             </div>
@@ -1068,7 +1154,7 @@ function ZpeToolPanel({ files = [] }: { files?: Array<WorkspaceFile> }) {
               <Play className="h-4 w-4" />
               {isSubmitting ? 'Submitting...' : 'Run ZPE'}
             </Button>
-            {!isSignedIn ? (
+            {!hasRuntimeAuth ? (
               <p className="text-[11px] text-slate-400">
                 Sign in to enable remote compute.
               </p>

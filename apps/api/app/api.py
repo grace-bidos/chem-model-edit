@@ -5,12 +5,10 @@ import os
 from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from redis.exceptions import RedisError
 
 from app.errors import (
     http_exception_handler,
     overflow_error_handler,
-    redis_error_handler,
     validation_exception_handler,
     value_error_handler,
 )
@@ -66,7 +64,6 @@ def create_app() -> FastAPI:
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
     app.add_exception_handler(ValueError, value_error_handler)
     app.add_exception_handler(OverflowError, overflow_error_handler)
-    app.add_exception_handler(RedisError, redis_error_handler)
 
     app.include_router(health_router.router)
     app.include_router(structures_router.router)

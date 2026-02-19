@@ -739,6 +739,168 @@
         "title": "RuntimeJobStatusResponse",
         "type": "object"
       },
+      "RuntimeNodeJoinTokenRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "node_name_hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node Name Hint"
+          },
+          "queue_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queue Name"
+          },
+          "ttl_seconds": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ttl Seconds"
+          }
+        },
+        "title": "RuntimeNodeJoinTokenRequest",
+        "type": "object"
+      },
+      "RuntimeNodeJoinTokenResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "expires_at": {
+            "title": "Expires At",
+            "type": "string"
+          },
+          "install_command": {
+            "title": "Install Command",
+            "type": "string"
+          },
+          "install_script_url": {
+            "title": "Install Script Url",
+            "type": "string"
+          },
+          "join_token": {
+            "title": "Join Token",
+            "type": "string"
+          },
+          "queue_name": {
+            "title": "Queue Name",
+            "type": "string"
+          },
+          "register_endpoint": {
+            "title": "Register Endpoint",
+            "type": "string"
+          },
+          "token_ttl_seconds": {
+            "title": "Token Ttl Seconds",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "join_token",
+          "expires_at",
+          "token_ttl_seconds",
+          "queue_name",
+          "install_script_url",
+          "register_endpoint",
+          "install_command"
+        ],
+        "title": "RuntimeNodeJoinTokenResponse",
+        "type": "object"
+      },
+      "RuntimeNodeRegisterRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "RuntimeNodeRegisterRequest",
+        "type": "object"
+      },
+      "RuntimeNodeRegisterResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "queue_name": {
+            "title": "Queue Name",
+            "type": "string"
+          },
+          "registered_at": {
+            "title": "Registered At",
+            "type": "string"
+          },
+          "server_id": {
+            "title": "Server Id",
+            "type": "string"
+          },
+          "target_id": {
+            "title": "Target Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "server_id",
+          "target_id",
+          "queue_name",
+          "registered_at"
+        ],
+        "title": "RuntimeNodeRegisterResponse",
+        "type": "object"
+      },
       "SchedulerRef": {
         "additionalProperties": false,
         "properties": {
@@ -1945,6 +2107,109 @@
           }
         },
         "summary": "Submit Runtime Job",
+        "tags": [
+          "runtime"
+        ]
+      }
+    },
+    "/api/runtime/nodes/install.sh": {
+      "get": {
+        "operationId": "runtime_compute_node_install_script_api_runtime_nodes_install_sh_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Runtime Compute Node Install Script",
+        "tags": [
+          "runtime"
+        ]
+      }
+    },
+    "/api/runtime/nodes/join-token": {
+      "post": {
+        "operationId": "issue_runtime_node_join_token_api_runtime_nodes_join_token_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuntimeNodeJoinTokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeNodeJoinTokenResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Issue Runtime Node Join Token",
+        "tags": [
+          "runtime"
+        ]
+      }
+    },
+    "/api/runtime/nodes/register": {
+      "post": {
+        "operationId": "register_runtime_compute_node_api_runtime_nodes_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuntimeNodeRegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeNodeRegisterResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register Runtime Compute Node",
         "tags": [
           "runtime"
         ]

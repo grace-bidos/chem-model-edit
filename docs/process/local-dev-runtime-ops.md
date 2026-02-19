@@ -9,6 +9,12 @@ It keeps VM access and runtime env handling in one place, without changing runti
 - Avoid repeated manual edits across `apps/api/.env` and ad-hoc files.
 - Reduce WSL/Hyper-V networking confusion before VM-related tasks.
 
+## Auth Mode for Local Development
+
+Use Clerk mode (`AUTH_MODE=clerk`) in local development.
+If `CLERK_TEST_JWT` expires, refresh the value in `.tmp/dev-secrets.env`
+and re-run the smoke command.
+
 ## Canonical Local Files
 
 - Secrets source of truth (local-only): `.tmp/dev-secrets.env`

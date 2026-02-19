@@ -1,11 +1,19 @@
 from __future__ import annotations
 
+from pathlib import Path
+from uuid import uuid4
+
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import PlainTextResponse
 
 from app.deps import require_tenant_id, require_user_identity
 from app.middleware import get_request_id
 from app.schemas.runtime import (
     ExecutionEvent,
+    RuntimeNodeJoinTokenRequest,
+    RuntimeNodeJoinTokenResponse,
+    RuntimeNodeRegisterRequest,
+    RuntimeNodeRegisterResponse,
     RuntimeEventAck,
     RuntimeJobStatusResponse,
     SubmitJobAccepted,
@@ -27,6 +35,7 @@ from services.runtime import (
     RuntimeNotFoundError,
     get_runtime_store,
 )
+from services.runtime_nodes import get_runtime_node_store
 from services.structures import get_structure
 from services.zpe.parse import (
     extract_fixed_indices,
@@ -35,9 +44,128 @@ from services.zpe.parse import (
     parse_qe_atoms,
     parse_qe_structure,
 )
-from services.zpe.queue_targets import get_queue_target_store
+from services.zpe.settings import get_zpe_settings
 
 router = APIRouter(prefix="/api/runtime", tags=["runtime"])
+
+_REPO_ROOT = Path(__file__).resolve().parents[4]
+_COMPUTE_INSTALL_SCRIPT = _REPO_ROOT / "scripts" / "install-compute-node.sh"
+
+
+def _default_queue_name() -> str:
+    configured = get_zpe_settings().queue_name.strip()
+    return configured or "zpe"
+
+
+def _normalize_queue_name(value: str | None) -> str:
+    if value is None:
+        return _default_queue_name()
+    normalized = value.strip()
+    return normalized or _default_queue_name()
+
+
+def _resolve_api_base(request: Request) -> str:
+    return str(request.base_url).rstrip("/")
+
+
+def _build_install_command(
+    *,
+    install_script_url: str,
+    api_base: str,
+    join_token: str,
+    queue_name: str,
+    node_name_hint: str | None,
+) -> str:
+    command = (
+        f"curl -fsSL {install_script_url} | bash -s -- "
+        f"--api-base {api_base} --join-token {join_token} --queue-name {queue_name}"
+    )
+    if node_name_hint and node_name_hint.strip():
+        command = f"{command} --name {node_name_hint.strip()}"
+    return command
+
+
+@router.get("/nodes/install.sh", response_class=PlainTextResponse)
+async def runtime_compute_node_install_script() -> str:
+    if not _COMPUTE_INSTALL_SCRIPT.exists():
+        raise HTTPException(status_code=404, detail="install script not found")
+    return _COMPUTE_INSTALL_SCRIPT.read_text(encoding="utf-8")
+
+
+@router.post("/nodes/join-token", response_model=RuntimeNodeJoinTokenResponse)
+async def issue_runtime_node_join_token(
+    payload: RuntimeNodeJoinTokenRequest,
+    request: Request,
+) -> RuntimeNodeJoinTokenResponse:
+    user = require_user_identity(request)
+    tenant_id = require_tenant_id(request)
+    queue_name = _normalize_queue_name(payload.queue_name)
+    ttl_seconds = payload.ttl_seconds or get_zpe_settings().enroll_token_ttl_seconds
+    try:
+        token = get_runtime_node_store().create_join_token(
+            tenant_id=tenant_id,
+            owner_user_id=user.user_id,
+            queue_name=queue_name,
+            ttl_seconds=ttl_seconds,
+            node_name_hint=payload.node_name_hint,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    api_base = _resolve_api_base(request)
+    install_script_url = f"{api_base}/api/runtime/nodes/install.sh"
+    return RuntimeNodeJoinTokenResponse(
+        join_token=token.token,
+        expires_at=token.expires_at,
+        token_ttl_seconds=token.ttl_seconds,
+        queue_name=queue_name,
+        install_script_url=install_script_url,
+        register_endpoint=f"{api_base}/api/runtime/nodes/register",
+        install_command=_build_install_command(
+            install_script_url=install_script_url,
+            api_base=api_base,
+            join_token=token.token,
+            queue_name=queue_name,
+            node_name_hint=payload.node_name_hint,
+        ),
+    )
+
+
+@router.post("/nodes/register", response_model=RuntimeNodeRegisterResponse)
+async def register_runtime_compute_node(
+    payload: RuntimeNodeRegisterRequest,
+) -> RuntimeNodeRegisterResponse:
+    try:
+        join_token = get_runtime_node_store().consume_join_token(payload.token)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="join token not found") from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    server_id = f"compute-{uuid4().hex}"
+    queue_name = _normalize_queue_name(join_token.queue_name)
+    target_store = get_runtime_node_store()
+    target = target_store.add_target(
+        tenant_id=join_token.tenant_id,
+        user_id=join_token.owner_user_id,
+        queue_name=queue_name,
+        server_id=server_id,
+        name=payload.name,
+        metadata=payload.meta,
+    )
+    if target_store.get_active_target(join_token.tenant_id, join_token.owner_user_id) is None:
+        target_store.set_active_target(
+            join_token.tenant_id,
+            join_token.owner_user_id,
+            target.target_id,
+        )
+
+    return RuntimeNodeRegisterResponse(
+        server_id=server_id,
+        target_id=target.target_id,
+        queue_name=target.queue_name,
+        registered_at=target.registered_at,
+        name=target.name,
+    )
 
 
 @router.post("/jobs:submit", response_model=SubmitJobAccepted, status_code=202)
@@ -157,11 +285,15 @@ async def list_runtime_targets(
     offset: int = 0,
 ) -> QueueTargetListResponse:
     user = require_user_identity(raw)
-    target_store = get_queue_target_store()
-    targets = target_store.list_targets(user.user_id)
+    tenant_id = require_tenant_id(raw)
+    try:
+        target_store = get_runtime_node_store()
+        targets = target_store.list_targets(tenant_id, user.user_id)
+        active = target_store.get_active_target(tenant_id, user.user_id)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     total = len(targets)
     sliced = targets[offset : offset + limit]
-    active = target_store.get_active_target(user.user_id)
     response_targets = [
         QueueTarget(
             id=target.target_id,
@@ -185,10 +317,13 @@ async def select_runtime_target(
     raw: Request,
 ) -> QueueTargetSelectResponse:
     user = require_user_identity(raw)
-    target_store = get_queue_target_store()
+    tenant_id = require_tenant_id(raw)
     try:
-        target_store.ensure_target_owner(user.user_id, target_id)
+        target_store = get_runtime_node_store()
+        target_store.ensure_target_owner(tenant_id, user.user_id, target_id)
+        target_store.set_active_target(tenant_id, user.user_id, target_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="target not found") from exc
-    target_store.set_active_target(user.user_id, target_id)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     return QueueTargetSelectResponse(active_target_id=target_id)

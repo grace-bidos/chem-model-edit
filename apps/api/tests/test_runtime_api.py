@@ -15,6 +15,7 @@ from services.runtime import (
     RuntimeDownstreamError,
     RuntimeNotFoundError,
 )
+from services.runtime_nodes import RuntimeJoinToken, RuntimeTarget
 
 
 def _headers(*, user_id: str = "user-1", tenant_id: str = "tenant-1") -> dict[str, str]:
@@ -266,3 +267,118 @@ def test_runtime_gateway_apply_event_requires_event_template(monkeypatch):
 
     with pytest.raises(RuntimeConfigurationError, match="RUNTIME_COMMAND_EVENT_URL_TEMPLATE"):
         gateway.apply_event(event)
+
+
+def test_runtime_issue_join_token(monkeypatch):
+    class _RuntimeNodeStore:
+        def create_join_token(  # type: ignore[no-untyped-def]
+            self, *, tenant_id, owner_user_id, queue_name, ttl_seconds, node_name_hint
+        ):
+            _ = tenant_id
+            _ = owner_user_id
+            _ = ttl_seconds
+            return RuntimeJoinToken(
+                token="join-token-1",
+                tenant_id="tenant-1",
+                owner_user_id="user-1",
+                queue_name=queue_name,
+                created_at="2026-02-18T00:00:00+00:00",
+                expires_at="2026-02-18T00:30:00+00:00",
+                ttl_seconds=1800,
+                node_name_hint=node_name_hint,
+                label=queue_name,
+            )
+
+    monkeypatch.setattr("app.routers.runtime.get_runtime_node_store", lambda: _RuntimeNodeStore())
+    client = TestClient(app)
+    response = client.post(
+        "/api/runtime/nodes/join-token",
+        json={"queue_name": "highmem", "ttl_seconds": 1800, "node_name_hint": "node-1"},
+        headers=_headers(),
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["join_token"] == "join-token-1"
+    assert payload["queue_name"] == "highmem"
+    assert "--join-token join-token-1" in payload["install_command"]
+    assert "--queue-name highmem" in payload["install_command"]
+
+
+def test_runtime_install_script_endpoint_available():
+    client = TestClient(app)
+    response = client.get("/api/runtime/nodes/install.sh")
+    assert response.status_code == 200
+    assert "install-compute-node.sh" in response.text
+    assert "--join-token" in response.text
+
+
+def test_runtime_register_compute_node(monkeypatch):
+    class _RuntimeNodeStore:
+        def __init__(self):
+            self.active_target: RuntimeTarget | None = None
+
+        def consume_join_token(self, _token):  # type: ignore[no-untyped-def]
+            return RuntimeJoinToken(
+                token="join-token-1",
+                tenant_id="tenant-1",
+                owner_user_id="user-1",
+                queue_name="standard",
+                created_at="2026-02-18T00:00:00+00:00",
+                expires_at="2026-02-18T00:30:00+00:00",
+                ttl_seconds=1800,
+                label="standard",
+            )
+
+        def add_target(self, *, tenant_id, user_id, queue_name, server_id, name=None, metadata=None):  # type: ignore[no-untyped-def]
+            _ = tenant_id
+            _ = user_id
+            _ = server_id
+            _ = metadata
+            return RuntimeTarget(
+                target_id="qt-1",
+                tenant_id="tenant-1",
+                user_id="user-1",
+                queue_name=queue_name,
+                server_id="compute-1",
+                registered_at="2026-02-18T00:45:00+00:00",
+                name=name,
+            )
+
+        def get_active_target(self, _tenant_id, _user_id):  # type: ignore[no-untyped-def]
+            return self.active_target
+
+        def set_active_target(self, _tenant_id, _user_id, _target_id):  # type: ignore[no-untyped-def]
+            self.active_target = RuntimeTarget(
+                target_id="qt-1",
+                tenant_id="tenant-1",
+                user_id="user-1",
+                queue_name="standard",
+                server_id="compute-1",
+                registered_at="2026-02-18T00:45:00+00:00",
+            )
+
+    monkeypatch.setattr("app.routers.runtime.get_runtime_node_store", lambda: _RuntimeNodeStore())
+    client = TestClient(app)
+    response = client.post(
+        "/api/runtime/nodes/register",
+        json={"token": "join-token-1", "name": "worker-1"},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["server_id"].startswith("compute-")
+    assert payload["target_id"] == "qt-1"
+    assert payload["queue_name"] == "standard"
+
+
+def test_runtime_register_requires_owner(monkeypatch):
+    class _RuntimeNodeStore:
+        def consume_join_token(self, _token):  # type: ignore[no-untyped-def]
+            raise KeyError("join token not found")
+
+    monkeypatch.setattr("app.routers.runtime.get_runtime_node_store", lambda: _RuntimeNodeStore())
+    client = TestClient(app)
+    response = client.post(
+        "/api/runtime/nodes/register",
+        json={"token": "join-token-1"},
+    )
+    assert response.status_code == 404

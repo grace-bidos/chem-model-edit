@@ -110,3 +110,33 @@ class RuntimeJobStatusResponse(ApiModel):
 class RuntimeEventAck(ApiModel):
     ok: bool = True
     idempotent: bool = False
+
+
+class RuntimeNodeJoinTokenRequest(ApiModel):
+    queue_name: str | None = None
+    ttl_seconds: int | None = Field(default=None, ge=1)
+    node_name_hint: str | None = None
+
+
+class RuntimeNodeJoinTokenResponse(ApiModel):
+    join_token: str
+    expires_at: str
+    token_ttl_seconds: int
+    queue_name: str
+    install_script_url: str
+    register_endpoint: str
+    install_command: str
+
+
+class RuntimeNodeRegisterRequest(ApiModel):
+    token: str
+    name: str | None = None
+    meta: dict[str, Any] | None = None
+
+
+class RuntimeNodeRegisterResponse(ApiModel):
+    server_id: str
+    target_id: str
+    queue_name: str
+    registered_at: str
+    name: str | None = None
